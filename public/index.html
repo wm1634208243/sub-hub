@@ -1659,15 +1659,17 @@
           <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-850 border border-slate-800 rounded-3xl p-5 shadow-xl">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <span class="text-sm font-bold text-white">🔑 我的专属订阅 Token 与有效期</span>
-                  <span v-if="isTokenExpired" class="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30">已过期</span>
-                  <span v-else-if="config.tokenExpiresAt" class="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full border border-amber-500/30">到期: {{ formatDate(config.tokenExpiresAt) }}</span>
-                  <span v-else class="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30">永久有效</span>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-bold text-white">🔑 我的专属安全访问密钥 (Subscription & Rules Token)</span>
+                  <span class="text-[10px] bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-500/20 font-mono">通用鉴权</span>
+                  <span v-if="isTokenExpired" class="bg-rose-500/20 text-rose-300 text-[10px] px-2 py-0.5 rounded-full border border-rose-500/30 font-medium">⚠️ 密钥已过期</span>
+                  <span v-else-if="config.tokenExpiresAt" class="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full border border-amber-500/30 font-medium">到期: {{ formatDate(config.tokenExpiresAt) }}</span>
+                  <span v-else class="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/30 font-medium">✨ 永久有效</span>
                 </div>
                 <div class="text-xs text-slate-400 font-mono flex items-center gap-2 flex-wrap">
-                  <span>Token:</span>
-                  <span class="text-cyan-300 font-bold bg-slate-950 px-2 py-0.5 rounded border border-slate-800 select-all">{{ config.subscriptionToken }}</span>
+                  <span>密钥 Token:</span>
+                  <span class="text-cyan-300 font-bold bg-slate-950 px-2.5 py-0.5 rounded border border-slate-800 select-all">{{ config.subscriptionToken }}</span>
+                  <span class="text-[11px] text-slate-500 font-sans hidden sm:inline">（统一鉴权聚合订阅与纯规则分流脚本）</span>
                 </div>
               </div>
 
@@ -2034,85 +2036,17 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   请前往「🎨 规则分流」开启 <code class="text-cyan-400 font-mono">GEOSITE, cn</code> 与 <code class="text-cyan-400 font-mono">GEOIP, CN</code>，并确保 DNS 设置了国内高优先级 Nameservers（如 223.5.5.5）。
                 </p>
               </div>
+
+              <div class="bg-slate-950 p-4 rounded-2xl border border-purple-500/25 space-y-1.5 md:col-span-2">
+                <div class="font-bold text-purple-300 flex items-center gap-1.5">
+                  <span>❓ 聚合订阅 URL 与纯规则分流 URL 是使用同一个 Token 吗？</span>
+                </div>
+                <p class="text-slate-300 leading-relaxed">
+                  <strong>是的，统一使用此安全 Token。</strong> 每个 SubHub 用户拥有专属唯一的安全访问密钥（Token）。无论是全格式聚合订阅链接（<code class="text-cyan-300 font-mono">/api/sub</code>）、Clash 订阅（<code class="text-cyan-300 font-mono">/api/clash.yaml</code>）、Sing-Box 订阅（<code class="text-cyan-300 font-mono">/api/sing-box.json</code>）还是纯规则分流覆写脚本（<code class="text-purple-300 font-mono">/api/rules.js</code>），均使用此专属 Token 统一鉴权。当你点击「重置 Token」或修改到期时间时，所有关联的订阅和规则直链都会同步更新受控，全方位保障配置安全。
+                </p>
+              </div>
             </div>
 
-          </div>
-
-          <!-- 底部修改密码面板 -->
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
-            <h3 class="text-base font-bold text-white flex items-center gap-2">
-              <span>🔐 修改当前账户登录密码</span>
-            </h3>
-
-            <form @submit.prevent="submitChangePassword" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="text-xs text-slate-400 block mb-1 font-semibold">原密码 *</label>
-                <div class="relative">
-                  <input 
-                    v-model="pwdForm.oldPassword" 
-                    :type="showOldPassword ? 'text' : 'password'" 
-                    placeholder="输入当前旧密码"
-                    class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-9 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
-                    required
-                  />
-                  <button 
-                    type="button" 
-                    @click="showOldPassword = !showOldPassword" 
-                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 transition-colors p-1 cursor-pointer"
-                  >
-                    <span class="text-xs">{{ showOldPassword ? '🙈' : '👁️' }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label class="text-xs text-slate-400 block mb-1 font-semibold">新密码 *</label>
-                <div class="relative">
-                  <input 
-                    v-model="pwdForm.newPassword" 
-                    :type="showNewPassword ? 'text' : 'password'" 
-                    placeholder="不少于 4 位新密码"
-                    class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-9 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
-                    required
-                  />
-                  <button 
-                    type="button" 
-                    @click="showNewPassword = !showNewPassword" 
-                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 transition-colors p-1 cursor-pointer"
-                  >
-                    <span class="text-xs">{{ showNewPassword ? '🙈' : '👁️' }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label class="text-xs text-slate-400 block mb-1 font-semibold">确认新密码 *</label>
-                <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
-                    <input 
-                      v-model="pwdForm.confirmPassword" 
-                      :type="showConfirmPassword ? 'text' : 'password'" 
-                      placeholder="重复输入新密码"
-                      class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-9 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
-                      required
-                    />
-                    <button 
-                      type="button" 
-                      @click="showConfirmPassword = !showConfirmPassword" 
-                      class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-200 transition-colors p-1 cursor-pointer"
-                    >
-                      <span class="text-xs">{{ showConfirmPassword ? '🙈' : '👁️' }}</span>
-                    </button>
-                  </div>
-                  <button 
-                    type="submit" 
-                    class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-md shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    确认修改
-                  </button>
-                </div>
-              </div>
-            </form>
           </div>
 
         </div>
