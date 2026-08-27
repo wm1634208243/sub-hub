@@ -16,7 +16,7 @@ import { exec } from 'child_process';
 import util from 'util';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '3.0.0';
+const CURRENT_VERSION = '1.0.0';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1155,7 +1155,7 @@ app.get('/api/admin/backup/export', authMiddleware, adminOnly, async (req, res) 
 
     const snapshot = {
       _type: 'SUBHUB_FULL_SYSTEM_SNAPSHOT',
-      version: '3.0.0',
+      version: '1.0.0',
       exportedAt: new Date().toISOString(),
       exportedBy: req.session.username,
       stats: {
@@ -1419,7 +1419,7 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
 init().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
-    console.log(`🚀 Clash Sub Hub v3.0 已启动`);
+    console.log(`🚀 Clash Sub Hub v1.0.0 已启动`);
     console.log(`🌐 Web 管理端: http://localhost:${PORT}`);
     console.log(`👤 默认账号: admin / admin`);
     console.log(`====================================================`);
