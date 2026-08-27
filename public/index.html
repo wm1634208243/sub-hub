@@ -85,10 +85,13 @@
       cursor: pointer;
       z-index: 5;
     }
+    [v-cloak] {
+      display: none !important;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-cyan-500 selection:text-slate-950">
-  <div id="app" class="min-h-screen flex flex-col">
+  <div id="app" v-cloak class="min-h-screen flex flex-col">
 
     <!-- 登录 / 注册界面 -->
     <div v-if="!isLoggedIn" class="flex-1 flex items-center justify-center p-4">
@@ -4312,6 +4315,9 @@ function main(config, profileName) {
           activeTab.value = 'gui';
           const totalRules = (parsed.proxyDomains.length + parsed.proxyKeywords.length + parsed.proxyIps.length + parsed.proxyProcesses.length +
                               parsed.directDomains.length + parsed.directKeywords.length + parsed.directIps.length + parsed.directProcesses.length);
+          showToast(`成功解析并映射到 GUI（包含 ${totalRules} 条规则与加速配置）！`);
+        };
+
         const fetchVersionInfo = async (silent = false) => {
           if (!token.value) return;
           checkingVersion.value = true;
