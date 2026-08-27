@@ -319,8 +319,8 @@ function findUserAndCheckSubscriptionAccess(token) {
   return { ok: true, matchUser, userCfg };
 }
 
-// 1. JavaScript Override Script (/api/rules.js)
-app.get('/api/rules.js', (req, res) => {
+// 1. JavaScript Override Script (/api/rules.js, /api/js, /api/rules)
+app.get(['/api/rules.js', '/api/js', '/api/rules'], (req, res) => {
   const deny = (msg) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     return res.status(403).send(`// Error: 403 Forbidden - ${msg}`);
