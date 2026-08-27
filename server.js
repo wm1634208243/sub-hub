@@ -43,12 +43,13 @@ const USERS_FILE  = path.join(DATA_DIR, 'users.json');
 const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const CONFIGS_DIR = path.join(DATA_DIR, 'configs');
 const OLD_CONFIG  = path.join(DATA_DIR, 'config.json');
+const LOGS_FILE   = path.join(DATA_DIR, 'logs.json');
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days persistent session
 
 // ── In-memory stores & persistence ────────────────────────────────────────────
 const activeSessions = new Map(); // token → { username, role, expiresAt }
 const compiledCache  = new Map(); // username → compiledJs
-const accessLogs     = new Map(); // username → [{ time, ip, ua }]
+const accessLogs     = new Map(); // username → [{ id, time, ip, ua, type, status, detail }]
 
 function loadSessions() {
   try {
@@ -72,6 +73,46 @@ async function saveSessions() {
     }
     await fs.promises.writeFile(SESSIONS_FILE, JSON.stringify(obj, null, 2));
   } catch {}
+}
+
+function loadLogs() {
+  try {
+    if (fs.existsSync(LOGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(LOGS_FILE, 'utf-8'));
+      for (const [k, v] of Object.entries(data)) {
+        if (Array.isArray(v)) {
+          accessLogs.set(k, v);
+        }
+      }
+    }
+  } catch {}
+}
+
+async function saveLogs() {
+  try {
+    const obj = {};
+    for (const [k, v] of accessLogs.entries()) {
+      obj[k] = v;
+    }
+    await fs.promises.writeFile(LOGS_FILE, JSON.stringify(obj, null, 2));
+  } catch {}
+}
+
+function recordAccessLog(username, { ip, ua, type, status = 200, detail = '' }) {
+  if (!username) username = 'admin';
+  if (!accessLogs.has(username)) accessLogs.set(username, []);
+  const list = accessLogs.get(username);
+  list.unshift({
+    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    time: new Date().toISOString(),
+    ip: ip || '127.0.0.1',
+    ua: ua || 'Direct / Unknown UA',
+    type: type || '🌐 订阅拉取',
+    status: Number(status) || 200,
+    detail: detail || ''
+  });
+  if (list.length > 100) list.pop();
+  saveLogs();
 }
 
 app.use(cors({ origin: true, credentials: true }));
@@ -179,6 +220,7 @@ async function migrate() {
 async function init() {
   fs.mkdirSync(CONFIGS_DIR, { recursive: true });
   loadSessions();
+  loadLogs();
   await migrate();
 
   let users = loadUsers();
@@ -321,7 +363,11 @@ function findUserAndCheckSubscriptionAccess(token) {
 
 // 1. JavaScript Override Script (/api/rules.js, /api/js, /api/rules)
 app.get(['/api/rules.js', '/api/js', '/api/rules'], (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+
   const deny = (msg) => {
+    recordAccessLog('admin', { ip, ua, type: '⚡ JS 规则脚本', status: 403, detail: `403 拒绝访问: ${msg}` });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     return res.status(403).send(`// Error: 403 Forbidden - ${msg}`);
   };
@@ -332,13 +378,14 @@ app.get(['/api/rules.js', '/api/js', '/api/rules'], (req, res) => {
 
   const { matchUser, userCfg } = access;
 
-  // Log access (keep last 50)
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-  const ua = req.headers['user-agent'] || 'unknown';
-  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
-  const log = accessLogs.get(matchUser.username);
-  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [JS Override]` });
-  if (log.length > 50) log.pop();
+  // Log access
+  recordAccessLog(matchUser.username, {
+    ip,
+    ua,
+    type: '⚡ JS 规则脚本',
+    status: 200,
+    detail: '客户端拉取纯规则预处理覆写脚本成功'
+  });
 
   // Dynamic compile with UA platform awareness
   const js = compileConfigToJs(userCfg, ua);
@@ -350,7 +397,11 @@ app.get(['/api/rules.js', '/api/js', '/api/rules'], (req, res) => {
 
 // 2. Full Clash / Mihomo Aggregated YAML Subscription (/api/clash.yaml)
 app.get('/api/clash.yaml', async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+
   const deny = (msg) => {
+    recordAccessLog('admin', { ip, ua, type: '🌟 Clash YAML 订阅', status: 403, detail: `403 拒绝访问: ${msg}` });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     return res.status(403).send(`# Error: 403 Forbidden - ${msg}`);
   };
@@ -361,15 +412,15 @@ app.get('/api/clash.yaml', async (req, res) => {
 
   const { matchUser, userCfg } = access;
 
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-  const ua = req.headers['user-agent'] || 'unknown';
-  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
-  const log = accessLogs.get(matchUser.username);
-  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Clash YAML]` });
-  if (log.length > 50) log.pop();
-
   try {
     const result = await aggregateClashYaml(userCfg, ua);
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '🌟 Clash YAML 订阅',
+      status: 200,
+      detail: '客户端成功拉取聚合 Clash YAML 订阅与策略组'
+    });
     res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Profile-Update-Interval', '24');
@@ -379,6 +430,13 @@ app.get('/api/clash.yaml', async (req, res) => {
     }
     res.send(result.yaml);
   } catch (err) {
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '🌟 Clash YAML 订阅',
+      status: 500,
+      detail: `500 生成异常: ${err.message}`
+    });
     console.error('aggregateClashYaml error:', err);
     res.status(500).send(`# Error generating YAML: ${err.message}`);
   }
@@ -389,8 +447,10 @@ app.get('/api/clash.yaml', async (req, res) => {
 app.get(['/api/sub', '/api/subscription'], async (req, res) => {
   const { token, target } = req.query;
   const ua = req.headers['user-agent'] || '';
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
 
   const deny = (msg) => {
+    recordAccessLog('admin', { ip, ua, type: '🤖 智能自适应订阅', status: 403, detail: `403 拒绝访问: ${msg}` });
     res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
   };
 
@@ -400,13 +460,15 @@ app.get(['/api/sub', '/api/subscription'], async (req, res) => {
   const { matchUser, userCfg } = access;
   const clientTarget = detectClientTarget(ua, target);
 
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
-  const log = accessLogs.get(matchUser.username);
-  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Auto Sub: ${clientTarget.toUpperCase()}]` });
-  if (log.length > 50) log.pop();
-
   try {
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: `🤖 智能订阅 (${clientTarget.toUpperCase()})`,
+      status: 200,
+      detail: `UA 自动识别客户端为 [${clientTarget.toUpperCase()}] 并下发相应格式`
+    });
+
     if (clientTarget === 'clash') {
       const result = await aggregateClashYaml(userCfg, ua);
       res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
@@ -445,6 +507,13 @@ app.get(['/api/sub', '/api/subscription'], async (req, res) => {
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.send(b64);
   } catch (err) {
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '🤖 智能自适应订阅',
+      status: 500,
+      detail: `500 生成异常: ${err.message}`
+    });
     console.error('Subscription dispatch error:', err);
     res.status(500).send(`# Error generating subscription: ${err.message}`);
   }
@@ -453,29 +522,42 @@ app.get(['/api/sub', '/api/subscription'], async (req, res) => {
 // ── Base64 Single Nodes Output ────────────────────────────────────────────────
 
 app.get(['/api/base64', '/api/sub.txt', '/api/nodes.txt'], async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
   const { token } = req.query;
-  const deny = (msg) => res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+
+  const deny = (msg) => {
+    recordAccessLog('admin', { ip, ua, type: '🔗 Base64 单节点列表', status: 403, detail: `403 拒绝访问: ${msg}` });
+    return res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+  };
 
   const access = findUserAndCheckSubscriptionAccess(token);
   if (!access.ok) return deny(access.error);
 
   const { matchUser, userCfg } = access;
 
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-  const ua = req.headers['user-agent'] || 'unknown';
-  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
-  const log = accessLogs.get(matchUser.username);
-  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Base64 Nodes]` });
-  if (log.length > 50) log.pop();
-
   try {
     const { proxies, userinfo } = await fetchAllUserProxies(userCfg);
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '🔗 Base64 单节点列表',
+      status: 200,
+      detail: `成功下发 ${proxies.length} 个清洗单节点 (小火箭/V2Ray)`
+    });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     if (userinfo) res.setHeader('Subscription-Userinfo', userinfo);
     const b64 = convertToBase64(proxies);
     res.send(b64);
   } catch (err) {
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '🔗 Base64 单节点列表',
+      status: 500,
+      detail: `500 生成异常: ${err.message}`
+    });
     console.error('Base64 export error:', err);
     res.status(500).send(`# Error generating Base64: ${err.message}`);
   }
@@ -484,29 +566,42 @@ app.get(['/api/base64', '/api/sub.txt', '/api/nodes.txt'], async (req, res) => {
 // ── Sing-Box JSON Output ──────────────────────────────────────────────────────
 
 app.get(['/api/sing-box.json', '/api/singbox', '/api/sb.json'], async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
   const { token } = req.query;
-  const deny = (msg) => res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+
+  const deny = (msg) => {
+    recordAccessLog('admin', { ip, ua, type: '📦 Sing-Box 原生 JSON', status: 403, detail: `403 拒绝访问: ${msg}` });
+    return res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+  };
 
   const access = findUserAndCheckSubscriptionAccess(token);
   if (!access.ok) return deny(access.error);
 
   const { matchUser, userCfg } = access;
 
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-  const ua = req.headers['user-agent'] || 'unknown';
-  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
-  const log = accessLogs.get(matchUser.username);
-  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Sing-Box JSON]` });
-  if (log.length > 50) log.pop();
-
   try {
     const { proxies, userinfo } = await fetchAllUserProxies(userCfg);
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '📦 Sing-Box 原生 JSON',
+      status: 200,
+      detail: `成功下发 Sing-Box JSON 远程配置 (含 ${proxies.length} 节点与分流规则)`
+    });
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     if (userinfo) res.setHeader('Subscription-Userinfo', userinfo);
     const sbJson = convertToSingBoxJson(proxies, userCfg);
     res.send(JSON.stringify(sbJson, null, 2));
   } catch (err) {
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '📦 Sing-Box 原生 JSON',
+      status: 500,
+      detail: `500 生成异常: ${err.message}`
+    });
     console.error('Sing-Box export error:', err);
     res.status(500).send(`# Error generating Sing-Box JSON: ${err.message}`);
   }
@@ -515,29 +610,42 @@ app.get(['/api/sing-box.json', '/api/singbox', '/api/sb.json'], async (req, res)
 // ── Surge Proxy List Output ───────────────────────────────────────────────────
 
 app.get(['/api/surge.list', '/api/surge'], async (req, res) => {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
   const { token } = req.query;
-  const deny = (msg) => res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+
+  const deny = (msg) => {
+    recordAccessLog('admin', { ip, ua, type: '⚡ Surge 策略列表', status: 403, detail: `403 拒绝访问: ${msg}` });
+    return res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+  };
 
   const access = findUserAndCheckSubscriptionAccess(token);
   if (!access.ok) return deny(access.error);
 
   const { matchUser, userCfg } = access;
 
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-  const ua = req.headers['user-agent'] || 'unknown';
-  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
-  const log = accessLogs.get(matchUser.username);
-  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Surge List]` });
-  if (log.length > 50) log.pop();
-
   try {
     const { proxies, userinfo } = await fetchAllUserProxies(userCfg);
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '⚡ Surge 策略列表',
+      status: 200,
+      detail: `成功下发 Surge 策略列表 (${proxies.length} 个节点)`
+    });
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     if (userinfo) res.setHeader('Subscription-Userinfo', userinfo);
     const surgeList = convertToSurgeList(proxies);
     res.send(surgeList);
   } catch (err) {
+    recordAccessLog(matchUser.username, {
+      ip,
+      ua,
+      type: '⚡ Surge 策略列表',
+      status: 500,
+      detail: `500 生成异常: ${err.message}`
+    });
     console.error('Surge export error:', err);
     res.status(500).send(`# Error generating Surge list: ${err.message}`);
   }
@@ -575,6 +683,16 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   // Clear failure counter on success
   recordLoginSuccess(username);
 
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  recordAccessLog(user.username, {
+    ip,
+    ua,
+    type: '🔑 账号登录',
+    status: 200,
+    detail: 'Web 管理控制台登录成功'
+  });
+
   const sessionToken = crypto.randomBytes(24).toString('hex');
   activeSessions.set(sessionToken, { username: user.username, role: user.role, expiresAt: Date.now() + SESSION_TTL });
   await saveSessions();
@@ -610,6 +728,16 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   await saveUsers(users);
   await saveUserConfig(cleanName, defaultUserConfig());
 
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  recordAccessLog(cleanName, {
+    ip,
+    ua,
+    type: '👤 新用户注册',
+    status: 200,
+    detail: '账号注册成功并初始化专属配置'
+  });
+
   // Auto login upon registration
   const sessionToken = crypto.randomBytes(24).toString('hex');
   activeSessions.set(sessionToken, { username: cleanName, role: 'user', expiresAt: Date.now() + SESSION_TTL });
@@ -643,6 +771,17 @@ app.post('/api/config', authMiddleware, async (req, res) => {
     if (CONFIG_WHITELIST.has(k)) updates[k] = v;
   }
   await saveUserConfig(req.session.username, { ...current, ...updates });
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  recordAccessLog(req.session.username, {
+    ip,
+    ua,
+    type: '💾 配置保存发布',
+    status: 200,
+    detail: '规则分流与策略组设置已保存并热重载生效'
+  });
+
   res.json({ success: true, message: '配置保存成功！' });
 });
 
@@ -727,6 +866,17 @@ app.post('/api/subscriptions/refresh', authMiddleware, async (req, res) => {
 
   cfg.subscriptions = updatedSubs;
   await saveUserConfig(req.session.username, cfg);
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  const totalNodes = updatedSubs.reduce((acc, cur) => acc + (cur.nodesCount || 0), 0);
+  recordAccessLog(req.session.username, {
+    ip,
+    ua,
+    type: '🛰️ 订阅节点同步',
+    status: 200,
+    detail: `手动批量同步了 ${updatedSubs.length} 个机场订阅，共聚合 ${totalNodes} 个节点`
+  });
 
   res.json({ success: true, subscriptions: updatedSubs });
 });
@@ -854,6 +1004,12 @@ app.post('/api/nodes/health', authMiddleware, async (req, res) => {
 
 app.get('/api/access-log', authMiddleware, (req, res) => {
   res.json(accessLogs.get(req.session.username) || []);
+});
+
+app.post('/api/access-log/clear', authMiddleware, async (req, res) => {
+  accessLogs.set(req.session.username, []);
+  await saveLogs();
+  res.json({ success: true, message: '日志已清空' });
 });
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
@@ -1100,8 +1256,22 @@ async function checkAndRefreshAllSubscriptions() {
             sub.sourceType = data.sourceType;
             sub.updatedAt = new Date().toISOString();
             hasUpdates = true;
+            recordAccessLog(u.username, {
+              ip: '127.0.0.1 (系统调度)',
+              ua: 'SubHub Auto-Scheduler Daemon',
+              type: '⏰ 定时自动同步',
+              status: 200,
+              detail: `定时同步订阅 [${sub.name || sub.url}] 成功，获取到 ${data.nodesCount} 个节点`
+            });
           } catch (e) {
             console.warn(`[Auto-Refresh] 自动同步 ${sub.name || sub.url} 失败: ${e.message}`);
+            recordAccessLog(u.username, {
+              ip: '127.0.0.1 (系统调度)',
+              ua: 'SubHub Auto-Scheduler Daemon',
+              type: '⏰ 定时自动同步',
+              status: 500,
+              detail: `定时同步订阅 [${sub.name || sub.url}] 失败: ${e.message}`
+            });
           }
         }
       }
