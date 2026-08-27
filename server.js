@@ -12,6 +12,26 @@ import { fetchSubscription, clearSubCache } from './subscription-fetcher.js';
 import { convertToBase64, convertToSingBoxJson, convertToSurgeList, detectClientTarget } from './format-converter.js';
 import { formatNodeName, identifyNodeCountry, prewarmDnsForProxies } from './node-renamer.js';
 import { batchProbeProxies, applyLatencyFilterAndSort } from './latency-tester.js';
+import { exec } from 'child_process';
+import util from 'util';
+const execPromise = util.promisify(exec);
+
+const CURRENT_VERSION = '3.0.0';
+const REPO_OWNER = 'wm1634208243';
+const REPO_NAME = 'sub-hub';
+const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
+
+function compareVersions(v1, v2) {
+  const parts1 = String(v1).replace(/^v/, '').split('.').map(Number);
+  const parts2 = String(v2).replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1094,6 +1114,122 @@ async function checkAndRefreshAllSubscriptions() {
     console.error('Auto-refresh daemon error:', err);
   }
 }
+
+// ── System Version & Update Center ───────────────────────────────────────────
+
+app.get('/api/system/version', authMiddleware, async (req, res) => {
+  try {
+    const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER === 'true';
+    const isGit = fs.existsSync(path.join(__dirname, '.git'));
+    
+    let latestVersion = CURRENT_VERSION;
+    let hasUpdate = false;
+    let releaseNotes = '';
+    let publishedAt = '';
+    let commitHash = '';
+    let latestCommitHash = '';
+
+    if (isGit) {
+      try {
+        const { stdout } = await execPromise('git rev-parse --short HEAD', { cwd: __dirname });
+        commitHash = stdout.trim();
+      } catch {}
+    }
+
+    try {
+      // 1. Fetch latest release from GitHub API
+      const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`, {
+        headers: { 'User-Agent': 'SubHub-Updater', 'Accept': 'application/vnd.github.v3+json' },
+        signal: AbortSignal.timeout(4000)
+      });
+      if (ghRes.ok) {
+        const ghData = await ghRes.json();
+        latestVersion = (ghData.tag_name || '').replace(/^v/, '') || CURRENT_VERSION;
+        releaseNotes = ghData.body || '';
+        publishedAt = ghData.published_at || '';
+      } else {
+        // 2. Fallback to package.json on main branch
+        const rawRes = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/package.json`, {
+          headers: { 'User-Agent': 'SubHub-Updater' },
+          signal: AbortSignal.timeout(4000)
+        });
+        if (rawRes.ok) {
+          const rawPkg = await rawRes.json();
+          latestVersion = rawPkg.version || CURRENT_VERSION;
+        }
+      }
+    } catch (err) {
+      // Network timeout / rate limit: keep latestVersion as current
+    }
+
+    hasUpdate = compareVersions(latestVersion, CURRENT_VERSION) > 0;
+
+    res.json({
+      success: true,
+      currentVersion: CURRENT_VERSION,
+      latestVersion,
+      hasUpdate,
+      releaseNotes,
+      publishedAt,
+      commitHash,
+      repoUrl: REPO_URL,
+      isDocker,
+      isGit
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const isGit = fs.existsSync(path.join(__dirname, '.git'));
+    const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER === 'true';
+
+    let logs = [];
+
+    if (isGit) {
+      logs.push('🚀 [1/3] 正在从 GitHub 远端拉取最新代码 (git fetch & reset)...');
+      try {
+        const pullRes = await execPromise('git fetch origin main && git reset --hard origin/main', { cwd: __dirname });
+        logs.push(pullRes.stdout || pullRes.stderr || '代码拉取成功');
+      } catch (gitErr) {
+        logs.push(`⚠️ Git 拉取警告: ${gitErr.message}`);
+      }
+
+      logs.push('📦 [2/3] 正在检查并更新运行依赖 (npm install --production)...');
+      try {
+        const npmRes = await execPromise('npm install --production', { cwd: __dirname });
+        if (npmRes.stdout) logs.push(npmRes.stdout.slice(0, 300));
+      } catch (npmErr) {
+        logs.push(`⚠️ 依赖更新提示: ${npmErr.message}`);
+      }
+
+      logs.push('🔄 [3/3] 代码与依赖更新完成！正在触发服务热重启...');
+
+      // Trigger hot restart
+      setTimeout(() => {
+        console.log('🔄 系统在线更新完成，正在重启进程...');
+        process.exit(0);
+      }, 1500);
+
+      return res.json({
+        success: true,
+        message: '升级成功！系统正在自动重启，请稍候 3 秒刷新页面...',
+        logs: logs.join('\n')
+      });
+    } else {
+      return res.json({
+        success: true,
+        isDockerManual: true,
+        message: '当前运行在独立容器环境，可直接在宿主机执行一键更新命令完成无缝升级：',
+        command: `bash <(curl -fsSL https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/install.sh) update`
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: `在线更新失败: ${err.message}` });
+  }
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 

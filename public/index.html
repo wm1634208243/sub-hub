@@ -250,7 +250,17 @@
             </div>
             <div class="hidden sm:flex items-center gap-1.5">
               <span class="font-bold text-white tracking-wide text-sm whitespace-nowrap">Sub Hub</span>
-              <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">v3.0</span>
+              <button 
+                @click="activeTab = 'version'" 
+                class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer flex items-center gap-1"
+                title="点击进入版本管理与在线升级"
+              >
+                <span>v{{ versionInfo.currentVersion || '3.0.0' }}</span>
+                <span v-if="versionInfo.hasUpdate" class="flex h-1.5 w-1.5 relative">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500"></span>
+                </span>
+              </button>
             </div>
           </div>
 
@@ -295,6 +305,16 @@
               📋 日志
             </button>
             <button 
+              @click="activeTab = 'version'" 
+              :class="activeTab === 'version' ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-white'"
+              class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <span>🚀 版本更新</span>
+              <span v-if="versionInfo.hasUpdate" class="text-[9px] bg-rose-500 text-white font-bold px-1.5 py-0.2 rounded-full animate-pulse">
+                NEW
+              </span>
+            </button>
+            <button 
               v-if="currentUser.role === 'admin'"
               @click="activeTab = 'users'" 
               :class="activeTab === 'users' ? 'bg-slate-800 text-amber-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-amber-300'"
@@ -306,6 +326,16 @@
 
           <!-- 右侧操作栏 (防折行，精简排版) -->
           <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <!-- GitHub 仓库快速跳转 -->
+            <a 
+              :href="versionInfo.repoUrl || 'https://github.com/wm1634208243/sub-hub'" 
+              target="_blank" 
+              class="p-2 text-slate-400 hover:text-white hover:bg-slate-950 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors flex items-center justify-center shrink-0"
+              title="⭐️ 在 GitHub 上查看本项目并 Star 支持"
+            >
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            </a>
+
             <!-- 导入/导出 工具胶囊 -->
             <div class="hidden md:flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 gap-1 shrink-0">
               <button 
@@ -2027,6 +2057,209 @@
                 <div class="text-slate-400 text-[11px] leading-relaxed">
                   更换 VPS 服务器部署后，直接上传备份快照，一秒完成整站环境复原与热重载。
                 </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 6: 版本管理与在线更新 (Version Management & OTA Center) -->
+        <div v-show="activeTab === 'version'" class="space-y-6">
+          <!-- 顶部版本状态主看板 -->
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+            <div class="absolute -top-20 -right-20 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-5 border-b border-slate-800/80">
+              <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/25 shrink-0 text-white">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                </div>
+                <div>
+                  <h2 class="text-lg font-bold text-white flex items-center gap-2.5 flex-wrap">
+                    <span>系统版本管理与在线升级</span>
+                    <span 
+                      :class="versionInfo.hasUpdate ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'" 
+                      class="text-xs px-2.5 py-0.5 rounded-full border font-semibold flex items-center gap-1.5"
+                    >
+                      <span class="w-2 h-2 rounded-full" :class="versionInfo.hasUpdate ? 'bg-amber-400 animate-ping' : 'bg-emerald-400'"></span>
+                      <span>{{ versionInfo.hasUpdate ? '🚀 发现新版本 v' + versionInfo.latestVersion : '🟢 当前已是最新版本' }}</span>
+                    </span>
+                  </h2>
+                  <p class="text-xs text-slate-400 mt-1">支持全自动检测 GitHub 官方远端更新，一键热重载平滑升级，无需手动连 SSH 部署</p>
+                </div>
+              </div>
+
+              <!-- 右侧快捷操作按钮 -->
+              <div class="flex items-center gap-2.5 flex-wrap w-full md:w-auto">
+                <button 
+                  @click="fetchVersionInfo(false)" 
+                  :disabled="checkingVersion"
+                  class="flex-1 md:flex-initial bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-cyan-400 border border-slate-700 text-xs px-4 py-2.5 rounded-xl font-medium flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" :class="checkingVersion ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  <span>{{ checkingVersion ? '正在检查中...' : '⚡ 检查远端更新' }}</span>
+                </button>
+
+                <button 
+                  v-if="currentUser.role === 'admin'"
+                  @click="openSystemUpdateConfirm" 
+                  :disabled="updatingSystem"
+                  :class="versionInfo.hasUpdate ? 'bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 shadow-amber-500/20' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20'"
+                  class="flex-1 md:flex-initial text-white text-xs px-5 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 shadow-lg transition-all cursor-pointer"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"/></svg>
+                  <span>{{ versionInfo.hasUpdate ? '🚀 一键在线升级到 v' + versionInfo.latestVersion : '🔄 强制拉取最新代码并热重启' }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 核心版本参数网格 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+              <div class="bg-slate-950/80 p-4 rounded-2xl border border-slate-800/90">
+                <span class="text-xs text-slate-400 font-medium">当前运行版本</span>
+                <div class="text-xl font-extrabold text-cyan-400 mt-1 font-mono">
+                  v{{ versionInfo.currentVersion || '3.0.0' }}
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block truncate">
+                  Git Commit: {{ versionInfo.commitHash ? '#' + versionInfo.commitHash : 'Release' }}
+                </span>
+              </div>
+
+              <div class="bg-slate-950/80 p-4 rounded-2xl border border-slate-800/90">
+                <span class="text-xs text-slate-400 font-medium">GitHub 远端最新版</span>
+                <div class="text-xl font-extrabold mt-1 font-mono" :class="versionInfo.hasUpdate ? 'text-amber-400' : 'text-emerald-400'">
+                  v{{ versionInfo.latestVersion || versionInfo.currentVersion || '3.0.0' }}
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">
+                  {{ versionInfo.hasUpdate ? '发现可用升级' : '与远端完全同步' }}
+                </span>
+              </div>
+
+              <div class="bg-slate-950/80 p-4 rounded-2xl border border-slate-800/90">
+                <span class="text-xs text-slate-400 font-medium">部署运行环境</span>
+                <div class="text-base font-bold text-white mt-1.5 flex items-center gap-1.5">
+                  <span v-if="versionInfo.isDocker" class="text-cyan-300">🐳 Docker 容器环境</span>
+                  <span v-else-if="versionInfo.isGit" class="text-emerald-300">💻 Git 源码 / PM2 模式</span>
+                  <span v-else class="text-slate-300">📦 Node.js 原生模式</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">
+                  支持无缝原子级热重载
+                </span>
+              </div>
+
+              <div class="bg-slate-950/80 p-4 rounded-2xl border border-slate-800/90 flex flex-col justify-between">
+                <span class="text-xs text-slate-400 font-medium">开源社区入口</span>
+                <div class="mt-2">
+                  <a 
+                    :href="versionInfo.repoUrl || 'https://github.com/wm1634208243/sub-hub'" 
+                    target="_blank" 
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 transition-all"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+                    <span>⭐️ GitHub 仓库</span>
+                  </a>
+                </div>
+                <span class="text-[10px] text-slate-500 mt-1">欢迎 Star 与提交建议</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- GitHub 官方开源社区快速通道 -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <a 
+              :href="versionInfo.repoUrl || 'https://github.com/wm1634208243/sub-hub'" 
+              target="_blank" 
+              class="bg-slate-900/90 hover:bg-slate-900 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-4.5 flex items-center justify-between group transition-all"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-lg">
+                  ⭐️
+                </div>
+                <div>
+                  <div class="font-bold text-white text-xs group-hover:text-cyan-300 transition-colors">GitHub 官方仓库</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">查看源码并点亮 Star 支持</div>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-slate-500 group-hover:text-cyan-400 transform group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>
+
+            <a 
+              :href="(versionInfo.repoUrl || 'https://github.com/wm1634208243/sub-hub') + '/issues'" 
+              target="_blank" 
+              class="bg-slate-900/90 hover:bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-2xl p-4.5 flex items-center justify-between group transition-all"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-lg">
+                  🐛
+                </div>
+                <div>
+                  <div class="font-bold text-white text-xs group-hover:text-amber-300 transition-colors">需求建议与反馈</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">提交 Issue 与 Bug 反馈</div>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-slate-500 group-hover:text-amber-400 transform group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>
+
+            <a 
+              :href="(versionInfo.repoUrl || 'https://github.com/wm1634208243/sub-hub') + '/releases'" 
+              target="_blank" 
+              class="bg-slate-900/90 hover:bg-slate-900 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-4.5 flex items-center justify-between group transition-all"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-lg">
+                  📜
+                </div>
+                <div>
+                  <div class="font-bold text-white text-xs group-hover:text-emerald-300 transition-colors">版本历史与更新日志</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5">查看全版本 Releases 记录</div>
+                </div>
+              </div>
+              <svg class="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transform group-hover:translate-x-0.5 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>
+          </div>
+
+          <!-- 备用：终端一键更新指令卡片 -->
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-cyan-400 text-sm">
+                  ⌨️
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold text-white">终端各环境一键升级备用指令</h3>
+                  <p class="text-[11px] text-slate-400">如需在宿主机或服务器命令行手动更新，可复制以下指令直接执行</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+              <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-200">🚀 Linux 一键交互脚本升级</span>
+                  <button 
+                    @click="copyText('bash <(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/install.sh) update')"
+                    class="text-[10px] text-cyan-400 hover:text-cyan-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 cursor-pointer"
+                  >
+                    复制命令
+                  </button>
+                </div>
+                <code class="block font-mono text-[11px] text-cyan-300 bg-slate-900/80 p-2 rounded-lg break-all">
+                  bash &lt;(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/install.sh) update
+                </code>
+              </div>
+
+              <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-200">🐳 Docker Compose 重新拉取构建</span>
+                  <button 
+                    @click="copyText('docker compose down && docker compose up -d --build')"
+                    class="text-[10px] text-cyan-400 hover:text-cyan-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 cursor-pointer"
+                  >
+                    复制命令
+                  </button>
+                </div>
+                <code class="block font-mono text-[11px] text-cyan-300 bg-slate-900/80 p-2 rounded-lg break-all">
+                  docker compose down && docker compose up -d --build
+                </code>
               </div>
             </div>
           </div>
@@ -2038,6 +2271,57 @@
       <footer class="border-t border-slate-900 text-center py-4 text-xs text-slate-600">
         Clash Sub Hub &copy; 2026 - 多订阅聚合、实时流量看板与极速分流
       </footer>
+    </div>
+
+    <!-- 在线升级确认与日志弹窗 (Modal) -->
+    <div v-if="showUpdateModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+              🚀
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">SubHub 系统在线平滑升级</h3>
+              <p class="text-[10px] text-slate-400">拉取 GitHub 远端代码并无缝热重启</p>
+            </div>
+          </div>
+          <button v-if="!updatingSystem" @click="showUpdateModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none">&times;</button>
+        </div>
+
+        <!-- 升级状态与日志终端 -->
+        <div class="space-y-3">
+          <div v-if="updatingSystem" class="flex items-center gap-2.5 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl">
+            <svg class="w-4 h-4 animate-spin shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            <span>正在执行升级流水线，请勿关闭页面...</span>
+          </div>
+
+          <!-- 终端黑框日志输出 -->
+          <div class="bg-black/90 rounded-xl p-3.5 border border-slate-800 font-mono text-[11px] text-emerald-400 max-h-60 overflow-y-auto custom-scrollbar space-y-1">
+            <div v-if="!updateLogs" class="text-slate-500 italic">准备就绪，点击下方按钮开始升级...</div>
+            <pre v-else class="whitespace-pre-wrap leading-relaxed">{{ updateLogs }}</pre>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+          <button 
+            v-if="!updatingSystem"
+            type="button" 
+            @click="showUpdateModal = false" 
+            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-xl font-medium transition-colors cursor-pointer"
+          >
+            关闭
+          </button>
+          <button 
+            v-if="!updatingSystem"
+            type="button" 
+            @click="executeSystemUpdate" 
+            class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <span>立即执行升级</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- 修改自身密码模态框 (Modal) -->
@@ -2769,6 +3053,23 @@ function main(config, profileName) {
         const subForm = ref({ id: '', name: '', url: '', prefix: '', defaultRegion: '', customExpire: '', enabled: true, autoRefreshInterval: 60 });
         const subtTesting = ref(false);
         const subTestResult = ref(null);
+
+        // 系统版本管理与在线更新状态
+        const versionInfo = ref({
+          currentVersion: '3.0.0',
+          latestVersion: '3.0.0',
+          hasUpdate: false,
+          releaseNotes: '',
+          publishedAt: '',
+          commitHash: '',
+          repoUrl: 'https://github.com/wm1634208243/sub-hub',
+          isDocker: false,
+          isGit: true
+        });
+        const checkingVersion = ref(false);
+        const updatingSystem = ref(false);
+        const updateLogs = ref('');
+        const showUpdateModal = ref(false);
 
         // 修改密码表单与明密文切换状态
         const pwdForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -4011,7 +4312,82 @@ function main(config, profileName) {
           activeTab.value = 'gui';
           const totalRules = (parsed.proxyDomains.length + parsed.proxyKeywords.length + parsed.proxyIps.length + parsed.proxyProcesses.length +
                               parsed.directDomains.length + parsed.directKeywords.length + parsed.directIps.length + parsed.directProcesses.length);
-          showToast(`成功解析并映射到 GUI（包含 ${totalRules} 条规则与加速配置）！`);
+        const fetchVersionInfo = async (silent = false) => {
+          if (!token.value) return;
+          checkingVersion.value = true;
+          try {
+            const res = await fetch('/api/system/version', {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              versionInfo.value = data;
+              if (!silent) {
+                if (data.hasUpdate) {
+                  showToast(`🚀 发现新版本 v${data.latestVersion}！`);
+                } else {
+                  showToast('🟢 当前已是最新版本');
+                }
+              }
+            }
+          } catch (e) {
+            if (!silent) showToast('检查更新失败，请稍后重试', 'error');
+          } finally {
+            checkingVersion.value = false;
+          }
+        };
+
+        const openSystemUpdateConfirm = () => {
+          updateLogs.value = '准备就绪，点击下方按钮开始执行平滑升级...';
+          showUpdateModal.value = true;
+        };
+
+        const executeSystemUpdate = async () => {
+          updatingSystem.value = true;
+          updateLogs.value = '🚀 正在向服务端发起在线平滑升级指令...\n';
+          try {
+            const res = await fetch('/api/system/update', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              }
+            });
+            const data = await res.json();
+            if (res.ok) {
+              if (data.logs) {
+                updateLogs.value += data.logs + '\n\n';
+              }
+              if (data.isDockerManual) {
+                updateLogs.value += `ℹ️ ${data.message}\n${data.command}\n`;
+                showToast(data.message);
+                updatingSystem.value = false;
+                return;
+              }
+              updateLogs.value += '🎉 ' + data.message + '\n';
+              showToast(data.message);
+              
+              // Countdown to reload
+              let seconds = 3;
+              const timer = setInterval(() => {
+                seconds--;
+                if (seconds <= 0) {
+                  clearInterval(timer);
+                  window.location.reload();
+                } else {
+                  updateLogs.value += `⏳ ${seconds} 秒后自动刷新页面...\n`;
+                }
+              }, 1000);
+            } else {
+              updateLogs.value += `❌ 升级失败: ${data.error || '未知错误'}\n`;
+              showToast(data.error || '升级失败', 'error');
+              updatingSystem.value = false;
+            }
+          } catch (e) {
+            updateLogs.value += `❌ 请求异常: ${e.message}\n`;
+            showToast('升级请求异常', 'error');
+            updatingSystem.value = false;
+          }
         };
 
         watch(activeTab, (newTab) => {
@@ -4021,6 +4397,8 @@ function main(config, profileName) {
             loadLogs();
           } else if (newTab === 'users') {
             loadAdminUsers();
+          } else if (newTab === 'version') {
+            fetchVersionInfo(false);
           }
         });
 
@@ -4040,6 +4418,7 @@ function main(config, profileName) {
               try { currentUser.value = JSON.parse(savedUserStr); } catch {}
             }
             await loadConfig();
+            fetchVersionInfo(true);
           }
 
           // 2. 后台静默校验 Session 有效性
@@ -4053,6 +4432,7 @@ function main(config, profileName) {
                 currentUser.value = { username: data.username, role: data.role };
                 isLoggedIn.value = true;
                 localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
+                fetchVersionInfo(true);
               }
             } else if (res.status === 401 || res.status === 403) {
               logout();
@@ -4160,7 +4540,15 @@ function main(config, profileName) {
           runNodeHealthCheck,
           systemBackingUp,
           exportSystemSnapshot,
-          handleSystemSnapshotImport
+          handleSystemSnapshotImport,
+          versionInfo,
+          checkingVersion,
+          updatingSystem,
+          updateLogs,
+          showUpdateModal,
+          fetchVersionInfo,
+          openSystemUpdateConfirm,
+          executeSystemUpdate
         };
       }
     });
