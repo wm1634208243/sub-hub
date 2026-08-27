@@ -668,7 +668,7 @@
                     <input 
                       type="checkbox" 
                       v-model="sub.enabled" 
-                      @change="markDirty" 
+                      @change="toggleSubEnabled(sub)" 
                       class="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
                       title="启用/停用该订阅"
                     />
@@ -3992,7 +3992,9 @@ function main(config, profileName) {
                 customExpire: subForm.value.customExpire || '',
                 enabled: subForm.value.enabled,
                 autoRefreshInterval: subForm.value.autoRefreshInterval !== undefined ? subForm.value.autoRefreshInterval : 60,
-                sourceType: subTestResult.value?.sourceType || config.value.subscriptions[idx].sourceType || ''
+                sourceType: subTestResult.value?.sourceType || config.value.subscriptions[idx].sourceType || '',
+                status: subTestResult.value ? (subTestResult.value.nodesCount > 0 ? 'online' : 'error') : config.value.subscriptions[idx].status,
+                error: subTestResult.value?.error || null
               };
               if (subTestResult.value?.nodesCount !== undefined) {
                 config.value.subscriptions[idx].nodesCount = subTestResult.value.nodesCount;
@@ -4015,21 +4017,34 @@ function main(config, profileName) {
               userInfo: subTestResult.value?.userInfo || null,
               sourceType: subTestResult.value?.sourceType || '',
               updatedAt: new Date().toISOString(),
-              status: 'online'
+              status: subTestResult.value ? (subTestResult.value.nodesCount > 0 ? 'online' : 'error') : 'online',
+              error: subTestResult.value?.error || null
             };
             config.value.subscriptions.push(newSub);
           }
 
           showSubModal.value = false;
-          markDirty();
-          showToast('订阅已保存，请点击【保存发布】同步配置！');
+          // 立即持久化保存到后端服务器，避免刷新页面丢失
+          const ok = await saveConfig(true);
+          if (ok) {
+            showToast('✅ 订阅源已成功保存并持久化生效！');
+          }
         };
 
-        const deleteSub = (id) => {
+        const deleteSub = async (id) => {
           if (!confirm('确定删除此订阅源吗？')) return;
           config.value.subscriptions = config.value.subscriptions.filter(s => s.id !== id);
-          markDirty();
-          showToast('已删除订阅源');
+          const ok = await saveConfig(true);
+          if (ok) {
+            showToast('✅ 订阅源已删除并同步保存！');
+          }
+        };
+
+        const toggleSubEnabled = async (sub) => {
+          const ok = await saveConfig(true);
+          if (ok) {
+            showToast(`已${sub.enabled ? '启用' : '停用'}订阅【${sub.name}】并保存`);
+          }
         };
 
         const refreshAllSubs = async () => {
@@ -4211,7 +4226,7 @@ function main(config, profileName) {
         };
 
         // 保存配置
-        const saveConfig = async () => {
+        const saveConfig = async (silent = false) => {
           saving.value = true;
           try {
             if (config.value.mode === 'custom' && editorInstance) {
@@ -4228,13 +4243,18 @@ function main(config, profileName) {
             const data = await res.json();
             if (res.ok) {
               isDirty.value = false;
-              showToast('配置已发布！订阅直链即刻生效');
+              if (!silent) {
+                showToast('配置已发布！订阅直链即刻生效');
+              }
               await updateEditorContent();
+              return true;
             } else {
               showToast(data.error || '保存失败', 'error');
+              return false;
             }
           } catch (e) {
             showToast('网络错误，保存失败', 'error');
+            return false;
           } finally {
             saving.value = false;
           }
@@ -4953,6 +4973,7 @@ function main(config, profileName) {
           testSingleSub,
           saveSubForm,
           deleteSub,
+          toggleSubEnabled,
           refreshAllSubs,
           loadLogs,
           clearLogs,
