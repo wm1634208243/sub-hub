@@ -1121,13 +1121,14 @@ app.get('/api/system/version', authMiddleware, async (req, res) => {
   try {
     const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER === 'true';
     const isGit = fs.existsSync(path.join(__dirname, '.git'));
+    const doCheck = req.query.check === 'true';
     
     let latestVersion = CURRENT_VERSION;
     let hasUpdate = false;
     let releaseNotes = '';
     let publishedAt = '';
     let commitHash = '';
-    let latestCommitHash = '';
+    let checked = false;
 
     if (isGit) {
       try {
@@ -1136,42 +1137,54 @@ app.get('/api/system/version', authMiddleware, async (req, res) => {
       } catch {}
     }
 
-    try {
-      // 1. Fetch latest release from GitHub API
-      const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`, {
-        headers: { 'User-Agent': 'SubHub-Updater', 'Accept': 'application/vnd.github.v3+json' },
-        signal: AbortSignal.timeout(4000)
-      });
-      if (ghRes.ok) {
-        const ghData = await ghRes.json();
-        latestVersion = (ghData.tag_name || '').replace(/^v/, '') || CURRENT_VERSION;
-        releaseNotes = ghData.body || '';
-        publishedAt = ghData.published_at || '';
-      } else {
-        // 2. Fallback to package.json on main branch
-        const rawRes = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/package.json`, {
-          headers: { 'User-Agent': 'SubHub-Updater' },
-          signal: AbortSignal.timeout(4000)
+    if (doCheck) {
+      checked = true;
+      try {
+        // 1. Fetch latest release from GitHub API
+        const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`, {
+          headers: { 'User-Agent': 'SubHub-Updater', 'Accept': 'application/vnd.github.v3+json' },
+          signal: AbortSignal.timeout(5000)
         });
-        if (rawRes.ok) {
-          const rawPkg = await rawRes.json();
-          latestVersion = rawPkg.version || CURRENT_VERSION;
+        if (ghRes.ok) {
+          const ghData = await ghRes.json();
+          latestVersion = (ghData.tag_name || '').replace(/^v/, '') || CURRENT_VERSION;
+          releaseNotes = ghData.body || '';
+          publishedAt = ghData.published_at || '';
+        } else {
+          // 2. Fallback to package.json on main branch
+          const rawRes = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/package.json`, {
+            headers: { 'User-Agent': 'SubHub-Updater' },
+            signal: AbortSignal.timeout(5000)
+          });
+          if (rawRes.ok) {
+            const rawPkg = await rawRes.json();
+            latestVersion = rawPkg.version || CURRENT_VERSION;
+          }
         }
+        hasUpdate = compareVersions(latestVersion, CURRENT_VERSION) > 0;
+      } catch (err) {
+        return res.json({
+          success: true,
+          currentVersion: CURRENT_VERSION,
+          commitHash,
+          repoUrl: REPO_URL,
+          isDocker,
+          isGit,
+          checked: true,
+          checkError: '无法连接到 GitHub 检查更新（网络超时或接口限流）'
+        });
       }
-    } catch (err) {
-      // Network timeout / rate limit: keep latestVersion as current
     }
-
-    hasUpdate = compareVersions(latestVersion, CURRENT_VERSION) > 0;
 
     res.json({
       success: true,
       currentVersion: CURRENT_VERSION,
-      latestVersion,
-      hasUpdate,
+      latestVersion: checked ? latestVersion : null,
+      hasUpdate: checked ? hasUpdate : false,
       releaseNotes,
       publishedAt,
       commitHash,
+      checked,
       repoUrl: REPO_URL,
       isDocker,
       isGit
