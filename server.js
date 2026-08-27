@@ -1,0 +1,1111 @@
+import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
+import { rateLimit } from 'express-rate-limit';
+import { compileConfigToJs } from './compiler.js';
+import { aggregateClashYaml, fetchAllUserProxies } from './aggregator.js';
+import { fetchSubscription, clearSubCache } from './subscription-fetcher.js';
+import { convertToBase64, convertToSingBoxJson, convertToSurgeList, detectClientTarget } from './format-converter.js';
+import { formatNodeName, identifyNodeCountry, prewarmDnsForProxies } from './node-renamer.js';
+import { batchProbeProxies, applyLatencyFilterAndSort } from './latency-tester.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DATA_DIR    = path.join(__dirname, 'data');
+const USERS_FILE  = path.join(DATA_DIR, 'users.json');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const CONFIGS_DIR = path.join(DATA_DIR, 'configs');
+const OLD_CONFIG  = path.join(DATA_DIR, 'config.json');
+const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days persistent session
+
+// ── In-memory stores & persistence ────────────────────────────────────────────
+const activeSessions = new Map(); // token → { username, role, expiresAt }
+const compiledCache  = new Map(); // username → compiledJs
+const accessLogs     = new Map(); // username → [{ time, ip, ua }]
+
+function loadSessions() {
+  try {
+    if (fs.existsSync(SESSIONS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf-8'));
+      const now = Date.now();
+      for (const [k, v] of Object.entries(data)) {
+        if (v && v.expiresAt > now) {
+          activeSessions.set(k, v);
+        }
+      }
+    }
+  } catch {}
+}
+
+async function saveSessions() {
+  try {
+    const obj = {};
+    for (const [k, v] of activeSessions.entries()) {
+      obj[k] = v;
+    }
+    await fs.promises.writeFile(SESSIONS_FILE, JSON.stringify(obj, null, 2));
+  } catch {}
+}
+
+app.use(cors({ origin: true, credentials: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function defaultUserConfig() {
+  return {
+    subscriptionToken: 'rulehub_' + crypto.randomBytes(8).toString('hex'),
+    tokenExpiresAt: null,
+    mode: 'gui',
+    fallbackRule: 'DIRECT',
+    enableGeoSiteCn: true,
+    enableGeoIpCn: true,
+    enableSniffer: true,
+    enableTcpConcurrent: true,
+    enableNoResolve: true,
+    enableUnifiedDelay: true,
+    enableProcessStrict: true,
+    customProxyGroupName: '',
+    targetPlatforms: ['macos', 'windows', 'ios', 'android'],
+    enableAutoPlatformDetect: true,
+    subscriptions: [],
+    enableAutoFlags: true,
+    enableCleanAdAndRate: true,
+    enableGeoIpLookup: true,
+    enableDeadNodeFilter: false,
+    enableLatencySort: false,
+    latencyTimeoutMs: 2000,
+    customRenameRules: [],
+    nameservers:  ['223.5.5.5', '119.29.29.29'],
+    fallbackDns:  ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query'],
+    proxyIps: [], proxyProcesses: [], proxyKeywords: [], proxyDomains: [],
+    directIps: [], directProcesses: [], directKeywords: [], directDomains: [],
+    fakeIpFilter: [],
+    customScript: ''
+  };
+}
+
+function loadUsers() {
+  try {
+    if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+  } catch {}
+  return [];
+}
+
+async function saveUsers(users) {
+  await fs.promises.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
+}
+
+function loadUserConfig(username) {
+  const file = path.join(CONFIGS_DIR, `${username}.json`);
+  const d = defaultUserConfig();
+  try {
+    if (fs.existsSync(file)) {
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      return {
+        ...d,
+        ...parsed,
+        targetPlatforms: parsed.targetPlatforms || d.targetPlatforms
+      };
+    }
+  } catch {}
+  return d;
+}
+
+async function saveUserConfig(username, cfg) {
+  await fs.promises.writeFile(
+    path.join(CONFIGS_DIR, `${username}.json`),
+    JSON.stringify(cfg, null, 2)
+  );
+  compiledCache.delete(username); // invalidate cache
+}
+
+// ── Migration: single-user → multi-user ──────────────────────────────────────
+
+async function migrate() {
+  if (!fs.existsSync(OLD_CONFIG)) return;
+  console.log('🔄 检测到旧版 config.json，正在迁移至多用户格式...');
+
+  let old = {};
+  try { old = JSON.parse(fs.readFileSync(OLD_CONFIG, 'utf-8')); } catch {}
+
+  // Create admin user if none yet
+  let users = loadUsers();
+  if (!users.find(u => u.username === 'admin')) {
+    const plain = old.adminPassword || 'admin';
+    const passwordHash = plain.startsWith('$2') ? plain : await bcrypt.hash(plain, 10);
+    users.unshift({ username: 'admin', passwordHash, role: 'admin', createdAt: new Date().toISOString() });
+    await saveUsers(users);
+  }
+
+  // Migrate config (drop adminPassword)
+  const { adminPassword, ...rest } = old;
+  await saveUserConfig('admin', { ...defaultUserConfig(), ...rest });
+
+  await fs.promises.rename(OLD_CONFIG, OLD_CONFIG + '.migrated');
+  console.log('✅ 迁移完成！旧配置已备份为 config.json.migrated');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  fs.mkdirSync(CONFIGS_DIR, { recursive: true });
+  loadSessions();
+  await migrate();
+
+  let users = loadUsers();
+  if (users.length === 0) {
+    const passwordHash = await bcrypt.hash('admin', 10);
+    users = [{ username: 'admin', passwordHash, role: 'admin', createdAt: new Date().toISOString() }];
+    await saveUsers(users);
+    await saveUserConfig('admin', defaultUserConfig());
+    console.log('👤 已创建默认管理员账号 (用户名: admin  密码: admin)');
+  }
+}
+
+// ── Middleware ────────────────────────────────────────────────────────────────
+
+function authMiddleware(req, res, next) {
+  const header = req.headers.authorization || '';
+  let token = header.startsWith('Bearer ') ? header.slice(7) : null;
+
+  // Check Cookie if no Bearer header
+  if (!token && req.headers.cookie) {
+    const match = req.headers.cookie.match(/(?:^|;\s*)subhub_session=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+  }
+
+  if (!token) return res.status(401).json({ error: '未登录或登录已过期' });
+
+  const session = activeSessions.get(token);
+  if (!session || Date.now() > session.expiresAt) {
+    activeSessions.delete(token);
+    saveSessions();
+    return res.status(401).json({ error: '登录已过期，请重新登录' });
+  }
+
+  // Check if account was disabled by Admin
+  const users = loadUsers();
+  const user = users.find(u => u.username === session.username);
+  if (user && user.disabled) {
+    activeSessions.delete(token);
+    saveSessions();
+    return res.status(403).json({ error: '您的账号已被管理员禁用，请联系管理员' });
+  }
+
+  // 30-day Rolling expiration
+  session.expiresAt = Date.now() + SESSION_TTL;
+  req.session = session;
+  req.token = token;
+  next();
+}
+
+function adminOnly(req, res, next) {
+  if (req.session.role !== 'admin') return res.status(403).json({ error: '需要管理员权限' });
+  next();
+}
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'IP 登录尝试次数过多，请 15 分钟后再试' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 15,
+  message: { error: 'IP 注册尝试次数过多，请 15 分钟后再试' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// ── Brute-force & Timing Attack Defense ───────────────────────────────────────
+const failedLoginAttempts = new Map(); // username -> { count: number, lockedUntil: number }
+const DUMMY_BCRYPT_HASH = '$2a$10$wN36q6m3hR22c8n1J8UuOe8H.pQ6l3f1K8X5w4s2y3q4z5v6w7x8y';
+
+function checkAccountLock(username) {
+  if (!username) return null;
+  const record = failedLoginAttempts.get(username.toLowerCase().trim());
+  if (record && record.lockedUntil && Date.now() < record.lockedUntil) {
+    const remainingMinutes = Math.ceil((record.lockedUntil - Date.now()) / (60 * 1000));
+    return `该账号因连续输错密码已临时锁定，请 ${remainingMinutes} 分钟后再试`;
+  }
+  return null;
+}
+
+function recordLoginFailure(username) {
+  if (!username) return;
+  const uname = username.toLowerCase().trim();
+  const record = failedLoginAttempts.get(uname) || { count: 0, lockedUntil: 0 };
+  record.count += 1;
+  if (record.count >= 5) {
+    record.lockedUntil = Date.now() + 15 * 60 * 1000; // Lock for 15 minutes after 5 consecutive failures
+    record.count = 0;
+  }
+  failedLoginAttempts.set(uname, record);
+}
+
+function recordLoginSuccess(username) {
+  if (username) failedLoginAttempts.delete(username.toLowerCase().trim());
+}
+
+// Only these keys can be updated via POST /api/config
+const CONFIG_WHITELIST = new Set([
+  'mode', 'fallbackRule', 'enableGeoSiteCn', 'enableGeoIpCn',
+  'enableSniffer', 'enableTcpConcurrent', 'enableNoResolve', 'enableUnifiedDelay', 'enableProcessStrict', 'customProxyGroupName',
+  'enableAiGroup', 'enableMediaGroup', 'enableTelegramGroup', 'enableGameGroup', 'enableAppleGroup', 'enableAdBlock', 'enableFinalGroup', 'enableLoyalsoldier',
+  'targetPlatforms', 'enableAutoPlatformDetect', 'subscriptions',
+  'enableAutoFlags', 'enableCleanAdAndRate', 'enableGeoIpLookup',
+  'enableDeadNodeFilter', 'enableLatencySort', 'latencyTimeoutMs', 'customRenameRules',
+  'nameservers', 'fallbackDns',
+  'proxyIps', 'proxyProcesses', 'proxyKeywords', 'proxyDomains',
+  'directIps', 'directProcesses', 'directKeywords', 'directDomains',
+  'fakeIpFilter', 'customScript'
+]);
+
+// ── Public: subscription endpoints ────────────────────────────────────────────
+
+function findUserAndCheckSubscriptionAccess(token) {
+  if (!token) return { ok: false, error: 'Token 缺失' };
+  const users = loadUsers();
+  let matchUser = null, userCfg = null;
+  for (const u of users) {
+    const cfg = loadUserConfig(u.username);
+    if (cfg.subscriptionToken === token) { matchUser = u; userCfg = cfg; break; }
+  }
+  if (!matchUser) return { ok: false, error: '无效的订阅 Token' };
+
+  // Check if account was disabled by Admin
+  if (matchUser.disabled) {
+    return { ok: false, error: '该账号已被管理员禁用，订阅已暂停下发' };
+  }
+
+  // Check expiry
+  if (userCfg.tokenExpiresAt && Date.now() > new Date(userCfg.tokenExpiresAt).getTime()) {
+    const expired = new Date(userCfg.tokenExpiresAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    return { ok: false, error: `订阅已过期（过期时间: ${expired}）` };
+  }
+
+  return { ok: true, matchUser, userCfg };
+}
+
+// 1. JavaScript Override Script (/api/rules.js)
+app.get('/api/rules.js', (req, res) => {
+  const deny = (msg) => {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(403).send(`// Error: 403 Forbidden - ${msg}`);
+  };
+
+  const { token } = req.query;
+  const access = findUserAndCheckSubscriptionAccess(token);
+  if (!access.ok) return deny(access.error);
+
+  const { matchUser, userCfg } = access;
+
+  // Log access (keep last 50)
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
+  const log = accessLogs.get(matchUser.username);
+  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [JS Override]` });
+  if (log.length > 50) log.pop();
+
+  // Dynamic compile with UA platform awareness
+  const js = compileConfigToJs(userCfg, ua);
+
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.send(js);
+});
+
+// 2. Full Clash / Mihomo Aggregated YAML Subscription (/api/clash.yaml)
+app.get('/api/clash.yaml', async (req, res) => {
+  const deny = (msg) => {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(403).send(`# Error: 403 Forbidden - ${msg}`);
+  };
+
+  const { token } = req.query;
+  const access = findUserAndCheckSubscriptionAccess(token);
+  if (!access.ok) return deny(access.error);
+
+  const { matchUser, userCfg } = access;
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
+  const log = accessLogs.get(matchUser.username);
+  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Clash YAML]` });
+  if (log.length > 50) log.pop();
+
+  try {
+    const result = await aggregateClashYaml(userCfg, ua);
+    res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Profile-Update-Interval', '24');
+    if (result.userinfo) {
+      res.setHeader('Subscription-Userinfo', result.userinfo);
+      res.setHeader('subscription-userinfo', result.userinfo);
+    }
+    res.send(result.yaml);
+  } catch (err) {
+    console.error('aggregateClashYaml error:', err);
+    res.status(500).send(`# Error generating YAML: ${err.message}`);
+  }
+});
+
+// ── Multi-Format Subscription Dispatcher (Smart UA Auto-Detect) ───────────────
+
+app.get(['/api/sub', '/api/subscription'], async (req, res) => {
+  const { token, target } = req.query;
+  const ua = req.headers['user-agent'] || '';
+
+  const deny = (msg) => {
+    res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+  };
+
+  const access = findUserAndCheckSubscriptionAccess(token);
+  if (!access.ok) return deny(access.error);
+
+  const { matchUser, userCfg } = access;
+  const clientTarget = detectClientTarget(ua, target);
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
+  const log = accessLogs.get(matchUser.username);
+  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Auto Sub: ${clientTarget.toUpperCase()}]` });
+  if (log.length > 50) log.pop();
+
+  try {
+    if (clientTarget === 'clash') {
+      const result = await aggregateClashYaml(userCfg, ua);
+      res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
+      res.setHeader('Profile-Update-Interval', '24');
+      if (result.userinfo) res.setHeader('Subscription-Userinfo', result.userinfo);
+      return res.send(result.yaml);
+    }
+
+    const { proxies, userinfo } = await fetchAllUserProxies(userCfg);
+    if (userinfo) {
+      res.setHeader('Subscription-Userinfo', userinfo);
+      res.setHeader('subscription-userinfo', userinfo);
+    }
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    if (clientTarget === 'base64') {
+      const b64 = convertToBase64(proxies);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      return res.send(b64);
+    }
+
+    if (clientTarget === 'singbox') {
+      const sbJson = convertToSingBoxJson(proxies, userCfg);
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      return res.send(JSON.stringify(sbJson, null, 2));
+    }
+
+    if (clientTarget === 'surge') {
+      const surgeList = convertToSurgeList(proxies);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      return res.send(surgeList);
+    }
+
+    // Default Fallback to Base64
+    const b64 = convertToBase64(proxies);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(b64);
+  } catch (err) {
+    console.error('Subscription dispatch error:', err);
+    res.status(500).send(`# Error generating subscription: ${err.message}`);
+  }
+});
+
+// ── Base64 Single Nodes Output ────────────────────────────────────────────────
+
+app.get(['/api/base64', '/api/sub.txt', '/api/nodes.txt'], async (req, res) => {
+  const { token } = req.query;
+  const deny = (msg) => res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+
+  const access = findUserAndCheckSubscriptionAccess(token);
+  if (!access.ok) return deny(access.error);
+
+  const { matchUser, userCfg } = access;
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
+  const log = accessLogs.get(matchUser.username);
+  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Base64 Nodes]` });
+  if (log.length > 50) log.pop();
+
+  try {
+    const { proxies, userinfo } = await fetchAllUserProxies(userCfg);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    if (userinfo) res.setHeader('Subscription-Userinfo', userinfo);
+    const b64 = convertToBase64(proxies);
+    res.send(b64);
+  } catch (err) {
+    console.error('Base64 export error:', err);
+    res.status(500).send(`# Error generating Base64: ${err.message}`);
+  }
+});
+
+// ── Sing-Box JSON Output ──────────────────────────────────────────────────────
+
+app.get(['/api/sing-box.json', '/api/singbox', '/api/sb.json'], async (req, res) => {
+  const { token } = req.query;
+  const deny = (msg) => res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+
+  const access = findUserAndCheckSubscriptionAccess(token);
+  if (!access.ok) return deny(access.error);
+
+  const { matchUser, userCfg } = access;
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
+  const log = accessLogs.get(matchUser.username);
+  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Sing-Box JSON]` });
+  if (log.length > 50) log.pop();
+
+  try {
+    const { proxies, userinfo } = await fetchAllUserProxies(userCfg);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    if (userinfo) res.setHeader('Subscription-Userinfo', userinfo);
+    const sbJson = convertToSingBoxJson(proxies, userCfg);
+    res.send(JSON.stringify(sbJson, null, 2));
+  } catch (err) {
+    console.error('Sing-Box export error:', err);
+    res.status(500).send(`# Error generating Sing-Box JSON: ${err.message}`);
+  }
+});
+
+// ── Surge Proxy List Output ───────────────────────────────────────────────────
+
+app.get(['/api/surge.list', '/api/surge'], async (req, res) => {
+  const { token } = req.query;
+  const deny = (msg) => res.status(403).setHeader('Content-Type', 'text/plain; charset=utf-8').send(`🚫 ${msg}`);
+
+  const access = findUserAndCheckSubscriptionAccess(token);
+  if (!access.ok) return deny(access.error);
+
+  const { matchUser, userCfg } = access;
+
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const ua = req.headers['user-agent'] || 'unknown';
+  if (!accessLogs.has(matchUser.username)) accessLogs.set(matchUser.username, []);
+  const log = accessLogs.get(matchUser.username);
+  log.unshift({ time: new Date().toISOString(), ip, ua: `${ua} [Surge List]` });
+  if (log.length > 50) log.pop();
+
+  try {
+    const { proxies, userinfo } = await fetchAllUserProxies(userCfg);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    if (userinfo) res.setHeader('Subscription-Userinfo', userinfo);
+    const surgeList = convertToSurgeList(proxies);
+    res.send(surgeList);
+  } catch (err) {
+    console.error('Surge export error:', err);
+    res.status(500).send(`# Error generating Surge list: ${err.message}`);
+  }
+});
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+app.post('/api/login', loginLimiter, async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+
+  // 1. Check account-level lockout (defense against distributed botnets)
+  const lockError = checkAccountLock(username);
+  if (lockError) {
+    return res.status(429).json({ error: lockError });
+  }
+
+  const users = loadUsers();
+  const user = users.find(u => u.username.toLowerCase() === username.toLowerCase().trim());
+
+  // Constant-time timing attack defense: execute bcrypt compare even if user does not exist
+  const targetHash = user ? user.passwordHash : DUMMY_BCRYPT_HASH;
+  const isMatch = await bcrypt.compare(password, targetHash);
+
+  if (!user || !isMatch) {
+    recordLoginFailure(username);
+    return res.status(400).json({ error: '用户名或密码错误' });
+  }
+
+  // Check if account is disabled by Admin
+  if (user.disabled) {
+    return res.status(403).json({ error: '该账号已被管理员禁用，无法登录' });
+  }
+
+  // Clear failure counter on success
+  recordLoginSuccess(username);
+
+  const sessionToken = crypto.randomBytes(24).toString('hex');
+  activeSessions.set(sessionToken, { username: user.username, role: user.role, expiresAt: Date.now() + SESSION_TTL });
+  await saveSessions();
+
+  // Set 30-day persistent Cookie
+  res.setHeader('Set-Cookie', `subhub_session=${sessionToken}; Path=/; Max-Age=${SESSION_TTL / 1000}; HttpOnly; SameSite=Lax`);
+
+  res.json({ success: true, token: sessionToken, username: user.username, role: user.role });
+});
+
+app.post('/api/register', registerLimiter, async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  const cleanName = username.trim();
+  if (!/^[a-zA-Z0-9_-]{2,32}$/.test(cleanName))
+    return res.status(400).json({ error: '用户名格式不合法（2-32 位字母/数字/下划线/横线）' });
+  if (password.length < 4)
+    return res.status(400).json({ error: '密码长度至少 4 位' });
+
+  const users = loadUsers();
+  if (users.find(u => u.username.toLowerCase() === cleanName.toLowerCase())) {
+    return res.status(400).json({ error: '该用户名已被注册，请更换用户名' });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const newUser = {
+    username: cleanName,
+    passwordHash,
+    role: 'user', // Default permission is user (only manages own rules)
+    createdAt: new Date().toISOString()
+  };
+  users.push(newUser);
+  await saveUsers(users);
+  await saveUserConfig(cleanName, defaultUserConfig());
+
+  // Auto login upon registration
+  const sessionToken = crypto.randomBytes(24).toString('hex');
+  activeSessions.set(sessionToken, { username: cleanName, role: 'user', expiresAt: Date.now() + SESSION_TTL });
+  await saveSessions();
+
+  res.setHeader('Set-Cookie', `subhub_session=${sessionToken}; Path=/; Max-Age=${SESSION_TTL / 1000}; HttpOnly; SameSite=Lax`);
+  res.json({ success: true, token: sessionToken, username: cleanName, role: 'user', message: '注册成功！' });
+});
+
+app.get('/api/me', authMiddleware, (req, res) => {
+  res.json({ success: true, username: req.session.username, role: req.session.role });
+});
+
+app.post('/api/logout', authMiddleware, async (req, res) => {
+  if (req.token) activeSessions.delete(req.token);
+  await saveSessions();
+  res.setHeader('Set-Cookie', 'subhub_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
+  res.json({ success: true });
+});
+
+// ── User config ───────────────────────────────────────────────────────────────
+
+app.get('/api/config', authMiddleware, (req, res) => {
+  res.json(loadUserConfig(req.session.username));
+});
+
+app.post('/api/config', authMiddleware, async (req, res) => {
+  const current = loadUserConfig(req.session.username);
+  const updates = {};
+  for (const [k, v] of Object.entries(req.body)) {
+    if (CONFIG_WHITELIST.has(k)) updates[k] = v;
+  }
+  await saveUserConfig(req.session.username, { ...current, ...updates });
+  res.json({ success: true, message: '配置保存成功！' });
+});
+
+app.post('/api/preview', authMiddleware, (req, res) => {
+  try {
+    const config = req.body || {};
+    const js = compileConfigToJs(config);
+    res.json({ js });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/change-password', authMiddleware, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: '新密码至少 4 位' });
+
+  const users = loadUsers();
+  const user  = users.find(u => u.username === req.session.username);
+  if (!user || !(await bcrypt.compare(oldPassword || '', user.passwordHash))) {
+    return res.status(400).json({ error: '原密码错误' });
+  }
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await saveUsers(users);
+
+  // 强制注销该用户的所有活跃会话 (单点/多点全网失效)
+  for (const [sToken, sData] of activeSessions.entries()) {
+    if (sData.username === req.session.username) {
+      activeSessions.delete(sToken);
+    }
+  }
+  await saveSessions();
+
+  // 清除浏览器 Session Cookie
+  res.setHeader('Set-Cookie', 'subhub_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
+  res.json({ success: true, message: '密码修改成功，所有已有会话已失效，请重新登录' });
+});
+
+app.post('/api/regenerate-token', authMiddleware, async (req, res) => {
+  const cfg = loadUserConfig(req.session.username);
+  cfg.subscriptionToken = 'rulehub_' + crypto.randomBytes(8).toString('hex');
+  await saveUserConfig(req.session.username, cfg);
+  res.json({ success: true, token: cfg.subscriptionToken });
+});
+
+app.post('/api/set-token-expiry', authMiddleware, async (req, res) => {
+  const { expiresAt } = req.body; // ISO string or null
+  const cfg = loadUserConfig(req.session.username);
+  cfg.tokenExpiresAt = expiresAt || null;
+  await saveUserConfig(req.session.username, cfg);
+  res.json({ success: true, tokenExpiresAt: cfg.tokenExpiresAt });
+});
+
+app.post('/api/subscriptions/refresh', authMiddleware, async (req, res) => {
+  const cfg = loadUserConfig(req.session.username);
+  const subs = cfg.subscriptions || [];
+
+  const updatedSubs = await Promise.all(
+    subs.map(async (s) => {
+      if (!s.url) return s;
+      try {
+        const result = await fetchSubscription(s.url, s.prefix || s.name || '', true);
+        return {
+          ...s,
+          nodesCount: result.nodesCount,
+          userInfo: result.userInfo,
+          sourceType: result.sourceType || s.sourceType,
+          updatedAt: result.updatedAt,
+          status: 'online',
+          error: null
+        };
+      } catch (err) {
+        return {
+          ...s,
+          status: 'error',
+          error: err.message,
+          updatedAt: new Date().toISOString()
+        };
+      }
+    })
+  );
+
+  cfg.subscriptions = updatedSubs;
+  await saveUserConfig(req.session.username, cfg);
+
+  res.json({ success: true, subscriptions: updatedSubs });
+});
+
+app.post('/api/subscriptions/test', authMiddleware, async (req, res) => {
+  const { url, prefix = '', defaultRegion = '' } = req.body;
+  if (!url) return res.status(400).json({ error: '订阅 URL 不能为空' });
+  try {
+    const result = await fetchSubscription(url, prefix, true);
+    const cfg = loadUserConfig(req.session.username);
+
+    // Prewarm DNS for GeoIP
+    await prewarmDnsForProxies(result.nodes || []);
+
+    const countryStatsMap = new Map();
+
+    const formattedSamples = (result.nodes || []).slice(0, 10).map(n => {
+      const original = n.name;
+      const formatted = formatNodeName(n, {
+        enableAutoFlags: cfg.enableAutoFlags !== false,
+        enableCleanAdAndRate: cfg.enableCleanAdAndRate !== false,
+        enableGeoIpLookup: cfg.enableGeoIpLookup !== false,
+        customRenameRules: cfg.customRenameRules || [],
+        defaultRegion
+      });
+      const country = identifyNodeCountry(n, {
+        enableGeoIpLookup: cfg.enableGeoIpLookup !== false,
+        defaultRegion
+      });
+      return {
+        original,
+        formatted,
+        server: n.server || '',
+        type: n.type || 'vless',
+        country: country ? `${country.flag} ${country.name}` : null
+      };
+    });
+
+    // Aggregate countries for all nodes in subscription
+    for (const n of (result.nodes || [])) {
+      const c = identifyNodeCountry(n, {
+        enableGeoIpLookup: cfg.enableGeoIpLookup !== false,
+        defaultRegion
+      });
+      if (c) {
+        const label = `${c.flag} ${c.name}`;
+        countryStatsMap.set(label, (countryStatsMap.get(label) || 0) + 1);
+      } else {
+        countryStatsMap.set('🌐 其他/未知', (countryStatsMap.get('🌐 其他/未知') || 0) + 1);
+      }
+    }
+
+    const detectedCountries = Array.from(countryStatsMap.entries()).map(([label, count]) => ({
+      label,
+      count
+    }));
+
+    res.json({
+      success: true,
+      nodesCount: result.nodesCount,
+      userInfo: result.userInfo,
+      sourceType: result.sourceType,
+      detectedCountries,
+      sampleNodes: formattedSamples
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/nodes/preview-rename', authMiddleware, (req, res) => {
+  const {
+    sampleNodes = [],
+    sampleNames = [],
+    enableAutoFlags = true,
+    enableCleanAdAndRate = true,
+    enableGeoIpLookup = true,
+    customRenameRules = [],
+    defaultRegion = ''
+  } = req.body;
+  const items = sampleNodes.length > 0 ? sampleNodes : sampleNames.map(s => (typeof s === 'string' ? { name: s } : s));
+  const results = items.map(item => {
+    const origName = typeof item === 'string' ? item : (item.name || '');
+    const formatted = formatNodeName(item, {
+      enableAutoFlags,
+      enableCleanAdAndRate,
+      enableGeoIpLookup,
+      customRenameRules,
+      defaultRegion
+    });
+    return { original: origName, formatted };
+  });
+  res.json({ success: true, results });
+});
+
+app.post('/api/nodes/health', authMiddleware, async (req, res) => {
+  try {
+    const { timeoutMs = 2000, forceRefresh = true } = req.body || {};
+    const cfg = loadUserConfig(req.session.username);
+    const { proxies } = await fetchAllUserProxies(cfg, { runLatencyProbe: false });
+    const probeRes = await batchProbeProxies(proxies, {
+      timeoutMs: Number(timeoutMs) || 2000,
+      forceRefresh: forceRefresh !== false
+    });
+    res.json({
+      success: true,
+      totalNodes: probeRes.proxies.length,
+      aliveCount: probeRes.aliveCount,
+      deadCount: probeRes.deadCount,
+      avgLatency: probeRes.avgLatency,
+      proxies: probeRes.proxies.map(p => ({
+        name: p.name,
+        server: p.server,
+        port: p.port,
+        type: p.type,
+        alive: p.alive,
+        latency: p.latency,
+        error: p.latencyError || null
+      }))
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/access-log', authMiddleware, (req, res) => {
+  res.json(accessLogs.get(req.session.username) || []);
+});
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+
+app.get('/api/admin/users', authMiddleware, adminOnly, (req, res) => {
+  const users = loadUsers().map(u => {
+    const cfg = loadUserConfig(u.username);
+    return {
+      username: u.username,
+      role: u.role,
+      disabled: !!u.disabled,
+      createdAt: u.createdAt,
+      tokenExpiresAt: cfg.tokenExpiresAt
+    };
+  });
+  res.json(users);
+});
+
+app.post('/api/admin/users', authMiddleware, adminOnly, async (req, res) => {
+  const { username, password, role = 'user' } = req.body;
+  if (!username || !password) return res.status(400).json({ error: '用户名和密码不能为空' });
+  if (!/^[a-zA-Z0-9_-]{2,32}$/.test(username))
+    return res.status(400).json({ error: '用户名格式不合法（2-32 位字母/数字/下划线/横线）' });
+
+  const users = loadUsers();
+  if (users.find(u => u.username === username)) return res.status(400).json({ error: '用户名已存在' });
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  users.push({ username, passwordHash, role: role === 'admin' ? 'admin' : 'user', createdAt: new Date().toISOString() });
+  await saveUsers(users);
+  await saveUserConfig(username, defaultUserConfig());
+  res.json({ success: true });
+});
+
+app.delete('/api/admin/users/:username', authMiddleware, adminOnly, async (req, res) => {
+  const { username } = req.params;
+  if (username === req.session.username) return res.status(400).json({ error: '不能删除自己的账户' });
+
+  let users = loadUsers();
+  if (!users.find(u => u.username === username)) return res.status(404).json({ error: '用户不存在' });
+  users = users.filter(u => u.username !== username);
+  await saveUsers(users);
+
+  try { await fs.promises.unlink(path.join(CONFIGS_DIR, `${username}.json`)); } catch {}
+  compiledCache.delete(username);
+  accessLogs.delete(username);
+  res.json({ success: true });
+});
+
+app.post('/api/admin/users/:username/reset-password', authMiddleware, adminOnly, async (req, res) => {
+  const { username } = req.params;
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: '密码至少 4 位' });
+
+  const users = loadUsers();
+  const user  = users.find(u => u.username === username);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await saveUsers(users);
+  res.json({ success: true });
+});
+
+app.post('/api/admin/users/:username/role', authMiddleware, adminOnly, async (req, res) => {
+  const { username } = req.params;
+  const { role } = req.body;
+  if (!['admin', 'user'].includes(role)) {
+    return res.status(400).json({ error: '无效的角色类型（仅支持 admin 或 user）' });
+  }
+  if (username === req.session.username && role !== 'admin') {
+    return res.status(400).json({ error: '不能降低自己的管理员权限' });
+  }
+
+  const users = loadUsers();
+  const user = users.find(u => u.username === username);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+
+  user.role = role;
+  await saveUsers(users);
+
+  // Synchronize active sessions
+  for (const [t, s] of activeSessions.entries()) {
+    if (s.username === username) {
+      s.role = role;
+    }
+  }
+  await saveSessions();
+
+  res.json({ success: true, message: `已成功将用户【${username}】权限修改为【${role === 'admin' ? '管理员' : '普通用户'}】` });
+});
+
+app.post('/api/admin/users/:username/status', authMiddleware, adminOnly, async (req, res) => {
+  const { username } = req.params;
+  const { disabled } = req.body;
+
+  if (username === req.session.username && disabled) {
+    return res.status(400).json({ error: '不能禁用当前登录的管理员自己' });
+  }
+
+  const users = loadUsers();
+  const user = users.find(u => u.username === username);
+  if (!user) return res.status(404).json({ error: '用户不存在' });
+
+  user.disabled = !!disabled;
+  await saveUsers(users);
+
+  // If disabled, immediately revoke all active sessions for this user
+  if (user.disabled) {
+    for (const [t, s] of activeSessions.entries()) {
+      if (s.username === username) {
+        activeSessions.delete(t);
+      }
+    }
+    await saveSessions();
+  }
+
+  res.json({
+    success: true,
+    disabled: user.disabled,
+    message: `已成功将用户【${username}】${user.disabled ? '禁用（账号已强制登出，订阅已暂停下发）' : '重新启用'}`
+  });
+});
+
+// ── Admin System Snapshot Backup & Restore ────────────────────────────────────
+
+// 1. Export full system snapshot
+app.get('/api/admin/backup/export', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const users = loadUsers();
+    const configs = {};
+
+    if (fs.existsSync(CONFIGS_DIR)) {
+      const files = await fs.promises.readdir(CONFIGS_DIR);
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const uname = file.replace('.json', '');
+          try {
+            const raw = await fs.promises.readFile(path.join(CONFIGS_DIR, file), 'utf-8');
+            configs[uname] = JSON.parse(raw);
+          } catch {}
+        }
+      }
+    }
+
+    const snapshot = {
+      _type: 'SUBHUB_FULL_SYSTEM_SNAPSHOT',
+      version: '3.0.0',
+      exportedAt: new Date().toISOString(),
+      exportedBy: req.session.username,
+      stats: {
+        userCount: users.length,
+        configCount: Object.keys(configs).length
+      },
+      users,
+      configs
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="subhub-system-snapshot-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json(snapshot);
+  } catch (err) {
+    res.status(500).json({ error: '导出系统快照失败: ' + err.message });
+  }
+});
+
+// 2. Restore full system snapshot
+app.post('/api/admin/backup/restore', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { snapshot, mode = 'merge' } = req.body;
+    if (!snapshot || typeof snapshot !== 'object') {
+      return res.status(400).json({ error: '无效的快照数据格式' });
+    }
+
+    if (snapshot._type !== 'SUBHUB_FULL_SYSTEM_SNAPSHOT' || !Array.isArray(snapshot.users)) {
+      return res.status(400).json({ error: '文件不是有效的 SubHub 全量系统快照备份' });
+    }
+
+    let existingUsers = loadUsers();
+    let userMap = new Map();
+
+    if (mode === 'overwrite') {
+      snapshot.users.forEach(u => userMap.set(u.username, u));
+      if (!userMap.has(req.session.username)) {
+        const currentAdmin = existingUsers.find(u => u.username === req.session.username);
+        if (currentAdmin) userMap.set(currentAdmin.username, currentAdmin);
+      }
+    } else {
+      existingUsers.forEach(u => userMap.set(u.username, u));
+      snapshot.users.forEach(u => userMap.set(u.username, u));
+    }
+
+    const finalUsers = Array.from(userMap.values());
+    await saveUsers(finalUsers);
+
+    let restoredConfigCount = 0;
+    if (snapshot.configs && typeof snapshot.configs === 'object') {
+      if (!fs.existsSync(CONFIGS_DIR)) {
+        fs.mkdirSync(CONFIGS_DIR, { recursive: true });
+      }
+
+      for (const [uname, uconfig] of Object.entries(snapshot.configs)) {
+        if (!uname || typeof uconfig !== 'object') continue;
+        await saveUserConfig(uname, uconfig);
+        compiledCache.delete(uname);
+        restoredConfigCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      restoredUsers: finalUsers.length,
+      restoredConfigs: restoredConfigCount,
+      message: `系统快照还原成功！已同步 ${finalUsers.length} 个用户账号及 ${restoredConfigCount} 份用户配置。`
+    });
+  } catch (err) {
+    res.status(500).json({ error: '还原系统快照失败: ' + err.message });
+  }
+});
+
+// ── Background Auto-Refresh Subscriptions Daemon ──────────────────────────────
+const AUTO_REFRESH_CHECK_INTERVAL_MS = 2 * 60 * 1000; // Check every 2 minutes
+
+async function checkAndRefreshAllSubscriptions() {
+  try {
+    const users = loadUsers();
+    for (const u of users) {
+      const cfg = loadUserConfig(u.username);
+      if (!cfg || !Array.isArray(cfg.subscriptions)) continue;
+
+      let hasUpdates = false;
+      for (const sub of cfg.subscriptions) {
+        if (sub.enabled === false || !sub.url) continue;
+        const intervalMinutes = sub.autoRefreshInterval !== undefined ? parseInt(sub.autoRefreshInterval, 10) : 60;
+        if (isNaN(intervalMinutes) || intervalMinutes <= 0) continue; // 0 means manual only
+
+        const lastRefresh = sub.updatedAt ? new Date(sub.updatedAt).getTime() : 0;
+        const now = Date.now();
+
+        if (now - lastRefresh >= intervalMinutes * 60 * 1000) {
+          try {
+            console.log(`[Auto-Refresh] 正在自动同步用户 ${u.username} 的订阅: ${sub.name || sub.url}`);
+            const data = await fetchSubscription(sub.url, sub.prefix || sub.name || '', true);
+            sub.nodesCount = data.nodesCount;
+            sub.userInfo = data.userInfo;
+            sub.sourceType = data.sourceType;
+            sub.updatedAt = new Date().toISOString();
+            hasUpdates = true;
+          } catch (e) {
+            console.warn(`[Auto-Refresh] 自动同步 ${sub.name || sub.url} 失败: ${e.message}`);
+          }
+        }
+      }
+
+      if (hasUpdates) {
+        await saveUserConfig(u.username, cfg);
+      }
+    }
+  } catch (err) {
+    console.error('Auto-refresh daemon error:', err);
+  }
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+
+init().then(() => {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`====================================================`);
+    console.log(`🚀 Clash Sub Hub v3.0 已启动`);
+    console.log(`🌐 Web 管理端: http://localhost:${PORT}`);
+    console.log(`👤 默认账号: admin / admin`);
+    console.log(`====================================================`);
+  });
+
+  // Start periodic background subscription auto-updater
+  setInterval(checkAndRefreshAllSubscriptions, AUTO_REFRESH_CHECK_INTERVAL_MS);
+}).catch(err => { console.error('启动失败:', err); process.exit(1); });
