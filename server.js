@@ -230,6 +230,13 @@ async function init() {
     await saveUsers(users);
     await saveUserConfig('admin', defaultUserConfig());
     console.log('👤 已创建默认管理员账号 (用户名: admin  密码: admin)');
+  } else {
+    // If admin is using legacy placeholder token, auto-upgrade to random cryptographical token
+    const adminCfg = loadUserConfig('admin');
+    if (adminCfg && adminCfg.subscriptionToken === 'rulehub_secret_token') {
+      adminCfg.subscriptionToken = 'rulehub_' + crypto.randomBytes(8).toString('hex');
+      await saveUserConfig('admin', adminCfg);
+    }
   }
 }
 
