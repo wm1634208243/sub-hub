@@ -650,14 +650,17 @@
                         [{{ sub.prefix }}]
                       </span>
                       <!-- 在线/错误状态 -->
-                      <span v-if="sub.status === 'error'" class="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20">
-                        ⚠️ 同步失败
+                      <span v-if="sub.status === 'error'" :title="sub.error || '上游订阅响应错误'" class="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20 font-medium flex items-center gap-1 cursor-help">
+                        <span>⚠️ 同步失败</span>
                       </span>
                       <span v-else class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">
                         🟢 {{ sub.nodesCount || 0 }} 节点
                       </span>
                     </div>
                     <p class="text-[11px] font-mono text-slate-500 truncate mt-1 select-all">{{ sub.url }}</p>
+                    <p v-if="sub.status === 'error' && sub.error" class="text-[11px] text-rose-400 font-mono mt-0.5 flex items-center gap-1">
+                      <span>❌ 失败原因: {{ sub.error }}</span>
+                    </p>
                   </div>
 
                   <!-- 启用开关 -->
@@ -3962,7 +3965,12 @@ function main(config, profileName) {
             const data = await res.json();
             if (res.ok) {
               config.value.subscriptions = data.subscriptions;
-              showToast('订阅源刷新完成！');
+              const target = (data.subscriptions || []).find(s => s.id === sub.id || s.url === sub.url);
+              if (target && target.status === 'error') {
+                showToast(`【${sub.name}】同步失败: ${target.error || '上游响应异常'}`, 'error');
+              } else {
+                showToast(`【${sub.name}】同步成功，获取到 ${target?.nodesCount || 0} 个节点！`);
+              }
             }
           } catch {
             showToast('刷新失败', 'error');
@@ -4034,7 +4042,12 @@ function main(config, profileName) {
             const data = await res.json();
             if (res.ok) {
               config.value.subscriptions = data.subscriptions;
-              showToast('全部上游订阅已同步完成！');
+              const errors = (data.subscriptions || []).filter(s => s.status === 'error');
+              if (errors.length > 0) {
+                showToast(`刷新完成：${data.subscriptions.length - errors.length} 个成功，${errors.length} 个失败`, 'warning');
+              } else {
+                showToast('全部上游订阅已成功同步！');
+              }
             } else {
               showToast(data.error || '同步失败', 'error');
             }
