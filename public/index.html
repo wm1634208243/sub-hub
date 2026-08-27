@@ -1621,7 +1621,7 @@
             <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
               <span class="text-xs text-slate-400 font-mono">main(config, profileName) 代码预览与编辑</span>
               <div class="flex items-center gap-2">
-                <button 
+<button 
                   @click="copyRulesJsUrl" 
                   class="text-xs text-purple-300 hover:text-white bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
                   title="复制直接可供客户端引入的 JS 规则脚本 URL 链接"
@@ -1641,7 +1641,7 @@
                   @click="copyCode" 
                   class="text-xs text-slate-300 hover:text-white flex items-center gap-1 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 transition-colors cursor-pointer"
                 >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 002-2h2a2 2 0 002-2m0 0h2a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
                   <span>复制代码</span>
                 </button>
               </div>
@@ -1708,143 +1708,272 @@
             </div>
           </div>
 
-          <!-- 主体：全平台客户端保姆级图文接入中心 (Interactive Client Hub) -->
+          <!-- 主体：全平台客户端接入中心（按「纯规则分流」与「全托管聚合订阅」分类） -->
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-lg shadow-lg shadow-cyan-500/25 shrink-0">
-                  📱
-                </div>
-                <div>
-                  <h2 class="text-base font-bold text-white flex items-center gap-2">
-                    <span>各平台客户端配置与实战接入指南</span>
-                    <span class="text-[10px] bg-cyan-500/15 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-500/30 font-medium">保姆级教程</span>
-                  </h2>
-                  <p class="text-xs text-slate-400 mt-0.5">支持主流全客户端：提供「纯规则分流（不换机场）」与「全托管聚合订阅」双模式操作指引</p>
-                </div>
-              </div>
 
-              <!-- 客户端切换 Tabs (Pills) -->
-              <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto custom-scrollbar">
-                <button 
-                  @click="clientGuideTab = 'clash_script'" 
-                  :class="clientGuideTab === 'clash_script' ? 'bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30' : 'text-slate-400 hover:text-white'"
-                  class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer"
-                >
-                  ⚡ 纯规则分流 (扩展脚本)
-                </button>
-                <button 
-                  @click="clientGuideTab = 'clash_sub'" 
-                  :class="clientGuideTab === 'clash_sub' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-slate-400 hover:text-white'"
-                  class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer"
-                >
-                  🌟 Clash Verge / Mihomo
-                </button>
-                <button 
-                  @click="clientGuideTab = 'shadowrocket'" 
-                  :class="clientGuideTab === 'shadowrocket' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-white'"
-                  class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer"
-                >
-                  🍎 Shadowrocket (小火箭)
-                </button>
-                <button 
-                  @click="clientGuideTab = 'singbox'" 
-                  :class="clientGuideTab === 'singbox' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-slate-400 hover:text-white'"
-                  class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer"
-                >
-                  📦 Sing-Box / NekoBox
-                </button>
-                <button 
-                  @click="clientGuideTab = 'surge'" 
-                  :class="clientGuideTab === 'surge' ? 'bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30' : 'text-slate-400 hover:text-white'"
-                  class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer"
-                >
-                  ⚡ Surge
-                </button>
-                <button 
-                  @click="clientGuideTab = 'faq'" 
-                  :class="clientGuideTab === 'faq' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400 hover:text-white'"
-                  class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer"
-                >
-                  ❓ 常见疑问 FAQ
-                </button>
-              </div>
+            <!-- 顶部：大类模式选择栏 (Primary Categories) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <!-- 类别 1: 纯规则分流 -->
+              <button 
+                @click="clientCategory = 'rules'"
+                :class="clientCategory === 'rules' ? 'bg-purple-950/40 border-purple-500 shadow-lg shadow-purple-950/50' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 opacity-70 hover:opacity-100'"
+                class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5"
+              >
+                <div class="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center justify-center text-lg shrink-0">
+                  ⚡
+                </div>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">纯规则分流接入</span>
+                    <span v-if="clientCategory === 'rules'" class="text-[10px] bg-purple-500 text-white px-1.5 py-0.2 rounded-full font-semibold">当前</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">无需更换机场订阅，保持原节点，无侵入式注入策略组分流与防污染 DNS</p>
+                </div>
+              </button>
+
+              <!-- 类别 2: 全托管聚合订阅 -->
+              <button 
+                @click="clientCategory = 'subs'"
+                :class="clientCategory === 'subs' ? 'bg-cyan-950/40 border-cyan-500 shadow-lg shadow-cyan-950/50' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 opacity-70 hover:opacity-100'"
+                class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5"
+              >
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center justify-center text-lg shrink-0">
+                  🛰️
+                </div>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">全托管聚合订阅</span>
+                    <span v-if="clientCategory === 'subs'" class="text-[10px] bg-cyan-500 text-slate-950 px-1.5 py-0.2 rounded-full font-bold">当前</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">SubHub 统一托管多机场，自动清洗节点名称与国旗，统一下发多客户端配置</p>
+                </div>
+              </button>
+
+              <!-- 类别 3: FAQ 常见疑问 -->
+              <button 
+                @click="clientCategory = 'faq'"
+                :class="clientCategory === 'faq' ? 'bg-slate-800/80 border-slate-600 shadow-lg' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 opacity-70 hover:opacity-100'"
+                class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5"
+              >
+                <div class="w-10 h-10 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center text-lg shrink-0">
+                  ❓
+                </div>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">常见问题 FAQ</span>
+                    <span v-if="clientCategory === 'faq'" class="text-[10px] bg-slate-700 text-white px-1.5 py-0.2 rounded-full font-medium">当前</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">403 权限排查、移动端应用进程规则限制、国内域名加速与多端同步机制</p>
+                </div>
+              </button>
             </div>
 
-            <!-- Tab 1 内容: ⚡ 纯规则分流 / 扩展脚本 (Script Override) -->
-            <div v-show="clientGuideTab === 'clash_script'" class="space-y-4">
-              <div class="bg-gradient-to-r from-purple-950/30 via-slate-950 to-slate-950 border border-purple-500/30 rounded-2xl p-4.5 space-y-2">
-                <div class="flex items-center gap-2 text-sm font-bold text-purple-300">
-                  <span>⚡ 纯规则分流模式（无需更换机场订阅，无侵入式注入）</span>
+            <!-- ============================================================== -->
+            <!-- 专区 1: ⚡ 纯规则分流模式 (Rule Routing / Script Override) -->
+            <!-- ============================================================== -->
+            <div v-show="clientCategory === 'rules'" class="space-y-5">
+              <!-- 纯规则脚本直链横幅 -->
+              <div class="bg-gradient-to-r from-purple-950/40 via-slate-950 to-slate-950 border border-purple-500/30 rounded-2xl p-4.5 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 class="text-sm font-bold text-purple-300 flex items-center gap-1.5">
+                      <span>⚡ 纯规则分流动态预处理脚本 (JS Override Script)</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                      此脚本仅包含你配置的策略组逻辑、分流规则集与 DNS 防污染参数，<strong>不会修改你在客户端已导入的机场节点</strong>。
+                    </p>
+                  </div>
+                  <button 
+                    @click="copyRulesJsUrl" 
+                    class="bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-purple-600/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <span>📋 复制纯规则 JS 脚本直链</span>
+                  </button>
                 </div>
-                <p class="text-xs text-slate-300 leading-relaxed">
-                  适合已在客户端导入了常用机场订阅的用户。通过将 SubHub 的 JS 预处理脚本引入 Clash Verge Rev / Mihomo，客户端将在拉取你机场节点后，<strong>自动把节点分配给各个策略组（自动选择、AI、流媒体、游戏等），并注入 DNS 防污染与国内分流规则</strong>。
-                </p>
+
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-purple-900/40 flex items-center justify-between gap-2 text-xs font-mono">
+                  <span class="text-purple-300 truncate select-all">{{ rulesJsUrl }}</span>
+                  <span class="text-[10px] text-slate-500 shrink-0">适用于 Clash Verge / Mihomo</span>
+                </div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <!-- 步骤 1 -->
+              <!-- 客户端子标签切换 -->
+              <div class="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs">
+                <button 
+                  @click="clientRulesSubTab = 'verge'"
+                  :class="clientRulesSubTab === 'verge' ? 'bg-purple-500/20 text-purple-300 font-bold border-purple-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                  class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer"
+                >
+                  🖥️ Clash Verge Rev (扩展脚本 Script)
+                </button>
+                <button 
+                  @click="clientRulesSubTab = 'mihomo_party'"
+                  :class="clientRulesSubTab === 'mihomo_party' ? 'bg-purple-500/20 text-purple-300 font-bold border-purple-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                  class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer"
+                >
+                  ⚡ Mihomo Party / 预处理覆写
+                </button>
+              </div>
+
+              <!-- Clash Verge Rev 步骤 -->
+              <div v-show="clientRulesSubTab === 'verge'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center justify-center">1</span>
                     <span class="text-xs font-bold text-white">获取规则脚本直链</span>
                   </div>
-                  <p class="text-[11px] text-slate-400">点击下方按钮复制 SubHub 生成的动态 JS 规则脚本链接：</p>
+                  <p class="text-[11px] text-slate-400">点击上方或下方按钮复制 SubHub 的 JS 脚本直链：</p>
                   <button 
                     @click="copyRulesJsUrl" 
-                    class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-purple-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-purple-600/20 transition-all cursor-pointer"
                   >
-                    <span>📋 复制 JS 规则直链</span>
+                    复制 JS 规则链接
                   </button>
                 </div>
 
-                <!-- 步骤 2 -->
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center justify-center">2</span>
-                    <span class="text-xs font-bold text-white">在客户端添加扩展脚本</span>
+                    <span class="text-xs font-bold text-white">在客户端新建 Script</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    打开 <strong>Clash Verge Rev</strong> -> 点击左侧 <strong>「订阅」</strong> -> 点击顶部 <strong>「新建」</strong> -> 选择 <strong>「Script」</strong>，名称填写 <code class="text-purple-300 font-mono">SubHub 规则</code>，并在 URL 中粘贴刚才复制的直链并保存。
+                    打开 <strong>Clash Verge Rev</strong> -> 进入 <strong>「订阅」</strong> -> 点击 <strong>「新建」</strong> -> 类型选择 <strong>「Script」</strong>，输入名称 <code class="text-purple-300 font-mono">SubHub 分流</code>，在 URL 粘贴直链保存。
                   </p>
                 </div>
 
-                <!-- 步骤 3 -->
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center justify-center">3</span>
-                    <span class="text-xs font-bold text-white">关联机场订阅并生效</span>
+                    <span class="text-xs font-bold text-white">关联机场订阅生效</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    在订阅列表中找到你原有的机场订阅，<strong>右键点击</strong> -> <strong>「启用扩展脚本」</strong> -> 勾选 <code class="text-purple-300 font-mono">SubHub 规则</code>，右键刷新订阅即可！
+                    在订阅列表找到你原有的机场订阅，<strong>右键点击</strong> -> <strong>「启用扩展脚本」</strong> -> 勾选 <code class="text-purple-300 font-mono">SubHub 分流</code>，右键刷新订阅即可！
+                  </p>
+                </div>
+              </div>
+
+              <!-- Mihomo Party 步骤 -->
+              <div v-show="clientRulesSubTab === 'mihomo_party'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center justify-center">1</span>
+                    <span class="text-xs font-bold text-white">进入覆写管理</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    打开 <strong>Mihomo Party</strong> -> 点击左侧 <strong>「覆写 / Overrides」</strong> 菜单。
+                  </p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center justify-center">2</span>
+                    <span class="text-xs font-bold text-white">添加远程脚本覆写</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    点击右上角新建覆写 -> 选择「JavaScript 远程脚本」 -> 粘贴 SubHub 的 JS 直链并命名保存。
+                  </p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center justify-center">3</span>
+                    <span class="text-xs font-bold text-white">开启覆写并应用</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    在覆写卡片上开启开关，客户端将自动为当前活动的机场配置注入完整的规则与策略组。
                   </p>
                 </div>
               </div>
             </div>
 
-            <!-- Tab 2 内容: 🌟 Clash Verge Rev / Mihomo 聚合订阅模式 -->
-            <div v-show="clientGuideTab === 'clash_sub'" class="space-y-4">
-              <div class="bg-gradient-to-r from-cyan-950/30 via-slate-950 to-slate-950 border border-cyan-500/30 rounded-2xl p-4.5 space-y-2">
-                <div class="flex items-center gap-2 text-sm font-bold text-cyan-300">
-                  <span>🌟 聚合订阅直连模式（SubHub 全权托管多机场节点与分流）</span>
+            <!-- ============================================================== -->
+            <!-- 专区 2: 🛰️ 全托管聚合订阅模式 (Full Aggregated Subscriptions) -->
+            <!-- ============================================================== -->
+            <div v-show="clientCategory === 'subs'" class="space-y-5">
+              <!-- 聚合订阅链接工具条 -->
+              <div class="bg-gradient-to-r from-cyan-950/40 via-slate-950 to-slate-950 border border-cyan-500/30 rounded-2xl p-4.5 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 class="text-sm font-bold text-cyan-300 flex items-center gap-1.5">
+                      <span>🤖 通用智能自适应订阅直链 (Smart Auto-Detect)</span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                      SubHub 全权托管清洗节点并生成完整配置。填入客户端后将根据 User-Agent 自动交付对应格式。
+                    </p>
+                  </div>
+                  <button 
+                    @click="copySmartSubUrl" 
+                    class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs px-4 py-2 rounded-xl shadow-lg shadow-cyan-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <span>🤖 复制智能自适应直链</span>
+                  </button>
                 </div>
-                <p class="text-xs text-slate-300 leading-relaxed">
-                  在 SubHub 中添加了 1 个或多个机场节点订阅，希望由 SubHub 统一清洗节点名称（注入国旗、去除广告倍率后缀）、自动剔除死节点并下发完整的 Clash YAML 订阅。
-                </p>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800">
+                  <button @click="copyClashUrl" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-xl text-left cursor-pointer transition-all">
+                    <div class="text-[11px] font-bold text-cyan-400">🌟 Clash YAML</div>
+                    <div class="text-[10px] text-slate-500">Clash Verge / Mihomo</div>
+                  </button>
+                  <button @click="copyBase64Url" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-xl text-left cursor-pointer transition-all">
+                    <div class="text-[11px] font-bold text-emerald-400">🍎 Base64 单节点</div>
+                    <div class="text-[10px] text-slate-500">小火箭 / V2RayN</div>
+                  </button>
+                  <button @click="copySingBoxUrl" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-xl text-left cursor-pointer transition-all">
+                    <div class="text-[11px] font-bold text-amber-400">📦 Sing-Box JSON</div>
+                    <div class="text-[10px] text-slate-500">Sing-Box / NekoBox</div>
+                  </button>
+                  <button @click="copySurgeUrl" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 p-2 rounded-xl text-left cursor-pointer transition-all">
+                    <div class="text-[11px] font-bold text-rose-400">⚡ Surge List</div>
+                    <div class="text-[10px] text-slate-500">Policy-Path 列表</div>
+                  </button>
+                </div>
               </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- 客户端子标签切换 -->
+              <div class="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs overflow-x-auto custom-scrollbar">
+                <button 
+                  @click="clientSubsSubTab = 'clash'"
+                  :class="clientSubsSubTab === 'clash' ? 'bg-cyan-500/20 text-cyan-300 font-bold border-cyan-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                  class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                >
+                  🌟 Clash Verge / Mihomo
+                </button>
+                <button 
+                  @click="clientSubsSubTab = 'shadowrocket'"
+                  :class="clientSubsSubTab === 'shadowrocket' ? 'bg-emerald-500/20 text-emerald-300 font-bold border-emerald-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                  class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                >
+                  🍎 Shadowrocket (小火箭)
+                </button>
+                <button 
+                  @click="clientSubsSubTab = 'singbox'"
+                  :class="clientSubsSubTab === 'singbox' ? 'bg-amber-500/20 text-amber-300 font-bold border-amber-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                  class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                >
+                  📦 Sing-Box / NekoBox
+                </button>
+                <button 
+                  @click="clientSubsSubTab = 'surge'"
+                  :class="clientSubsSubTab === 'surge' ? 'bg-rose-500/20 text-rose-300 font-bold border-rose-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                  class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                >
+                  ⚡ Surge (Mac / iOS)
+                </button>
+              </div>
+
+              <!-- Clash Verge 订阅导入步骤 -->
+              <div v-show="clientSubsSubTab === 'clash'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center">1</span>
-                    <span class="text-xs font-bold text-white">复制自适应/YAML 订阅直链</span>
+                    <span class="text-xs font-bold text-white">复制自适应订阅直链</span>
                   </div>
-                  <p class="text-[11px] text-slate-400">推荐复制通用自适应订阅直链（自动识别客户端为 Clash）：</p>
+                  <p class="text-[11px] text-slate-400">点击下方按钮复制 SubHub 的智能订阅直链：</p>
                   <button 
                     @click="copySmartSubUrl" 
-                    class="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-cyan-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
-                    <span>🤖 复制智能自适应直链</span>
+                    复制订阅直链
                   </button>
                 </div>
 
@@ -1854,7 +1983,7 @@
                     <span class="text-xs font-bold text-white">新建并导入订阅</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    在 <strong>Clash Verge Rev</strong> / <strong>Clash Nyanpasu</strong> / <strong>Mihomo Party</strong> 中，进入「订阅 / Profiles」页面，点击「新建」->「新建订阅」，粘贴直链并点击保存。
+                    在 <strong>Clash Verge Rev</strong> 中进入「订阅」页面 -> 点击「新建」->「新建订阅」-> 粘贴直链并点击保存。
                   </p>
                 </div>
 
@@ -1864,35 +1993,24 @@
                     <span class="text-xs font-bold text-white">设为主配置并开启代理</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    选中刚导入的 SubHub 订阅，点击「设为活动配置」，并在主界面开启「系统代理」或「TUN 模式」即可畅享智能分流。
+                    选中刚导入的 SubHub 订阅，点击「设为活动配置」，开启系统代理即可畅享聚合多机场智能分流。
                   </p>
                 </div>
               </div>
-            </div>
 
-            <!-- Tab 3 内容: 🍎 Shadowrocket (小火箭) / Quantumult X / Loon -->
-            <div v-show="clientGuideTab === 'shadowrocket'" class="space-y-4">
-              <div class="bg-gradient-to-r from-emerald-950/30 via-slate-950 to-slate-950 border border-emerald-500/30 rounded-2xl p-4.5 space-y-2">
-                <div class="flex items-center gap-2 text-sm font-bold text-emerald-300">
-                  <span>🍎 Shadowrocket（小火箭）移动端极速接入</span>
-                </div>
-                <p class="text-xs text-slate-300 leading-relaxed">
-                  SubHub 原生支持 Base64 与智能自适应标准。导入小火箭后，将还原所有清洗后的节点，并实时在小火箭顶部呈现订阅流量剩余量看板。
-                </p>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Shadowrocket 步骤 -->
+              <div v-show="clientSubsSubTab === 'shadowrocket'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-center">1</span>
-                    <span class="text-xs font-bold text-white">复制 Base64 单节点列表</span>
+                    <span class="text-xs font-bold text-white">复制 Base64 节点列表</span>
                   </div>
                   <p class="text-[11px] text-slate-400">点击下方按钮复制纯节点 Base64 订阅：</p>
                   <button 
                     @click="copyBase64Url" 
-                    class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
-                    <span>🔗 复制 Base64 订阅链接</span>
+                    复制 Base64 订阅链接
                   </button>
                 </div>
 
@@ -1902,7 +2020,7 @@
                     <span class="text-xs font-bold text-white">小火箭添加订阅</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    打开 <strong>Shadowrocket</strong>，点击首页右上角 <strong>「+」</strong> 号 -> 类型（Type）选择 <strong>「Subscribe」</strong> -> 在 URL 栏粘贴复制的链接并点击右上角「完成」。
+                    打开 <strong>Shadowrocket</strong>，点击首页右上角 <strong>「+」</strong> 号 -> 类型选择 <strong>「Subscribe」</strong> -> 在 URL 栏粘贴链接并保存。
                   </p>
                 </div>
 
@@ -1912,35 +2030,24 @@
                     <span class="text-xs font-bold text-white">下拉刷新并连接</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    在首页下拉刷新，即可查看到聚合后的全部清洗节点及流量配额；选择「配置」分流模式开启代理即可。
+                    在首页下拉刷新，即可查看到聚合清洗后的全部节点与流量看板；开启代理即可。
                   </p>
                 </div>
               </div>
-            </div>
 
-            <!-- Tab 4 内容: 📦 Sing-Box / NekoBox / Karing -->
-            <div v-show="clientGuideTab === 'singbox'" class="space-y-4">
-              <div class="bg-gradient-to-r from-amber-950/30 via-slate-950 to-slate-950 border border-amber-500/30 rounded-2xl p-4.5 space-y-2">
-                <div class="flex items-center gap-2 text-sm font-bold text-amber-300">
-                  <span>📦 Sing-Box 原生 JSON 订阅标准</span>
-                </div>
-                <p class="text-xs text-slate-300 leading-relaxed">
-                  生成符合 Sing-Box 官方规范的 <code class="text-amber-300 font-mono">outbounds</code> 与路由规则，适配 Sing-box 客户端、NekoBox、Karing 等新一代客户端。
-                </p>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Sing-Box 步骤 -->
+              <div v-show="clientSubsSubTab === 'singbox'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">1</span>
                     <span class="text-xs font-bold text-white">复制 Sing-Box JSON 直链</span>
                   </div>
-                  <p class="text-[11px] text-slate-400">点击下方按钮复制 JSON 远程配置直链：</p>
+                  <p class="text-[11px] text-slate-400">点击复制 JSON 远程配置直链：</p>
                   <button 
                     @click="copySingBoxUrl" 
-                    class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-amber-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
-                    <span>📦 复制 Sing-Box JSON 直链</span>
+                    复制 Sing-Box JSON 直链
                   </button>
                 </div>
 
@@ -1957,27 +2064,16 @@
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">3</span>
-                    <span class="text-xs font-bold text-white">自动解析并运行</span>
+                    <span class="text-xs font-bold text-white">自动解析运行</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    客户端将自动解析包含 auto/select/direct/block 规则的完整链路配置。
+                    客户端自动加载包含 outbounds 与路由规则的完整链路配置。
                   </p>
                 </div>
               </div>
-            </div>
 
-            <!-- Tab 5 内容: ⚡ Surge -->
-            <div v-show="clientGuideTab === 'surge'" class="space-y-4">
-              <div class="bg-gradient-to-r from-rose-950/30 via-slate-950 to-slate-950 border border-rose-500/30 rounded-2xl p-4.5 space-y-2">
-                <div class="flex items-center gap-2 text-sm font-bold text-rose-300">
-                  <span>⚡ Surge (Mac / iOS) 外部策略列表 (Policy-Path)</span>
-                </div>
-                <p class="text-xs text-slate-300 leading-relaxed">
-                  通过 Surge 的 <code class="text-rose-300 font-mono">policy-path</code> 特性，将 SubHub 的清洗节点自动载入指定的策略组中。
-                </p>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Surge 步骤 -->
+              <div v-show="clientSubsSubTab === 'surge'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center">1</span>
@@ -1985,9 +2081,9 @@
                   </div>
                   <button 
                     @click="copySurgeUrl" 
-                    class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-600/20 transition-all cursor-pointer"
                   >
-                    <span>⚡ 复制 Surge 列表直链</span>
+                    ⚡ 复制 Surge 列表直链
                   </button>
                 </div>
 
@@ -1999,14 +2095,35 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
               </div>
             </div>
 
-            <!-- Tab 6 内容: ❓ 常见疑问 FAQ -->
-            <div v-show="clientGuideTab === 'faq'" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <!-- ============================================================== -->
+            <!-- 专区 3: ❓ 常见疑问 FAQ -->
+            <!-- ============================================================== -->
+            <div v-show="clientCategory === 'faq'" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div class="bg-slate-950 p-4 rounded-2xl border border-purple-500/25 space-y-1.5 md:col-span-2">
+                <div class="font-bold text-purple-300 flex items-center gap-1.5">
+                  <span>❓ 「纯规则分流」和「全托管聚合订阅」我该选哪一个？</span>
+                </div>
+                <p class="text-slate-300 leading-relaxed">
+                  • <strong>纯规则分流（推荐）</strong>：适合你已有稳定机场，不想把机场节点导入第三方服务。只需在 Clash Verge Rev 中添加 JS 扩展脚本，即可零侵入为原订阅注入全套策略组、国内直连与防污染 DNS。<br>
+                  • <strong>全托管聚合订阅</strong>：适合你购买了多家机场，希望由 SubHub 把多份节点清洗去重、测速合并为一个统一的 Clash / 小火箭 / Sing-Box 订阅链接。
+                </p>
+              </div>
+
+              <div class="bg-slate-950 p-4 rounded-2xl border border-purple-500/25 space-y-1.5 md:col-span-2">
+                <div class="font-bold text-purple-300 flex items-center gap-1.5">
+                  <span>❓ 聚合订阅 URL 与纯规则分流 URL 是使用同一个 Token 吗？</span>
+                </div>
+                <p class="text-slate-300 leading-relaxed">
+                  <strong>是的，统一使用此安全 Token。</strong> 每个 SubHub 用户拥有专属唯一的安全访问密钥（Token）。无论是全格式聚合订阅链接（<code class="text-cyan-300 font-mono">/api/sub</code>）、Clash 订阅（<code class="text-cyan-300 font-mono">/api/clash.yaml</code>）、Sing-Box 订阅（<code class="text-cyan-300 font-mono">/api/sing-box.json</code>）还是纯规则分流覆写脚本（<code class="text-purple-300 font-mono">/api/rules.js</code>），均使用此专属 Token 统一鉴权。当你点击「重置 Token」或修改到期时间时，所有关联的订阅和规则直链都会同步更新受控。
+                </p>
+              </div>
+
               <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-1.5">
                 <div class="font-bold text-white flex items-center gap-1.5">
                   <span>❓ 拉取订阅提示 403 Forbidden？</span>
                 </div>
                 <p class="text-slate-400 leading-relaxed">
-                  请检查 URL 后面的 <code class="text-cyan-400 font-mono">?token=xxx</code> 参数是否与系统一致；若设置了订阅到期日且已过有效期，服务端也会返回 403。
+                  请检查 URL 后面的 <code class="text-cyan-400 font-mono">?token=xxx</code> 参数是否与页面顶部一致；若设置了订阅到期日且已过有效期，服务端也会返回 403。
                 </p>
               </div>
 
@@ -2015,7 +2132,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <span>❓ 手机端小火箭为什么没有进程分流？</span>
                 </div>
                 <p class="text-slate-400 leading-relaxed">
-                  移动操作系统（iOS / Android）受沙盒限制不支持获取应用进程名（PROCESS-NAME）。SubHub 服务端具备 UA 自动感知，已为移动端自动精简剔除进程规则，保证规则完全兼容。
+                  移动操作系统（iOS / Android）受系统沙盒限制不支持获取应用进程名（PROCESS-NAME）。SubHub 服务端具备 UA 自动感知，已为移动端自动精简剔除进程规则，保证规则完全兼容。
                 </p>
               </div>
 
@@ -2034,15 +2151,6 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                 </div>
                 <p class="text-slate-400 leading-relaxed">
                   请前往「🎨 规则分流」开启 <code class="text-cyan-400 font-mono">GEOSITE, cn</code> 与 <code class="text-cyan-400 font-mono">GEOIP, CN</code>，并确保 DNS 设置了国内高优先级 Nameservers（如 223.5.5.5）。
-                </p>
-              </div>
-
-              <div class="bg-slate-950 p-4 rounded-2xl border border-purple-500/25 space-y-1.5 md:col-span-2">
-                <div class="font-bold text-purple-300 flex items-center gap-1.5">
-                  <span>❓ 聚合订阅 URL 与纯规则分流 URL 是使用同一个 Token 吗？</span>
-                </div>
-                <p class="text-slate-300 leading-relaxed">
-                  <strong>是的，统一使用此安全 Token。</strong> 每个 SubHub 用户拥有专属唯一的安全访问密钥（Token）。无论是全格式聚合订阅链接（<code class="text-cyan-300 font-mono">/api/sub</code>）、Clash 订阅（<code class="text-cyan-300 font-mono">/api/clash.yaml</code>）、Sing-Box 订阅（<code class="text-cyan-300 font-mono">/api/sing-box.json</code>）还是纯规则分流覆写脚本（<code class="text-purple-300 font-mono">/api/rules.js</code>），均使用此专属 Token 统一鉴权。当你点击「重置 Token」或修改到期时间时，所有关联的订阅和规则直链都会同步更新受控，全方位保障配置安全。
                 </p>
               </div>
             </div>
@@ -3321,7 +3429,9 @@ function main(config, profileName) {
         const showDnsConfig = ref(false);
         const showCoreConfig = ref(false);
         const showExtraSubFormats = ref(false);
-        const clientGuideTab = ref('clash_script'); // 'clash_script' | 'clash_sub' | 'shadowrocket' | 'singbox' | 'surge' | 'faq'
+        const clientCategory = ref('rules'); // 'rules' | 'subs' | 'faq'
+        const clientRulesSubTab = ref('verge'); // 'verge' | 'mihomo_party' | 'stash'
+        const clientSubsSubTab = ref('clash'); // 'clash' | 'shadowrocket' | 'singbox' | 'surge'
         const isDirty = ref(false);
 
         // 订阅管理状态
@@ -4865,7 +4975,9 @@ function main(config, profileName) {
           checkingVersion,
           updatingSystem,
           updateLogs,
-          clientGuideTab,
+          clientCategory,
+          clientRulesSubTab,
+          clientSubsSubTab,
           showVersionModal,
           openVersionModal,
           showUpdateModal,
