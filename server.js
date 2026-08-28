@@ -165,6 +165,55 @@ async function saveUsers(users) {
   await fs.promises.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
+function isUserCurrentlyDisabled(user) {
+  if (!user || !user.disabled) return false;
+  if (user.disabledUntil) {
+    const expireTime = new Date(user.disabledUntil).getTime();
+    if (!isNaN(expireTime) && Date.now() >= expireTime) {
+      // Automatic unban / reactivate
+      user.disabled = false;
+      user.disabledUntil = null;
+      user.disabledReason = null;
+      try {
+        const users = loadUsers();
+        const target = users.find(u => u.username === user.username);
+        if (target) {
+          target.disabled = false;
+          target.disabledUntil = null;
+          target.disabledReason = null;
+          fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+          console.log(`[Auto-Unban] ⏰ 用户【${user.username}】封禁时长已到期，已自动恢复解禁！`);
+        }
+      } catch {}
+      return false;
+    }
+  }
+  return true;
+}
+
+function sweepExpiredUserBans() {
+  try {
+    const users = loadUsers();
+    let changed = false;
+    const now = Date.now();
+    for (const u of users) {
+      if (u.disabled && u.disabledUntil) {
+        const expireTime = new Date(u.disabledUntil).getTime();
+        if (!isNaN(expireTime) && now >= expireTime) {
+          u.disabled = false;
+          u.disabledUntil = null;
+          u.disabledReason = null;
+          changed = true;
+          console.log(`[Auto-Unban] ⏰ 用户【${u.username}】封禁时长已到期，系统已自动解除禁用！`);
+        }
+      }
+    }
+    if (changed) {
+      fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    }
+  } catch {}
+}
+
 function loadUserConfig(username) {
   const file = path.join(CONFIGS_DIR, `${username}.json`);
   const d = defaultUserConfig();
@@ -264,10 +313,13 @@ function authMiddleware(req, res, next) {
   // Check if account was disabled by Admin
   const users = loadUsers();
   const user = users.find(u => u.username === session.username);
-  if (user && user.disabled) {
+  if (user && isUserCurrentlyDisabled(user)) {
     activeSessions.delete(token);
     saveSessions();
-    return res.status(403).json({ error: '您的账号已被管理员禁用，请联系管理员' });
+    const untilStr = user.disabledUntil ? new Date(user.disabledUntil).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : null;
+    return res.status(403).json({ 
+      error: untilStr ? `您的账号已被临时禁用至 ${untilStr}，请等待自动解禁或联系管理员` : '您的账号已被管理员禁用，请联系管理员' 
+    });
   }
 
   // 30-day Rolling expiration
@@ -355,8 +407,12 @@ function findUserAndCheckSubscriptionAccess(token) {
   if (!matchUser) return { ok: false, error: '无效的订阅 Token' };
 
   // Check if account was disabled by Admin
-  if (matchUser.disabled) {
-    return { ok: false, error: '该账号已被管理员禁用，订阅已暂停下发' };
+  if (isUserCurrentlyDisabled(matchUser)) {
+    const untilStr = matchUser.disabledUntil ? new Date(matchUser.disabledUntil).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : null;
+    return { 
+      ok: false, 
+      error: untilStr ? `该账号已被临时禁用至 ${untilStr}，订阅已暂停下发` : '该账号已被管理员禁用，订阅已暂停下发' 
+    };
   }
 
   // Check expiry
@@ -683,8 +739,11 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   }
 
   // Check if account is disabled by Admin
-  if (user.disabled) {
-    return res.status(403).json({ error: '该账号已被管理员禁用，无法登录' });
+  if (isUserCurrentlyDisabled(user)) {
+    const untilStr = user.disabledUntil ? new Date(user.disabledUntil).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : null;
+    return res.status(403).json({ 
+      error: untilStr ? `该账号已被临时禁用至 ${untilStr}，无法登录（到期后系统将自动解禁）` : '该账号已被管理员禁用，无法登录' 
+    });
   }
 
   // Clear failure counter on success
@@ -1022,12 +1081,16 @@ app.post('/api/access-log/clear', authMiddleware, async (req, res) => {
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
 app.get('/api/admin/users', authMiddleware, adminOnly, (req, res) => {
+  sweepExpiredUserBans();
   const users = loadUsers().map(u => {
     const cfg = loadUserConfig(u.username);
+    const disabled = isUserCurrentlyDisabled(u);
     return {
       username: u.username,
       role: u.role,
-      disabled: !!u.disabled,
+      disabled: disabled,
+      disabledUntil: disabled ? u.disabledUntil : null,
+      disabledReason: disabled ? (u.disabledReason || '') : '',
       createdAt: u.createdAt,
       tokenExpiresAt: cfg.tokenExpiresAt
     };
@@ -1109,7 +1172,7 @@ app.post('/api/admin/users/:username/role', authMiddleware, adminOnly, async (re
 
 app.post('/api/admin/users/:username/status', authMiddleware, adminOnly, async (req, res) => {
   const { username } = req.params;
-  const { disabled } = req.body;
+  const { disabled, durationMinutes, disabledUntil, reason } = req.body;
 
   if (username === req.session.username && disabled) {
     return res.status(400).json({ error: '不能禁用当前登录的管理员自己' });
@@ -1119,23 +1182,51 @@ app.post('/api/admin/users/:username/status', authMiddleware, adminOnly, async (
   const user = users.find(u => u.username === username);
   if (!user) return res.status(404).json({ error: '用户不存在' });
 
-  user.disabled = !!disabled;
-  await saveUsers(users);
+  if (disabled) {
+    user.disabled = true;
+    user.disabledReason = (reason || '').trim();
+    if (disabledUntil) {
+      user.disabledUntil = new Date(disabledUntil).toISOString();
+    } else if (durationMinutes && Number(durationMinutes) > 0) {
+      user.disabledUntil = new Date(Date.now() + Number(durationMinutes) * 60 * 1000).toISOString();
+    } else {
+      user.disabledUntil = null; // 永久封禁
+    }
 
-  // If disabled, immediately revoke all active sessions for this user
-  if (user.disabled) {
+    // If disabled, immediately revoke all active sessions for this user
     for (const [t, s] of activeSessions.entries()) {
       if (s.username === username) {
         activeSessions.delete(t);
       }
     }
     await saveSessions();
+  } else {
+    // Enable / Unban
+    user.disabled = false;
+    user.disabledUntil = null;
+    user.disabledReason = null;
+  }
+
+  await saveUsers(users);
+
+  let message = '';
+  if (user.disabled) {
+    if (user.disabledUntil) {
+      const untilStr = new Date(user.disabledUntil).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      message = `已成功将用户【${username}】临时禁用至 ${untilStr}（账号已强制下线，订阅暂停下发，到期将自动解禁）`;
+    } else {
+      message = `已成功将用户【${username}】永久禁用（账号已强制下线，订阅已暂停下发）`;
+    }
+  } else {
+    message = `已成功解禁并重新启用用户【${username}】`;
   }
 
   res.json({
     success: true,
     disabled: user.disabled,
-    message: `已成功将用户【${username}】${user.disabled ? '禁用（账号已强制登出，订阅已暂停下发）' : '重新启用'}`
+    disabledUntil: user.disabledUntil,
+    disabledReason: user.disabledReason,
+    message
   });
 });
 
@@ -1432,6 +1523,8 @@ init().then(() => {
     console.log(`====================================================`);
   });
 
-  // Start periodic background subscription auto-updater
+  // Start periodic background subscription auto-updater and user ban expiration sweep
+  sweepExpiredUserBans();
   setInterval(checkAndRefreshAllSubscriptions, AUTO_REFRESH_CHECK_INTERVAL_MS);
+  setInterval(sweepExpiredUserBans, 15000); // Sweep expired bans every 15s
 }).catch(err => { console.error('启动失败:', err); process.exit(1); });

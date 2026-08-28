@@ -2342,8 +2342,20 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                         </span>
                       </td>
                       <td class="py-3 px-3">
-                        <span v-if="u.disabled" class="text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded text-[11px] font-sans font-semibold">🔴 已禁用</span>
-                        <span v-else class="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-[11px] font-sans font-semibold">🟢 正常</span>
+                        <div v-if="u.disabled" class="space-y-0.5">
+                          <span class="text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded text-[11px] font-sans font-semibold inline-flex items-center gap-1">
+                            <span>🔴 {{ u.disabledUntil ? '临时禁用' : '永久禁用' }}</span>
+                          </span>
+                          <div v-if="u.disabledUntil" class="text-[10px] text-amber-300 font-mono flex items-center gap-1" :title="'解禁时间: ' + formatFullTime(u.disabledUntil)">
+                            <span>⏱️ {{ formatBanCountdown(u.disabledUntil) }}</span>
+                          </div>
+                          <div v-if="u.disabledReason" class="text-[10px] text-slate-400 truncate max-w-[140px]" :title="'禁用原因: ' + u.disabledReason">
+                            📝 {{ u.disabledReason }}
+                          </div>
+                        </div>
+                        <span v-else class="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-[11px] font-sans font-semibold">
+                          🟢 正常
+                        </span>
                       </td>
                       <td class="py-3 px-3 text-slate-400 text-[11px]">
                         <span v-if="u.tokenExpiresAt" class="text-amber-300">到期: {{ formatDate(u.tokenExpiresAt) }}</span>
@@ -2351,12 +2363,18 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                       </td>
                       <td class="py-3 px-3 text-right space-x-2">
                         <button 
-                          v-if="u.username !== currentUser.username"
-                          @click="toggleUserStatus(u, !u.disabled)" 
-                          :class="u.disabled ? 'text-emerald-400 hover:text-emerald-300 font-semibold' : 'text-amber-400 hover:text-amber-300'"
-                          class="text-xs cursor-pointer"
+                          v-if="u.username !== currentUser.username && u.disabled"
+                          @click="unbanUser(u)" 
+                          class="text-xs text-emerald-400 hover:text-emerald-300 font-semibold cursor-pointer"
                         >
-                          {{ u.disabled ? '启用' : '禁用' }}
+                          🟢 解禁启用
+                        </button>
+                        <button 
+                          v-if="u.username !== currentUser.username && !u.disabled"
+                          @click="openBanModal(u)" 
+                          class="text-xs text-amber-400 hover:text-amber-300 cursor-pointer"
+                        >
+                          🚫 禁用
                         </button>
                         <button 
                           @click="promptResetPassword(u.username)" 
@@ -2708,6 +2726,146 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             <span>立即执行升级</span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- 禁用/封禁用户时长设置模态框 (Ban User Modal) -->
+    <div v-if="showBanModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <!-- 弹窗标题 -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center text-base font-bold">
+              🚫
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">禁用用户【{{ banTargetUser?.username }}】</h3>
+              <p class="text-[11px] text-slate-400">设置封禁时长与原因 · 到期全自动解禁</p>
+            </div>
+          </div>
+          <button @click="showBanModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <form @submit.prevent="confirmBanUser" class="space-y-4">
+          <!-- 禁用时长选择 -->
+          <div class="space-y-2">
+            <label class="text-xs text-slate-300 font-semibold flex items-center justify-between">
+              <span>⏱️ 禁用封禁时长</span>
+              <span class="text-[10px] text-cyan-400 font-normal">到期系统自动恢复正常</span>
+            </label>
+            
+            <div class="grid grid-cols-3 gap-2">
+              <button 
+                type="button"
+                @click="banDurationType = '10m'"
+                :class="banDurationType === '10m' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'"
+                class="py-2 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer"
+              >
+                ⚡ 10 分钟
+              </button>
+              <button 
+                type="button"
+                @click="banDurationType = '1h'"
+                :class="banDurationType === '1h' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'"
+                class="py-2 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer"
+              >
+                ⏱️ 1 小时
+              </button>
+              <button 
+                type="button"
+                @click="banDurationType = '24h'"
+                :class="banDurationType === '24h' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'"
+                class="py-2 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer"
+              >
+                📅 24 小时 (1天)
+              </button>
+              <button 
+                type="button"
+                @click="banDurationType = '7d'"
+                :class="banDurationType === '7d' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'"
+                class="py-2 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer"
+              >
+                📆 7 天
+              </button>
+              <button 
+                type="button"
+                @click="banDurationType = '30d'"
+                :class="banDurationType === '30d' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'"
+                class="py-2 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer"
+              >
+                🗓️ 30 天
+              </button>
+              <button 
+                type="button"
+                @click="banDurationType = 'permanent'"
+                :class="banDurationType === 'permanent' ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'"
+                class="py-2 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer"
+              >
+                ♾️ 永久禁用
+              </button>
+              <button 
+                type="button"
+                @click="banDurationType = 'custom'"
+                :class="banDurationType === 'custom' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/50 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'"
+                class="py-2 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer col-span-3"
+              >
+                🕒 自定义解禁时间 (指定具体日期与时间)
+              </button>
+            </div>
+
+            <!-- 自定义时间输入框 -->
+            <div v-if="banDurationType === 'custom'" class="pt-1">
+              <input 
+                type="datetime-local" 
+                v-model="banCustomUntil" 
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                required
+              />
+            </div>
+          </div>
+
+          <!-- 禁用原因 (选填) -->
+          <div class="space-y-1">
+            <label class="text-xs text-slate-400 block font-semibold">封禁原因说明 (选填)</label>
+            <input 
+              type="text" 
+              v-model="banReason" 
+              placeholder="例如：临时封禁测试 / 滥用流量 / 异常请求"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <!-- 解禁预览与风险提示卡片 -->
+          <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80 space-y-2 text-xs">
+            <div class="flex items-center justify-between text-slate-300 font-semibold">
+              <span class="flex items-center gap-1">⏰ 预计解禁时间:</span>
+              <span class="font-mono text-cyan-300">{{ calculatedBanUntilPreview }}</span>
+            </div>
+            <div class="text-[11px] text-slate-400 leading-relaxed border-t border-slate-900 pt-2 space-y-1">
+              <p>• 该用户当前所有活跃登录会话将被<strong>立即强制下线</strong></p>
+              <p>• 该用户的全部客户端订阅及规则直链将<strong>立即返回 403 暂停分流</strong></p>
+              <p v-if="banDurationType !== 'permanent'">• 到期后，服务端<strong>自动解除封禁</strong>，用户无需管理员干预即可重新登录并恢复订阅</p>
+              <p v-else>• 永久禁用模式下，需管理员手动点击「解禁启用」恢复</p>
+            </div>
+          </div>
+
+          <!-- 底部操作按钮 -->
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+            <button 
+              type="button" 
+              @click="showBanModal = false" 
+              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              取消
+            </button>
+            <button 
+              type="submit" 
+              class="px-4 py-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-rose-600/25 transition-all cursor-pointer flex items-center gap-1"
+            >
+              <span>🚫 确认执行禁用</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -3488,6 +3646,13 @@ function main(config, profileName) {
         const adminUsers = ref([]);
         const newUser = ref({ username: '', password: '', role: 'user' });
 
+        // 封禁管理状态
+        const showBanModal = ref(false);
+        const banTargetUser = ref(null);
+        const banDurationType = ref('1h'); // '10m', '1h', '24h', '7d', '30d', 'permanent', 'custom'
+        const banCustomUntil = ref('');
+        const banReason = ref('');
+
         let editorInstance = null;
 
         const config = ref({
@@ -3815,6 +3980,44 @@ function main(config, profileName) {
           const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
           return `剩余 ${days} 天`;
         };
+
+        const formatBanCountdown = (isoStr) => {
+          if (!isoStr) return '永久禁用';
+          try {
+            const target = new Date(isoStr).getTime();
+            const now = Date.now();
+            const diff = target - now;
+            if (diff <= 0) return '即将自动解禁';
+            const minutes = Math.floor(diff / 60000);
+            if (minutes < 60) return `剩 ${minutes} 分钟`;
+            const hours = Math.floor(minutes / 60);
+            const remMinutes = minutes % 60;
+            if (hours < 24) return `剩 ${hours}时${remMinutes}分`;
+            const days = Math.floor(hours / 24);
+            const remHours = hours % 24;
+            return `剩 ${days}天${remHours}时`;
+          } catch { return '禁用中'; }
+        };
+
+        const calculatedBanUntilPreview = computed(() => {
+          if (banDurationType.value === 'permanent') return '永久禁用 (直到管理员手动解禁)';
+          if (banDurationType.value === 'custom') {
+            if (!banCustomUntil.value) return '请在下方选择具体解禁时间';
+            const d = new Date(banCustomUntil.value);
+            if (isNaN(d.getTime())) return '无效时间格式';
+            return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+          }
+          const minutesMap = {
+            '10m': 10,
+            '1h': 60,
+            '24h': 1440,
+            '7d': 10080,
+            '30d': 43200
+          };
+          const mins = minutesMap[banDurationType.value] || 60;
+          const target = new Date(Date.now() + mins * 60 * 1000);
+          return target.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        });
 
         const rulesJsUrl = computed(() => {
           const origin = window.location.origin;
@@ -4626,9 +4829,71 @@ function main(config, profileName) {
           }
         };
 
-        const toggleUserStatus = async (u, disabled) => {
-          const actionText = disabled ? '禁用' : '启用';
-          if (!confirm(`⚠️ 确认要${actionText}用户【${u.username}】吗？${disabled ? '\n\n禁用后：\n1. 该用户将无法登录 Web 控制台\n2. 正在登录的会话将被强制下线\n3. 该用户的全部客户端订阅 URL 将立即停止下发节点' : ''}`)) {
+        const openBanModal = (u) => {
+          banTargetUser.value = u;
+          banDurationType.value = '1h';
+          banCustomUntil.value = '';
+          banReason.value = '';
+          showBanModal.value = true;
+        };
+
+        const confirmBanUser = async () => {
+          if (!banTargetUser.value) return;
+          let durationMinutes = null;
+          let disabledUntil = null;
+
+          if (banDurationType.value === 'permanent') {
+            durationMinutes = null;
+            disabledUntil = null;
+          } else if (banDurationType.value === 'custom') {
+            if (!banCustomUntil.value) {
+              return showToast('请指定自定义解禁日期与时间', 'error');
+            }
+            const d = new Date(banCustomUntil.value);
+            if (isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+              return showToast('自定义解禁时间必须晚于当前时间', 'error');
+            }
+            disabledUntil = d.toISOString();
+          } else {
+            const minutesMap = {
+              '10m': 10,
+              '1h': 60,
+              '24h': 1440,
+              '7d': 10080,
+              '30d': 43200
+            };
+            durationMinutes = minutesMap[banDurationType.value] || 60;
+          }
+
+          try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(banTargetUser.value.username)}/status`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                disabled: true,
+                durationMinutes,
+                disabledUntil,
+                reason: banReason.value.trim()
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast(data.message || `已成功禁用用户【${banTargetUser.value.username}】！`);
+              showBanModal.value = false;
+              await loadAdminUsers();
+            } else {
+              showToast(data.error || '操作失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，操作失败', 'error');
+          }
+        };
+
+        const unbanUser = async (u) => {
+          if (!confirm(`确定要立即解禁并恢复用户【${u.username}】吗？\n\n解禁后：\n1. 该用户可正常登录 Web 管理端\n2. 客户端订阅将立即恢复正常下发`)) {
             return;
           }
           try {
@@ -4638,17 +4903,17 @@ function main(config, profileName) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token.value}`
               },
-              body: JSON.stringify({ disabled })
+              body: JSON.stringify({ disabled: false })
             });
             const data = await res.json();
             if (res.ok) {
-              showToast(data.message || `已成功${actionText}【${u.username}】！`);
+              showToast(data.message || `已成功解禁用户【${u.username}】！`);
               await loadAdminUsers();
             } else {
-              showToast(data.error || `${actionText}失败`, 'error');
+              showToast(data.error || '解禁失败', 'error');
             }
           } catch (e) {
-            showToast('网络错误，操作失败', 'error');
+            showToast('网络错误，解禁失败', 'error');
           }
         };
 
@@ -4981,7 +5246,16 @@ function main(config, profileName) {
           createUser,
           deleteUser,
           updateUserRole,
-          toggleUserStatus,
+          showBanModal,
+          banTargetUser,
+          banDurationType,
+          banCustomUntil,
+          banReason,
+          calculatedBanUntilPreview,
+          openBanModal,
+          confirmBanUser,
+          unbanUser,
+          formatBanCountdown,
           promptResetPassword,
           copySmartSubUrl,
           copyRulesJsUrl,
