@@ -284,8 +284,19 @@ function loadUserConfig(username) {
       const raw = JSON.parse(fs.readFileSync(file, 'utf-8'));
       let parsed = raw;
       if (isEncryptedBundle(raw)) {
-        const key = getUserKey(username);
-        parsed = decryptUserConfig(raw, key);
+        let key = getUserKey(username);
+        try {
+          parsed = decryptUserConfig(raw, key);
+        } catch (e1) {
+          // Try fallback master key
+          try {
+            const fallbackKey = deriveUserKey('subhub_master_secret_fallback_v1', username);
+            parsed = decryptUserConfig(raw, fallbackKey);
+            saveUserConfig(username, parsed).catch(() => {});
+          } catch (e2) {
+            throw e1;
+          }
+        }
       }
       return {
         ...d,
