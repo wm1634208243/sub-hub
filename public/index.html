@@ -259,7 +259,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.1' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.2' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -2482,45 +2482,47 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                     <span>🌍 公开访问域名 (Public Domain / URL Origin)</span>
                     <span class="text-[11px] text-slate-400">示例: <code class="text-cyan-400 font-mono">sub.yourdomain.com</code> 或 <code class="text-cyan-400 font-mono">https://sub.yourdomain.com</code></span>
                   </label>
-                  <div class="flex gap-2">
-                    <div class="relative flex-1">
-                      <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 text-xs font-mono font-bold">
+                  <div class="flex flex-wrap sm:flex-nowrap gap-2 items-stretch">
+                    <div class="flex items-center flex-1 min-w-[200px] bg-slate-950 border border-slate-800 rounded-xl overflow-hidden focus-within:border-cyan-500 transition-colors">
+                      <span class="bg-slate-900 border-r border-slate-800 px-3 py-2.5 text-slate-400 text-xs font-mono font-bold select-none shrink-0">
                         https://
                       </span>
                       <input 
                         v-model="domainInput" 
                         type="text" 
                         placeholder="sub.yourdomain.com"
-                        class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-17 pr-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono"
+                        class="w-full bg-transparent px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none font-mono"
                         @keyup.enter="testDnsResolution"
                       />
                     </div>
-                    <button 
-                      type="button" 
-                      @click="testDnsResolution" 
-                      :disabled="testingDns || !domainInput.trim()"
-                      class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 border border-slate-700 hover:border-cyan-500/40 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                    >
-                      <span v-if="testingDns" class="animate-spin text-sm">⏳</span>
-                      <span>{{ testingDns ? '探测中...' : '🔍 测试 DNS 解析' }}</span>
-                    </button>
-                    <button 
-                      type="button" 
-                      @click="saveSystemDomainSettings" 
-                      :disabled="savingDomain"
-                      class="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                    >
-                      <span>{{ savingDomain ? '保存中...' : '💾 保存并全局应用' }}</span>
-                    </button>
-                    <button 
-                      v-if="systemSettings.customDomain"
-                      type="button" 
-                      @click="clearSystemDomain" 
-                      class="px-3 py-2.5 bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-xs rounded-xl transition-all cursor-pointer shrink-0"
-                      title="清除自定义域名绑定并回退至默认 IP 直连"
-                    >
-                      解绑
-                    </button>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <button 
+                        type="button" 
+                        @click="testDnsResolution" 
+                        :disabled="testingDns || !domainInput.trim()"
+                        class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 border border-slate-700 hover:border-cyan-500/40 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <span v-if="testingDns" class="animate-spin text-sm">⏳</span>
+                        <span>{{ testingDns ? '探测中...' : '🔍 测试 DNS 解析' }}</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        @click="saveSystemDomainSettings" 
+                        :disabled="savingDomain"
+                        class="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      >
+                        <span>{{ savingDomain ? '保存中...' : '💾 保存并全局应用' }}</span>
+                      </button>
+                      <button 
+                        v-if="systemSettings.customDomain"
+                        type="button" 
+                        @click="clearSystemDomain" 
+                        class="px-3 py-2.5 bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-xs rounded-xl transition-all cursor-pointer whitespace-nowrap"
+                        title="清除自定义域名绑定并回退至默认 IP 直连"
+                      >
+                        解绑
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2712,7 +2714,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.1' }}
+                      v{{ versionInfo.currentVersion || '1.0.2' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -2761,7 +2763,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">当前运行版本</span>
             <span class="text-xs font-mono font-extrabold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-              v{{ versionInfo.currentVersion || '1.0.1' }}
+              v{{ versionInfo.currentVersion || '1.0.2' }}
             </span>
           </div>
 
@@ -3799,7 +3801,7 @@ function main(config, profileName) {
 
         // 系统版本管理与在线更新状态
         const versionInfo = ref({
-          currentVersion: '1.0.1',
+          currentVersion: '1.0.2',
           latestVersion: null,
           hasUpdate: false,
           releaseNotes: '',
