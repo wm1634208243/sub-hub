@@ -1,6 +1,6 @@
 /**
  * Clash / Mihomo Subscription Aggregator
- * Merges nodes from multiple 3X-UI and Airport subscriptions,
+ * Merges nodes from multiple airport providers and node subscriptions,
  * builds smart proxy groups, attaches Rule Hub routing rules & DNS/Sniffer tuning,
  * and compiles into a production-ready Clash YAML configuration.
  */
