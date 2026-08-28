@@ -1037,8 +1037,10 @@ app.post('/api/change-password', authMiddleware, async (req, res) => {
   if (!user || !(await bcrypt.compare(oldPassword || '', user.passwordHash))) {
     return res.status(400).json({ error: '原密码错误' });
   }
+  const userConfig = loadUserConfig(user.username);
   user.passwordHash = await bcrypt.hash(newPassword, 10);
   await saveUsers(users);
+  await saveUserConfig(user.username, userConfig);
 
   // 强制注销该用户的所有活跃会话 (单点/多点全网失效)
   for (const [sToken, sData] of activeSessions.entries()) {
@@ -1304,8 +1306,12 @@ app.post('/api/admin/users/:username/reset-password', authMiddleware, adminOnly,
   const users = loadUsers();
   const user  = users.find(u => u.username === username);
   if (!user) return res.status(404).json({ error: '用户不存在' });
+
+  const userConfig = loadUserConfig(username);
   user.passwordHash = await bcrypt.hash(newPassword, 10);
   await saveUsers(users);
+  await saveUserConfig(username, userConfig);
+
   res.json({ success: true });
 });
 
