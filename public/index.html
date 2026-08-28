@@ -286,7 +286,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.7' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.8' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -3740,7 +3740,7 @@
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.7' }}
+                      v{{ versionInfo.currentVersion || '1.0.8' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -3966,7 +3966,7 @@
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.0.7' }}
+                v{{ versionInfo.currentVersion || '1.0.8' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -5370,8 +5370,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.0.7',
-          latestVersion: '1.0.7',
+          currentVersion: '1.0.8',
+          latestVersion: '1.0.8',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -5852,46 +5852,75 @@ function main(config, profileName) {
           return `${origin}/api/rules.js?token=${config.value.subscriptionToken}`;
         });
 
+        const copyTextToClipboard = (text, successMsg) => {
+          if (!text) {
+            return showToast('复制内容为空', 'error');
+          }
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+              showToast(successMsg || '复制成功！');
+            }).catch(() => {
+              fallbackCopy(text, successMsg);
+            });
+          } else {
+            fallbackCopy(text, successMsg);
+          }
+        };
+
+        const fallbackCopy = (text, successMsg) => {
+          try {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '-9999px';
+            textArea.style.left = '-9999px';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (successful) {
+              showToast(successMsg || '复制成功！');
+            } else {
+              prompt('您的浏览器限制了自动复制，请手动复制以下完整链接：', text);
+            }
+          } catch (err) {
+            prompt('您的浏览器限制了自动复制，请手动复制以下完整链接：', text);
+          }
+        };
+
         const copyRulesJsUrl = () => {
-          navigator.clipboard.writeText(rulesJsUrl.value);
-          showToast('⚡ 纯规则分流 / JS 覆写脚本直链已复制！');
+          copyTextToClipboard(rulesJsUrl.value, '⚡ 纯规则分流 / JS 覆写脚本直链已复制！');
         };
 
         const copySmartSubUrl = () => {
-          navigator.clipboard.writeText(smartSubUrl.value);
-          showToast('🤖 智能自适应直链已复制！(全客户端通用)');
+          copyTextToClipboard(smartSubUrl.value, '🤖 智能自适应直链已复制！(全客户端通用)');
         };
 
         const copyUrl = () => {
-          navigator.clipboard.writeText(subscriptionUrl.value);
-          showToast('⚡ JS 预处理覆写直链已复制！');
+          copyTextToClipboard(subscriptionUrl.value, '⚡ JS 预处理覆写直链已复制！');
         };
 
         const copyClashUrl = () => {
-          navigator.clipboard.writeText(clashYamlUrl.value);
-          showToast('🌟 完整 Clash YAML 聚合直链已复制！');
+          copyTextToClipboard(clashYamlUrl.value, '🌟 完整 Clash YAML 聚合直链已复制！');
         };
 
         const copyBase64Url = () => {
-          navigator.clipboard.writeText(base64Url.value);
-          showToast('🔗 Base64 单节点订阅链接已复制 (小火箭 / V2Ray 通用)！');
+          copyTextToClipboard(base64Url.value, '🔗 Base64 单节点订阅链接已复制 (小火箭 / V2Ray 通用)！');
         };
 
         const copySingBoxUrl = () => {
-          navigator.clipboard.writeText(singBoxUrl.value);
-          showToast('📦 Sing-Box JSON 订阅直链已复制！');
+          copyTextToClipboard(singBoxUrl.value, '📦 Sing-Box JSON 订阅直链已复制！');
         };
 
         const copySurgeUrl = () => {
-          navigator.clipboard.writeText(surgeUrl.value);
-          showToast('⚡ Surge 代理列表直链已复制！');
+          copyTextToClipboard(surgeUrl.value, '⚡ Surge 代理列表直链已复制！');
         };
 
-        const copyCode = () => {
-          if (editorInstance) {
-            navigator.clipboard.writeText(editorInstance.getValue());
-            showToast('JavaScript 源码已复制！');
-          }
+        const copyCode = (code) => {
+          const target = (typeof code === 'string' && code) ? code : (editorInstance ? editorInstance.getValue() : '');
+          copyTextToClipboard(target, '源码/配置已复制到剪贴板！');
         };
 
         // 订阅源管理

@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.7';
+const CURRENT_VERSION = '1.0.8';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -403,7 +403,7 @@ function authMiddleware(req, res, next) {
 
   // Check Cookie if no Bearer header
   if (!token && req.headers.cookie) {
-    const match = req.headers.cookie.match(/(?:^|;\s*)subhub_session=([^;]+)/);
+    const match = req.headers.cookie.match(/(?:^|;navigator.clipboards*)subhub_session=([^;]+)/);
     if (match) token = decodeURIComponent(match[1]);
   }
 
@@ -1997,6 +1997,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.0.8',
+    tag: 'v1.0.8',
+    name: 'SubHub v1.0.8 · 全环境通用剪贴板复制降级兼容与安全上下文适配',
+    publishedAt: '2026-08-28T06:13:56.671Z',
+    highlights: ['📋 全环境通用剪贴板降级复制 (完美适配 HTTP 3000 上下文)', '🔗 100% 完整交付 /api/sub?token= 专属订阅长直链', '✨ 弹窗成功跳转目标链接动态精确绑定', '🔍 Caddy 执行错误与端口冲突实时诊断'],
+    changelogZh: `### 📋 全环境通用剪贴板降级复制与安全上下文适配
+- **HTTP 上下文复制深层修复**：解决 Chrome/Safari 在非安全 HTTP 上下文（如 http://域名:3000）下禁用原生剪贴板 API 导致无法将直链写入剪贴板的问题；
+- **execCommand 双重安全兜底**：引入动态 DOM 文本域选区与 execCommand 兜底机制，无论在 HTTP 还是 HTTPS 下点击「复制通用直链」均能 100% 完整复制包含 /api/sub?token=... 的专属长直链；
+- **弹窗动态跳转精准直达**：修复成功弹窗跳转按钮地址，精准直达当前绑定的服务端口与协议。`
+  },
   {
     version: '1.0.7',
     tag: 'v1.0.7',
