@@ -259,7 +259,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.0' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.1' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -2518,7 +2518,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.0' }}
+                      v{{ versionInfo.currentVersion || '1.0.1' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -2567,7 +2567,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">当前运行版本</span>
             <span class="text-xs font-mono font-extrabold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-              v{{ versionInfo.currentVersion || '1.0.0' }}
+              v{{ versionInfo.currentVersion || '1.0.1' }}
             </span>
           </div>
 
@@ -3605,7 +3605,7 @@ function main(config, profileName) {
 
         // 系统版本管理与在线更新状态
         const versionInfo = ref({
-          currentVersion: '1.0.0',
+          currentVersion: '1.0.1',
           latestVersion: null,
           hasUpdate: false,
           releaseNotes: '',
