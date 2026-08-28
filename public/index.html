@@ -1302,15 +1302,15 @@
           </div>
 
           <!-- 目标客户端平台与自适应分流 -->
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 space-y-3.5 shadow-xl">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 shrink-0 text-base">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
+              <div class="flex items-center gap-3.5">
+                <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 shrink-0 text-lg">
                   📱
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold text-white leading-tight">目标客户端平台与多端自适应分流</h3>
-                  <p class="text-xs text-slate-400 mt-1">支持多选/单选目标平台；移动端（iOS/Android）将自动过滤不支持的 PROCESS-NAME 进程规则</p>
+                  <h3 class="text-sm font-bold text-white leading-normal">目标客户端平台与多端自适应分流</h3>
+                  <p class="text-xs text-slate-400 mt-0.5 leading-normal">支持多选/单选目标平台；移动端（iOS/Android）将自动过滤不支持的 PROCESS-NAME 进程规则</p>
                 </div>
               </div>
               <div class="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 shrink-0">
@@ -1340,15 +1340,15 @@
           </div>
 
           <!-- 🎯 场景化专属分流策略组 (NEW!) -->
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 space-y-3.5 shadow-xl">
-            <div class="flex items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/25 flex items-center justify-center text-purple-400 shrink-0 text-base">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+            <div class="flex items-center justify-between gap-3 pb-4 border-b border-slate-800/80">
+              <div class="flex items-center gap-3.5">
+                <div class="w-10 h-10 rounded-2xl bg-purple-500/10 border border-purple-500/25 flex items-center justify-center text-purple-400 shrink-0 text-lg">
                   🎯
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold text-white leading-tight">场景化专属分流策略组 (AI / 流媒体 / Telegram / 游戏等)</h3>
-                  <p class="text-xs text-slate-400 mt-1">为常用应用场景生成独立策略组，支持在客户端内对不同业务单独指定节点或自动优选</p>
+                  <h3 class="text-sm font-bold text-white leading-normal">场景化专属分流策略组 (AI / 流媒体 / Telegram / 游戏等)</h3>
+                  <p class="text-xs text-slate-400 mt-0.5 leading-normal">为常用应用场景生成独立策略组，支持在客户端内对不同业务单独指定节点或自动优选</p>
                 </div>
               </div>
             </div>
@@ -1429,15 +1429,15 @@
           </div>
 
           <!-- 核心加速与调优折叠卡片 -->
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 shadow-xl">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
             <div class="flex items-center justify-between cursor-pointer" @click="showCoreConfig = !showCoreConfig">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0 text-base">
+              <div class="flex items-center gap-3.5">
+                <div class="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400 shrink-0 text-lg">
                   ⚡
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold text-white leading-tight">Mihomo / Clash 内核调优与网络加速</h3>
-                  <p class="text-xs text-slate-400 mt-1">Sniffer 域名嗅探、TCP 并发握手、IP 规则 no-resolve 与策略组智能匹配</p>
+                  <h3 class="text-sm font-bold text-white leading-normal">Mihomo / Clash 内核调优与网络加速</h3>
+                  <p class="text-xs text-slate-400 mt-0.5 leading-normal">Sniffer 域名嗅探、TCP 并发握手、IP 规则 no-resolve 与策略组智能匹配</p>
                 </div>
               </div>
               <button class="text-xs text-slate-400 hover:text-white flex items-center gap-1 shrink-0">
@@ -1507,15 +1507,15 @@
           </div>
 
           <!-- DNS 配置折叠卡片 -->
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4.5 shadow-xl">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
             <div class="flex items-center justify-between cursor-pointer" @click="showDnsConfig = !showDnsConfig">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 shrink-0 text-base">
+              <div class="flex items-center gap-3.5">
+                <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 shrink-0 text-lg">
                   🌐
                 </div>
                 <div>
-                  <h3 class="text-sm font-bold text-white leading-tight">上游 DNS 高级配置</h3>
-                  <p class="text-xs text-slate-400 mt-1">国内常规 DNS 与境外加密 DoH 节点设置</p>
+                  <h3 class="text-sm font-bold text-white leading-normal">上游 DNS 高级配置</h3>
+                  <p class="text-xs text-slate-400 mt-0.5 leading-normal">国内常规 DNS 与境外加密 DoH 节点设置</p>
                 </div>
               </div>
               <button class="text-xs text-slate-400 hover:text-white flex items-center gap-1 shrink-0">
