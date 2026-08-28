@@ -1696,7 +1696,7 @@ app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (re
     // Direct Port Mode (e.g. port 3000 or direct connection without 80/443 reverse proxy)
     if (engine === 'direct' || externalPort === String(PORT)) {
       logs.push(`🚀 [2/4] 直连模式: 直接绑定原生访问端口 :${externalPort} (无需 80/443 反代)...`);
-      const fullUrl = `http://${hostname}:${externalPort}`;
+      const fullUrl = (externalPort === "443" ? `https://${hostname}` : (externalPort === "80" ? `http://${hostname}` : `http://${hostname}:${externalPort}`));
       const updatedSettings = await saveSystemSettings({
         customDomain: fullUrl,
         enableHttpsRedirect: false

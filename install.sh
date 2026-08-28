@@ -504,7 +504,7 @@ setup_domain_ssl() {
 
     echo -e "\n请选择反向代理与访问绑定模式:"
     echo -e " ${BOLD}1.${NC} ⚡ Caddy (${GREEN}推荐 · 支持 443 / 8443 / 2096 任意端口 · 全自动申请 SSL 证书${NC})"
-    echo -e " ${BOLD}2.${NC} 🚀 原生端口直连模式 (${CYAN}免反代 · 直接使用 http://域名:3000 访问与下发直链${NC})"
+    echo -e " ${BOLD}2.${NC} 🚀 原生端口直连模式 (${CYAN}免反代 · 直接使用 http://域名:$target_port 访问与下发直链${NC})"
     echo -e " ${BOLD}3.${NC} ☁️  Cloudflare CDN / Tunnel 模式 (${YELLOW}开启小黄云或 Tunnel 隧道${NC})"
     echo -e " ${BOLD}4.${NC} 🛡️  Nginx + Certbot (${MAGENTA}标准 Nginx 反代模板${NC})"
     read -p "请选择 [1-4, 默认: 1]: " ssl_choice
