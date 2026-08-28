@@ -259,7 +259,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.4' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.5' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -2553,8 +2553,8 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
               </div>
 
               <!-- 直链自适应效果前后对比预览 -->
-              <div class="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-2.5 text-xs">
-                <div class="flex items-center justify-between">
+              <div class="bg-slate-950 rounded-xl border border-slate-800/80 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-2.5 bg-slate-900/40 border-b border-slate-800/80">
                   <div class="flex items-center gap-2">
                     <span class="w-5 h-5 rounded-md bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs shrink-0 leading-none">
                       ⚡
@@ -2567,7 +2567,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                     一处绑定 · 全局生效
                   </span>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-mono">
+                <div class="p-3.5 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-mono">
                   <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-1">
                     <span class="text-slate-500 text-[10px] block">默认 IP 直连 (未绑定时)</span>
                     <span class="text-slate-300 truncate block">http://{{ hostWithoutPort || '38.47.112.79' }}:3000/api/sub?token=...</span>
@@ -2581,21 +2581,25 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             </div>
 
             <!-- 底部：反向代理与 HTTPS 手动配置指南 (Full Width Reference Drawer) -->
-            <div class="bg-slate-950 p-4.5 rounded-xl border border-slate-800/90 space-y-3.5 mt-2">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-                <div class="flex items-center gap-2.5">
-                  <span class="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-xs shrink-0 leading-none">
+            <div class="bg-slate-950 rounded-xl border border-slate-800/90 overflow-hidden mt-2">
+              <!-- 顶部独立标题栏 (上下居中对称) -->
+              <div class="flex items-center justify-between gap-3 px-4 py-3 bg-slate-900/60 border-b border-slate-800">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-sm shrink-0 leading-none">
                     📜
                   </span>
-                  <span class="text-xs font-bold text-white leading-none">
-                    常见反向代理与 SSL 部署方案指引
-                  </span>
-                  <span class="text-[11px] text-slate-500 font-sans hidden md:inline leading-none">
-                    (可选参考 · 若已点击上方「⚡ 一键申请 SSL」则无需手动配置)
-                  </span>
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-bold text-white leading-none">
+                      常见反向代理与 SSL 部署方案指引
+                    </span>
+                    <span class="text-[10px] text-slate-500 font-sans hidden md:inline leading-none">
+                      (可选参考 · 若已点击上方「⚡ 一键申请 SSL」则无需手动配置)
+                    </span>
+                  </div>
                 </div>
+
                 <!-- 指南切换 Tabs -->
-                <div class="flex items-center bg-slate-900 p-1 rounded-xl text-xs border border-slate-800 shrink-0">
+                <div class="flex items-center bg-slate-950 p-1 rounded-xl text-xs border border-slate-800 shrink-0">
                   <button 
                     type="button" 
                     @click="domainGuideTab = 'cloudflare'"
@@ -2626,71 +2630,74 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                 </div>
               </div>
 
-              <!-- Tab 1: Cloudflare -->
-              <div v-show="domainGuideTab === 'cloudflare'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-slate-300">
-                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
-                  <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
-                    <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">1</span>
-                    <span>添加 DNS A 记录</span>
+              <!-- 下方内容区域 -->
+              <div class="p-4 space-y-3.5">
+                <!-- Tab 1: Cloudflare -->
+                <div v-show="domainGuideTab === 'cloudflare'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-slate-300">
+                  <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                      <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">1</span>
+                      <span>添加 DNS A 记录</span>
+                    </div>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">登录 Cloudflare 控制台，将域名 A 记录解析到您的服务器公网 IP。</p>
                   </div>
-                  <p class="text-slate-400 text-[11px] leading-relaxed">登录 Cloudflare 控制台，将域名 A 记录解析到您的服务器公网 IP。</p>
-                </div>
-                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
-                  <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
-                    <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">2</span>
-                    <span>开启小黄云代理</span>
+                  <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                      <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">2</span>
+                      <span>开启小黄云代理</span>
+                    </div>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">在 DNS 记录中开启 Proxy status (小黄云代理)，隐藏服务器真实源站 IP。</p>
                   </div>
-                  <p class="text-slate-400 text-[11px] leading-relaxed">在 DNS 记录中开启 Proxy status (小黄云代理)，隐藏服务器真实源站 IP。</p>
-                </div>
-                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
-                  <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
-                    <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">3</span>
-                    <span>SSL/TLS 加密模式</span>
+                  <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                      <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">3</span>
+                      <span>SSL/TLS 加密模式</span>
+                    </div>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">在 SSL/TLS 面板中选择 Flexible 或 Full 模式，自动享受免费边缘 SSL。</p>
                   </div>
-                  <p class="text-slate-400 text-[11px] leading-relaxed">在 SSL/TLS 面板中选择 Flexible 或 Full 模式，自动享受免费边缘 SSL。</p>
-                </div>
-                <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
-                  <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
-                    <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">4</span>
-                    <span>保存域名绑定</span>
+                  <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                    <div class="flex items-center gap-1.5 text-amber-400 font-bold text-xs">
+                      <span class="w-4 h-4 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono shrink-0">4</span>
+                      <span>保存域名绑定</span>
+                    </div>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">在上方输入框填入您的域名并点击「保存并全局应用」即可秒级生效！</p>
                   </div>
-                  <p class="text-slate-400 text-[11px] leading-relaxed">在上方输入框填入您的域名并点击「保存并全局应用」即可秒级生效！</p>
                 </div>
-              </div>
 
-              <!-- Tab 2: Caddy -->
-              <div v-show="domainGuideTab === 'caddy'" class="space-y-2 text-xs text-slate-300 pt-1">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span class="text-cyan-400 font-bold text-[11px]">⚡ Caddyfile 4 行极简配置 (编辑 /etc/caddy/Caddyfile):</span>
-                  <button 
-                    type="button" 
-                    @click="copyCaddyConfig"
-                    class="text-[11px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1 cursor-pointer"
-                  >
-                    📋 复制 Caddyfile
-                  </button>
+                <!-- Tab 2: Caddy -->
+                <div v-show="domainGuideTab === 'caddy'" class="space-y-2 text-xs text-slate-300">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span class="text-cyan-400 font-bold text-[11px]">⚡ Caddyfile 4 行极简配置 (编辑 /etc/caddy/Caddyfile):</span>
+                    <button 
+                      type="button" 
+                      @click="copyCaddyConfig"
+                      class="text-[11px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1 cursor-pointer"
+                    >
+                      📋 复制 Caddyfile
+                    </button>
+                  </div>
+                  <pre class="bg-slate-900 p-3 rounded-xl text-xs text-cyan-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ caddyConfigPreview }}</pre>
+                  <div class="text-slate-400 text-[11px] flex items-center gap-2">
+                    <span>💡 提示：配置保存后运行 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-cyan-300 font-mono">systemctl reload caddy</code> 即可自动申请与续签 Let's Encrypt 证书。</span>
+                  </div>
                 </div>
-                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-cyan-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ caddyConfigPreview }}</pre>
-                <div class="text-slate-400 text-[11px] flex items-center gap-2">
-                  <span>💡 提示：配置保存后运行 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-cyan-300 font-mono">systemctl reload caddy</code> 即可自动申请与续签 Let's Encrypt 证书。</span>
-                </div>
-              </div>
 
-              <!-- Tab 3: Nginx -->
-              <div v-show="domainGuideTab === 'nginx'" class="space-y-2 text-xs text-slate-300 pt-1">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <span class="text-emerald-400 font-bold text-[11px]">🛡️ Nginx 反向代理配置 (保存在 /etc/nginx/conf.d/subhub.conf):</span>
-                  <button 
-                    type="button" 
-                    @click="copyNginxConfig"
-                    class="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1 cursor-pointer"
-                  >
-                    📋 复制 Nginx 配置
-                  </button>
-                </div>
-                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-emerald-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ nginxConfigPreview }}</pre>
-                <div class="text-slate-400 text-[11px] flex items-center gap-2">
-                  <span>💡 提示：使用 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300 font-mono">certbot --nginx -d {{ cleanHostnameInput }}</code> 即可一键自动签发并注入 SSL 证书。</span>
+                <!-- Tab 3: Nginx -->
+                <div v-show="domainGuideTab === 'nginx'" class="space-y-2 text-xs text-slate-300">
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span class="text-emerald-400 font-bold text-[11px]">🛡️ Nginx 反向代理配置 (保存在 /etc/nginx/conf.d/subhub.conf):</span>
+                    <button 
+                      type="button" 
+                      @click="copyNginxConfig"
+                      class="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1 cursor-pointer"
+                    >
+                      📋 复制 Nginx 配置
+                    </button>
+                  </div>
+                  <pre class="bg-slate-900 p-3 rounded-xl text-xs text-emerald-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ nginxConfigPreview }}</pre>
+                  <div class="text-slate-400 text-[11px] flex items-center gap-2">
+                    <span>💡 提示：使用 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300 font-mono">certbot --nginx -d {{ cleanHostnameInput }}</code> 即可一键自动签发并注入 SSL 证书。</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2772,7 +2779,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.4' }}
+                      v{{ versionInfo.currentVersion || '1.0.5' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -2821,7 +2828,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">当前运行版本</span>
             <span class="text-xs font-mono font-extrabold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-              v{{ versionInfo.currentVersion || '1.0.4' }}
+              v{{ versionInfo.currentVersion || '1.0.5' }}
             </span>
           </div>
 
@@ -3952,7 +3959,7 @@ function main(config, profileName) {
 
         // 系统版本管理与在线更新状态
         const versionInfo = ref({
-          currentVersion: '1.0.4',
+          currentVersion: '1.0.5',
           latestVersion: null,
           hasUpdate: false,
           releaseNotes: '',
