@@ -3205,7 +3205,7 @@
                           🚫 禁用
                         </button>
                         <button 
-                          @click="promptResetPassword(u.username)" 
+                          @click="openAdminResetPwdModal(u.username)" 
                           class="text-xs text-cyan-400 hover:text-cyan-300 cursor-pointer"
                         >
                           重置密码
@@ -4392,6 +4392,99 @@
             </button>
           </div>
         </form>
+    <!-- 管理员重置用户密码模态框 (Admin Reset User Password Modal) -->
+    <div v-if="showAdminResetPwdModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+        <!-- 弹窗标题 -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-base font-bold">
+              🔑
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">重置用户【{{ resetTargetUsername }}】密码</h3>
+              <p class="text-[11px] text-slate-400">为该用户设置新密码 · 提交后立即生效</p>
+            </div>
+          </div>
+          <button @click="showAdminResetPwdModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <form @submit.prevent="submitAdminResetPassword" class="space-y-4">
+          <!-- 快速随机生成密码按钮 -->
+          <div class="flex items-center justify-between bg-slate-950 p-3 rounded-2xl border border-slate-800/80">
+            <div class="text-xs text-slate-400">需要高安全强度的密码？</div>
+            <button 
+              type="button" 
+              @click="generateRandomPasswordForReset"
+              class="text-xs text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-2.5 py-1 rounded-xl transition-all cursor-pointer"
+            >
+              <span>🎲 随机生成 12 位密码</span>
+            </button>
+          </div>
+
+          <!-- 新密码输入框 -->
+          <div>
+            <label class="text-xs text-slate-400 block mb-1 font-semibold">新密码 (至少 4 位) *</label>
+            <div class="relative">
+              <input 
+                v-model="resetPwdForm.password" 
+                :type="showResetPassword ? 'text' : 'password'" 
+                placeholder="输入新密码"
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                required
+              />
+              <button 
+                type="button" 
+                @click="showResetPassword = !showResetPassword"
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs cursor-pointer p-1"
+                tabindex="-1"
+              >
+                {{ showResetPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 确认新密码输入框 -->
+          <div>
+            <label class="text-xs text-slate-400 block mb-1 font-semibold">确认新密码 *</label>
+            <div class="relative">
+              <input 
+                v-model="resetPwdForm.confirmPassword" 
+                :type="showResetConfirmPassword ? 'text' : 'password'" 
+                placeholder="再次输入新密码"
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                required
+              />
+              <button 
+                type="button" 
+                @click="showResetConfirmPassword = !showResetConfirmPassword"
+                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs cursor-pointer p-1"
+                tabindex="-1"
+              >
+                {{ showResetConfirmPassword ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- 底部操作按钮 -->
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+            <button 
+              type="button" 
+              @click="showAdminResetPwdModal = false" 
+              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              取消
+            </button>
+            <button 
+              type="submit" 
+              :disabled="submittingResetPwd"
+              class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-xl text-xs font-bold shadow-lg shadow-amber-500/25 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <svg v-if="submittingResetPwd" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <span>{{ submittingResetPwd ? '正在重置...' : '🔑 确认重置密码' }}</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -5196,6 +5289,14 @@ function main(config, profileName) {
         const adminUsers = ref([]);
         const loadingUsers = ref(false);
         const newUser = ref({ username: '', password: '', role: 'user' });
+
+        // 管理员重置用户密码状态
+        const showAdminResetPwdModal = ref(false);
+        const resetTargetUsername = ref('');
+        const resetPwdForm = ref({ password: '', confirmPassword: '' });
+        const showResetPassword = ref(false);
+        const showResetConfirmPassword = ref(false);
+        const submittingResetPwd = ref(false);
 
         // 封禁管理状态
         const showBanModal = ref(false);
@@ -6567,26 +6668,59 @@ function main(config, profileName) {
           }
         };
 
-        const promptResetPassword = async (uName) => {
-          const newPass = prompt(`请输入用户【${uName}】的新密码:`);
-          if (!newPass) return;
+        const openAdminResetPwdModal = (uName) => {
+          resetTargetUsername.value = uName;
+          resetPwdForm.value = { password: '', confirmPassword: '' };
+          showResetPassword.value = false;
+          showResetConfirmPassword.value = false;
+          showAdminResetPwdModal.value = true;
+        };
+
+        const generateRandomPasswordForReset = () => {
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+          let pwd = '';
+          for (let i = 0; i < 12; i++) {
+            pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          resetPwdForm.value.password = pwd;
+          resetPwdForm.value.confirmPassword = pwd;
+          showResetPassword.value = true;
+          showResetConfirmPassword.value = true;
+          showToast('已随机生成 12 位高强度密码！');
+        };
+
+        const submitAdminResetPassword = async () => {
+          if (!resetPwdForm.value.password) {
+            return showToast('请输入新密码', 'error');
+          }
+          if (resetPwdForm.value.password.length < 4) {
+            return showToast('新密码长度至少 4 位', 'error');
+          }
+          if (resetPwdForm.value.password !== resetPwdForm.value.confirmPassword) {
+            return showToast('两次输入的密码不一致', 'error');
+          }
+          submittingResetPwd.value = true;
           try {
+            const uName = resetTargetUsername.value;
             const res = await fetch(`/api/admin/users/${encodeURIComponent(uName)}/reset-password`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token.value}`
               },
-              body: JSON.stringify({ newPassword: newPass })
+              body: JSON.stringify({ newPassword: resetPwdForm.value.password })
             });
             const data = await res.json();
             if (res.ok) {
-              showToast(`用户 ${uName} 的密码已重置！`);
+              showToast(`用户【${uName}】的密码已成功重置！`);
+              showAdminResetPwdModal.value = false;
             } else {
-              showToast(data.error || '重置失败', 'error');
+              showToast(data.error || '重置密码失败', 'error');
             }
           } catch (e) {
-            showToast('请求失败', 'error');
+            showToast('请求失败: ' + e.message, 'error');
+          } finally {
+            submittingResetPwd.value = false;
           }
         };
 
@@ -7255,7 +7389,15 @@ function main(config, profileName) {
           confirmBanUser,
           unbanUser,
           formatBanCountdown,
-          promptResetPassword,
+          showAdminResetPwdModal,
+          resetTargetUsername,
+          resetPwdForm,
+          showResetPassword,
+          showResetConfirmPassword,
+          submittingResetPwd,
+          openAdminResetPwdModal,
+          generateRandomPasswordForReset,
+          submitAdminResetPassword,
           copySmartSubUrl,
           copyRulesJsUrl,
           rulesJsUrl,
