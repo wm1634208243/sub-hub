@@ -1668,12 +1668,16 @@ app.post('/api/admin/system/domain/test', authMiddleware, adminOnly, async (req,
 // Admin one-click SSL certificate & reverse proxy provisioning
 app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (req, res) => {
   try {
-    let { domain, engine = 'caddy' } = req.body;
+    let { domain, port, engine = 'caddy' } = req.body;
     if (!domain || typeof domain !== 'string') {
       return res.status(400).json({ error: '请提供有效的域名' });
     }
 
-    let hostname = domain.trim().replace(/^https?:\/\//i, '').split('/')[0].split(':')[0].trim();
+    let raw = domain.trim().replace(/^https?:\/\//i, '').split('/')[0].trim();
+    let parts = raw.split(':');
+    let hostname = parts[0].trim();
+    let externalPort = String(port || parts[1] || (engine === 'direct' ? PORT : '443')).trim();
+
     if (!hostname) {
       return res.status(400).json({ error: '无效的域名格式' });
     }
@@ -1687,6 +1691,28 @@ app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (re
       logs.push(`✅ DNS 解析就绪，解析到 IP: ${records.map(r => r.address).join(', ')}`);
     } catch (dnsErr) {
       logs.push(`⚠️ DNS 提示: 未能成功解析域名 (${dnsErr.message})，可能导致证书申请失败，正在尝试继续...`);
+    }
+
+    // Direct Port Mode (e.g. port 3000 or direct connection without 80/443 reverse proxy)
+    if (engine === 'direct' || externalPort === String(PORT)) {
+      logs.push(`🚀 [2/4] 直连模式: 直接绑定原生访问端口 :${externalPort} (无需 80/443 反代)...`);
+      const fullUrl = `http://${hostname}:${externalPort}`;
+      const updatedSettings = await saveSystemSettings({
+        customDomain: fullUrl,
+        enableHttpsRedirect: false
+      });
+      logs.push(`🎉 [3/4] SubHub 全局直链已成功绑定为: ${fullUrl}`);
+      logs.push(`✅ [4/4] 配置完成！所有客户端订阅直链已立即生效。`);
+
+      return res.json({
+        success: true,
+        domain: hostname,
+        port: externalPort,
+        fullUrl: fullUrl,
+        settings: updatedSettings,
+        logs: logs.join('\n'),
+        message: `SubHub 已成功直连绑定至 ${fullUrl}`
+      });
     }
 
     if (isDocker) {
@@ -1727,8 +1753,9 @@ app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (re
         }
       }
 
-      logs.push(`📜 [3/4] 写入 Caddyfile 反向代理配置 (${hostname} -> 127.0.0.1:${PORT})...`);
-      const caddyConfig = `${hostname} {\n    reverse_proxy 127.0.0.1:${PORT}\n}\n`;
+      const caddySite = externalPort && externalPort !== '443' && externalPort !== '80' ? `${hostname}:${externalPort}` : hostname;
+      logs.push(`📜 [3/4] 写入 Caddyfile 反向代理配置 (${caddySite} -> 127.0.0.1:${PORT})...`);
+      const caddyConfig = `${caddySite} {\n    reverse_proxy 127.0.0.1:${PORT}\n}\n`;
       try {
         if (!fs.existsSync('/etc/caddy')) {
           fs.mkdirSync('/etc/caddy', { recursive: true });
@@ -1743,13 +1770,14 @@ app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (re
       try {
         await execPromise('systemctl enable caddy 2>/dev/null || true');
         await execPromise('systemctl restart caddy 2>/dev/null || caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true');
-        logs.push('✅ Caddy 服务已重载！80/443 端口已开启，正在后台自动向 ACME 申请证书...');
+        logs.push(`✅ Caddy 服务已重载！监听端口: ${externalPort}，正在后台自动向 ACME 申请证书...`);
       } catch (reloadErr) {
         logs.push(`⚠️ 重载 Caddy 提示: ${reloadErr.message}`);
       }
     } else if (engine === 'nginx') {
-      logs.push('🛡️ [2/4] 配置 Nginx 反向代理...');
-      const nginxConfig = `server {\n    listen 80;\n    server_name ${hostname};\n    location / {\n        proxy_pass http://127.0.0.1:${PORT};\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}\n`;
+      const listenPort = externalPort || '80';
+      logs.push(`🛡️ [2/4] 配置 Nginx 反向代理 (监听端口: ${listenPort})...`);
+      const nginxConfig = `server {\n    listen ${listenPort};\n    server_name ${hostname};\n    location / {\n        proxy_pass http://127.0.0.1:${PORT};\n        proxy_set_header Host \$host;\n        proxy_set_header X-Real-IP \$remote_addr;\n        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto \$scheme;\n    }\n}\n`;
       try {
         const confDir = fs.existsSync('/etc/nginx/conf.d') ? '/etc/nginx/conf.d' : (fs.existsSync('/etc/nginx/sites-enabled') ? '/etc/nginx/sites-enabled' : null);
         if (confDir) {
@@ -1761,29 +1789,33 @@ app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (re
         logs.push(`⚠️ 写入 Nginx 配置提示: ${e.message}`);
       }
 
-      logs.push('📜 [3/4] 正在调用 Certbot 申请 SSL 证书...');
-      try {
-        const certRes = await execPromise(`certbot --nginx -d ${hostname} --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1 || true`);
-        logs.push(certRes.stdout ? certRes.stdout.slice(0, 300) : 'Certbot 执行完成');
-      } catch (certErr) {
-        logs.push(`⚠️ Certbot 提示: ${certErr.message}`);
+      if (listenPort === '80' || listenPort === '443') {
+        logs.push('📜 [3/4] 正在调用 Certbot 申请 SSL 证书...');
+        try {
+          const certRes = await execPromise(`certbot --nginx -d ${hostname} --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1 || true`);
+          logs.push(certRes.stdout ? certRes.stdout.slice(0, 300) : 'Certbot 执行完成');
+        } catch (certErr) {
+          logs.push(`⚠️ Certbot 提示: ${certErr.message}`);
+        }
       }
     }
 
-    logs.push('🌐 [4/4] 正在将 SubHub 全局直链绑定为 HTTPS 域名...');
+    const fullUrl = externalPort === '443' ? `https://${hostname}` : (externalPort === '80' ? `http://${hostname}` : `https://${hostname}:${externalPort}`);
+    logs.push(`🌐 [4/4] 正在将 SubHub 全局直链绑定为: ${fullUrl}...`);
     const updatedSettings = await saveSystemSettings({
-      customDomain: `https://${hostname}`,
-      enableHttpsRedirect: true
+      customDomain: fullUrl,
+      enableHttpsRedirect: externalPort === '443'
     });
-    logs.push(`🎉 恭喜！SubHub 全站已成功绑定至 https://${hostname}`);
+    logs.push(`🎉 恭喜！SubHub 全站已成功绑定至 ${fullUrl}`);
 
     res.json({
       success: true,
       domain: hostname,
-      fullUrl: `https://${hostname}`,
+      port: externalPort,
+      fullUrl: fullUrl,
       settings: updatedSettings,
       logs: logs.join('\n'),
-      message: `🎉 SSL 证书与反向代理已配置就绪！已成功将全站直链升级为 https://${hostname}`
+      message: `SSL 证书与反向代理已就绪，全站直链已升级为 ${fullUrl}`
     });
   } catch (err) {
     res.status(500).json({ error: '配置 SSL 证书与反代失败: ' + err.message });

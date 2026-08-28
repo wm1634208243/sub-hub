@@ -3447,12 +3447,21 @@
                     </button>
                     <button 
                       type="button" 
+                      @click="quickBindDirectPort3000" 
+                      :disabled="!domainInput.trim()"
+                      class="px-3.5 py-2.5 bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-500/40 text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/10 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      title="直接将当前域名+3000端口绑定为全局直链（免 80/443 反代）"
+                    >
+                      <span>⚡ 绑定 3000 端口</span>
+                    </button>
+                    <button 
+                      type="button" 
                       @click="openSslModal" 
                       :disabled="!domainInput.trim()"
                       class="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
                       title="一键自动安装 Caddy 并向 Let's Encrypt 申请 SSL 证书"
                     >
-                      <span>⚡ 一键申请 SSL 证书</span>
+                      <span>⚡ 一键配置 SSL/端口</span>
                     </button>
                     <button 
                       type="button" 
@@ -4179,30 +4188,84 @@
           <button v-if="!provisioningSsl" @click="showSslModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
         </div>
 
-        <!-- 目标域名与引擎选项 -->
+        <!-- 目标域名、端口与引擎选项 -->
         <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3.5 text-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-slate-400 font-medium">目标绑定域名:</span>
-            <span class="font-mono font-bold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-lg border border-cyan-500/30">
-              https://{{ cleanHostnameInput }}
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span class="text-slate-400 font-medium">目标全局直链预览:</span>
+            <span class="font-mono font-bold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-lg border border-cyan-500/30 truncate">
+              {{ targetPreviewUrl }}
             </span>
           </div>
 
-          <div class="space-y-1.5">
-            <label class="text-slate-300 font-semibold block">选择自动化反向代理与 ACME 证书引擎:</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'caddy' ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
-                <input type="radio" v-model="sslEngine" value="caddy" class="mt-0.5" />
+          <!-- 端口选择区 -->
+          <div class="space-y-1.5 pt-1 border-t border-slate-900">
+            <label class="text-slate-300 font-semibold flex items-center justify-between">
+              <span>对外访问端口:</span>
+              <span class="text-[10px] text-slate-500 font-normal">支持直接 3000 直连或自定义 HTTPS 端口</span>
+            </label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button 
+                type="button" 
+                @click="sslPort = '3000'; sslEngine = 'direct'"
+                :class="sslPort === '3000' && sslEngine === 'direct' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
+                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
+              >
+                <div class="text-[11px]">⚡ 3000 原生端口</div>
+                <div class="text-[9px] opacity-75">直连 · 免反代</div>
+              </button>
+              <button 
+                type="button" 
+                @click="sslPort = '443'; if (sslEngine === 'direct') sslEngine = 'caddy'"
+                :class="sslPort === '443' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
+                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
+              >
+                <div class="text-[11px]">🔒 443 标准 HTTPS</div>
+                <div class="text-[9px] opacity-75">无端口 · 80/443</div>
+              </button>
+              <button 
+                type="button" 
+                @click="sslPort = '8443'; if (sslEngine === 'direct') sslEngine = 'caddy'"
+                :class="sslPort === '8443' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
+                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
+              >
+                <div class="text-[11px]">☁️ 8443 HTTPS</div>
+                <div class="text-[9px] opacity-75">Cloudflare 兼容</div>
+              </button>
+              <button 
+                type="button" 
+                @click="sslPort = '2096'; if (sslEngine === 'direct') sslEngine = 'caddy'"
+                :class="sslPort === '2096' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
+                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
+              >
+                <div class="text-[11px]">🛡️ 2096 HTTPS</div>
+                <div class="text-[9px] opacity-75">X-UI 兼容端口</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- 模式与引擎选择 -->
+          <div class="space-y-1.5 pt-1 border-t border-slate-900">
+            <label class="text-slate-300 font-semibold block">绑定与反代引擎方式:</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label class="flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'direct' ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
+                <input type="radio" v-model="sslEngine" value="direct" class="mt-0.5" />
                 <div class="space-y-0.5">
-                  <div class="font-bold text-white text-[11px]">⚡ Caddy (强力推荐)</div>
-                  <div class="text-[10px] text-slate-400 leading-tight">原生内置 ACME，全自动向 Let's Encrypt 申请并永久自动续签</div>
+                  <div class="font-bold text-white text-[11px]">⚡ 原生 3000 直连</div>
+                  <div class="text-[9px] text-slate-400 leading-tight">无需额外反代软件，直接绑定 3000 端口</div>
                 </div>
               </label>
-              <label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'nginx' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
+              <label class="flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'caddy' ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
+                <input type="radio" v-model="sslEngine" value="caddy" class="mt-0.5" />
+                <div class="space-y-0.5">
+                  <div class="font-bold text-white text-[11px]">⚡ Caddy 自动 SSL</div>
+                  <div class="text-[9px] text-slate-400 leading-tight">原生内置 ACME，全自动申请并持久续签</div>
+                </div>
+              </label>
+              <label class="flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'nginx' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
                 <input type="radio" v-model="sslEngine" value="nginx" class="mt-0.5" />
                 <div class="space-y-0.5">
                   <div class="font-bold text-white text-[11px]">🛡️ Nginx + Certbot</div>
-                  <div class="text-[10px] text-slate-400 leading-tight">标准 Nginx 配置文件生成与 Certbot 证书申请</div>
+                  <div class="text-[9px] text-slate-400 leading-tight">生成 Nginx 配置并通过 Certbot 签发</div>
                 </div>
               </label>
             </div>
@@ -5322,7 +5385,8 @@ function main(config, profileName) {
 
         // 一键 SSL 证书与自动化反向代理状态
         const showSslModal = ref(false);
-        const sslEngine = ref('caddy'); // 'caddy' | 'nginx'
+        const sslEngine = ref('caddy'); // 'caddy' | 'nginx' | 'direct'
+        const sslPort = ref('3000');
         const provisioningSsl = ref(false);
         const sslProvisionLogs = ref('');
         const sslProvisionSuccess = ref(false);
@@ -6922,9 +6986,68 @@ function main(config, profileName) {
           await saveSystemDomainSettings();
         };
 
+        const targetPreviewUrl = computed(() => {
+          const host = cleanHostnameInput.value;
+          const port = sslPort.value || '3000';
+          if (sslEngine.value === 'direct') {
+            return `http://${host}:${port}/api/sub?token=...`;
+          }
+          if (port === '443') {
+            return `https://${host}/api/sub?token=...`;
+          }
+          if (port === '80') {
+            return `http://${host}/api/sub?token=...`;
+          }
+          return `https://${host}:${port}/api/sub?token=...`;
+        });
+
+        const quickBindDirectPort3000 = async () => {
+          let raw = domainInput.value.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          if (!raw) {
+            return showToast('请先在输入框填入您的域名', 'error');
+          }
+          const host = raw.split(':')[0];
+          const targetDomain = `http://${host}:3000`;
+          domainInput.value = `${host}:3000`;
+          savingDomain.value = true;
+          try {
+            const res = await fetch('/api/admin/system/settings', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                customDomain: targetDomain,
+                enableHttpsRedirect: false
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast(`🎉 成功直连绑定至 ${targetDomain}！全站订阅直链已立即切换！`);
+            } else {
+              showToast(data.error || '绑定失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，绑定失败', 'error');
+          } finally {
+            savingDomain.value = false;
+          }
+        };
+
         const openSslModal = () => {
           if (!domainInput.value.trim()) {
             return showToast('请先输入要配置证书的域名', 'error');
+          }
+          const raw = domainInput.value.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          if (raw.includes(':')) {
+            sslPort.value = raw.split(':')[1];
+          } else {
+            sslPort.value = window.location.port === '3000' ? '3000' : '443';
+          }
+          if (sslPort.value === '3000') {
+            sslEngine.value = 'direct';
           }
           sslProvisionLogs.value = '';
           sslProvisionSuccess.value = false;
@@ -6938,7 +7061,8 @@ function main(config, profileName) {
           }
           provisioningSsl.value = true;
           sslProvisionSuccess.value = false;
-          sslProvisionLogs.value = `🚀 正在向服务端发起【${sslEngine.value === 'caddy' ? 'Caddy 自动化引擎' : 'Nginx + Certbot'}】一键 SSL 证书申请与反代配置流水线...\n\n`;
+          const engineName = sslEngine.value === 'direct' ? '直连 3000 端口模式' : (sslEngine.value === 'caddy' ? 'Caddy 自动化引擎' : 'Nginx + Certbot');
+          sslProvisionLogs.value = `🚀 正在向服务端发起【${engineName} (端口: ${sslPort.value})】配置流水线...\n\n`;
 
           try {
             const res = await fetch('/api/admin/system/ssl/provision', {
@@ -6949,6 +7073,7 @@ function main(config, profileName) {
               },
               body: JSON.stringify({
                 domain: raw,
+                port: sslPort.value,
                 engine: sslEngine.value
               })
             });
@@ -6968,7 +7093,7 @@ function main(config, profileName) {
               if (data.settings) {
                 systemSettings.value = data.settings;
               }
-              showToast('🎉 SSL 证书与反代已成功配置！全站直链已全局升级为 HTTPS！');
+              showToast('🎉 配置已成功应用！全站订阅直链已就绪！');
             } else {
               sslProvisionLogs.value += `❌ 配置失败: ${data.error || '未知错误'}\n`;
               showToast(data.error || '配置失败', 'error');
@@ -7455,6 +7580,9 @@ function main(config, profileName) {
           loadSystemSettings,
           showSslModal,
           sslEngine,
+          sslPort,
+          targetPreviewUrl,
+          quickBindDirectPort3000,
           provisioningSsl,
           sslProvisionLogs,
           sslProvisionSuccess,

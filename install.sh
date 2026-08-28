@@ -502,16 +502,30 @@ setup_domain_ssl() {
     read -p "请输入 SubHub 当前后端端口 [默认: $target_port]: " input_port
     target_port="${input_port:-$target_port}"
 
-    echo -e "\n请选择反向代理与 HTTPS 证书签发引擎:"
-    echo -e " ${BOLD}1.${NC} ⚡ Caddy (${GREEN}推荐 · 极速 4 行配置 · 80/443 全自动申请与续签 Let's Encrypt 证书${NC})"
-    echo -e " ${BOLD}2.${NC} ☁️  Cloudflare CDN 模式 (${CYAN}无需在服务器安装证书，开启小黄云自动 HTTPS${NC})"
-    echo -e " ${BOLD}3.${NC} 🛡️  Nginx + Certbot (${YELLOW}标准反向代理模板${NC})"
-    read -p "请选择 [1-3, 默认: 1]: " ssl_choice
+    echo -e "\n请选择反向代理与访问绑定模式:"
+    echo -e " ${BOLD}1.${NC} ⚡ Caddy (${GREEN}推荐 · 支持 443 / 8443 / 2096 任意端口 · 全自动申请 SSL 证书${NC})"
+    echo -e " ${BOLD}2.${NC} 🚀 原生端口直连模式 (${CYAN}免反代 · 直接使用 http://域名:3000 访问与下发直链${NC})"
+    echo -e " ${BOLD}3.${NC} ☁️  Cloudflare CDN / Tunnel 模式 (${YELLOW}开启小黄云或 Tunnel 隧道${NC})"
+    echo -e " ${BOLD}4.${NC} 🛡️  Nginx + Certbot (${MAGENTA}标准 Nginx 反代模板${NC})"
+    read -p "请选择 [1-4, 默认: 1]: " ssl_choice
     ssl_choice=${ssl_choice:-1}
+
+    local final_custom_domain="https://${custom_domain}"
 
     case "$ssl_choice" in
         1)
-            echo -e "\n${YELLOW}正在安装并配置 Caddy 自动化反代引擎...${NC}"
+            read -p "请输入 Caddy 对外访问端口 [默认: 443 (无端口), 或 8443 / 2096 / 3000]: " ext_port
+            ext_port=${ext_port:-443}
+
+            local caddy_site="$custom_domain"
+            if [ "$ext_port" != "443" ] && [ "$ext_port" != "80" ]; then
+                caddy_site="${custom_domain}:${ext_port}"
+                final_custom_domain="https://${custom_domain}:${ext_port}"
+            else
+                final_custom_domain="https://${custom_domain}"
+            fi
+
+            echo -e "\n${YELLOW}正在安装并配置 Caddy 自动化反代引擎 (监听: $caddy_site -> 127.0.0.1:$target_port)...${NC}"
             detect_os
             if ! command -v caddy &> /dev/null; then
                 case "$OS" in
@@ -534,26 +548,37 @@ setup_domain_ssl() {
 
             mkdir -p /etc/caddy
             cat <<CADDY > /etc/caddy/Caddyfile
-$custom_domain {
+$caddy_site {
     reverse_proxy 127.0.0.1:$target_port
 }
 CADDY
             systemctl enable caddy 2>/dev/null || true
             systemctl restart caddy 2>/dev/null || true
-            echo -e "\n${GREEN}🎉 Caddy 已配置完成！已自动监听 80/443 并向 Let's Encrypt 申请 SSL 证书！${NC}"
-            echo -e "🌐 您现在可直接通过 HTTPS 访问: ${BOLD}https://${custom_domain}${NC}"
+            echo -e "\n${GREEN}🎉 Caddy 已配置完成！已自动监听 $ext_port 端口并申请 SSL 证书！${NC}"
+            echo -e "🌐 您现在可直接访问: ${BOLD}${final_custom_domain}${NC}"
             ;;
         2)
-            echo -e "\n${CYAN}☁️ Cloudflare CDN 模式配置说明:${NC}"
-            echo -e "1. 在 Cloudflare DNS 面板添加 A 记录: ${BOLD}${custom_domain}${NC} -> 本机公网 IP"
-            echo -e "2. 开启 ${YELLOW}小黄云代理 (Proxied)${NC}"
-            echo -e "3. 在 SSL/TLS 设置中选择 ${GREEN}Flexible${NC} 或 ${GREEN}Full${NC}"
-            echo -e "4. 登录 SubHub Web 端并在「⚙️ 设置」中填入 ${BOLD}https://${custom_domain}${NC} 保存即可！"
+            read -p "请输入直连访问端口 [默认: $target_port]: " ext_port
+            ext_port=${ext_port:-$target_port}
+            final_custom_domain="http://${custom_domain}:${ext_port}"
+            echo -e "\n${GREEN}🎉 已切换为原生端口直连模式！${NC}"
+            echo -e "🌐 全局直链地址已绑定为: ${BOLD}${final_custom_domain}${NC}"
             ;;
         3)
-            echo -e "\n${GREEN}Nginx 配置文件参考 (建议保存在 /etc/nginx/conf.d/subhub.conf):${NC}"
+            echo -e "\n${CYAN}☁️ Cloudflare CDN / Tunnel 模式配置说明:${NC}"
+            echo -e "1. 在 Cloudflare DNS 面板添加 A 记录: ${BOLD}${custom_domain}${NC} -> 本机公网 IP"
+            echo -e "2. 开启 ${YELLOW}小黄云代理 (Proxied)${NC}并在 Origin Rules 将 443 重写至 $target_port"
+            echo -e "3. 或在 Cloudflare Zero Trust 中创建 Cloudflare Tunnel 映射至 localhost:$target_port"
+            echo -e "4. 全局直链将自动生效为: ${BOLD}https://${custom_domain}${NC}"
+            final_custom_domain="https://${custom_domain}"
+            ;;
+        4)
+            read -p "请输入 Nginx 对外监听端口 [默认: 80 / 443]: " ext_port
+            ext_port=${ext_port:-80}
+            echo -e "\n${GREEN}Nginx 配置文件参考 (保存在 /etc/nginx/conf.d/subhub.conf):${NC}"
             cat <<NGINX
 server {
+    listen $ext_port;
     server_name $custom_domain;
     location / {
         proxy_pass http://127.0.0.1:$target_port;
@@ -564,7 +589,8 @@ server {
     }
 }
 NGINX
-            echo -e "\n使用 ${BOLD}certbot --nginx -d $custom_domain${NC} 即可一键自动申请 SSL 证书！"
+            final_custom_domain="http://${custom_domain}:${ext_port}"
+            echo -e "\n使用 ${BOLD}certbot --nginx -d $custom_domain${NC} 即可自动签发 SSL！"
             ;;
     esac
 
@@ -575,7 +601,7 @@ NGINX
         const file = '$INSTALL_DIR/data/system_settings.json';
         let s = {};
         try { s = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
-        s.customDomain = 'https://$custom_domain';
+        s.customDomain = '$final_custom_domain';
         s.updatedAt = new Date().toISOString();
         fs.writeFileSync(file, JSON.stringify(s, null, 2));
         " 2>/dev/null || true
