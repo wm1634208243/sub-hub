@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.3';
+const CURRENT_VERSION = '1.0.4';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -887,7 +887,12 @@ app.post('/api/register', registerLimiter, async (req, res) => {
   };
   users.push(newUser);
   await saveUsers(users);
-  await saveUserConfig(cleanName, defaultUserConfig());
+
+  // Initialize with initialConfig if promoted from local guest or default
+  const initCfg = (req.body.initialConfig && typeof req.body.initialConfig === 'object')
+    ? { ...defaultUserConfig(), ...req.body.initialConfig }
+    : defaultUserConfig();
+  await saveUserConfig(cleanName, initCfg);
 
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
   const ua = req.headers['user-agent'] || 'unknown';
@@ -944,6 +949,73 @@ app.post('/api/config', authMiddleware, async (req, res) => {
   });
 
   res.json({ success: true, message: '配置保存成功！' });
+});
+
+// 一键彻底物理抹除云端配置（切换到本地纯离线模式时使用）
+app.delete('/api/config/purge', authMiddleware, async (req, res) => {
+  try {
+    const uname = req.session.username;
+    const file = path.join(CONFIGS_DIR, `${uname}.json`);
+    if (fs.existsSync(file)) {
+      await fs.promises.unlink(file);
+    }
+    compiledCache.delete(uname);
+    res.json({ success: true, message: '云端配置数据已彻底物理抹除！' });
+  } catch (err) {
+    res.status(500).json({ error: '抹除云端配置失败: ' + err.message });
+  }
+});
+
+// 纯本地离线模式 / 访客模式免存盘实时瞬态编译转换
+app.post('/api/public/compile-transient', async (req, res) => {
+  try {
+    const { config, target = 'clash', clientUa = '' } = req.body || {};
+    if (!config || typeof config !== 'object') {
+      return res.status(400).json({ error: '未提供有效配置对象' });
+    }
+
+    const fullCfg = { ...defaultUserConfig(), ...config };
+    let output = '';
+    let filename = `config.${target === 'singbox' ? 'json' : (target === 'surge' ? 'conf' : (target === 'js' ? 'js' : 'yaml'))}`;
+    let nodesCount = 0;
+
+    if (target === 'js') {
+      output = compileConfigToJs(fullCfg, clientUa);
+      filename = 'subhub_rules.js';
+    } else if (target === 'singbox') {
+      const { proxies } = await fetchAllUserProxies(fullCfg);
+      nodesCount = proxies.length;
+      const sbObj = convertToSingBoxJson(proxies, fullCfg);
+      output = typeof sbObj === 'string' ? sbObj : JSON.stringify(sbObj, null, 2);
+      filename = 'singbox_config.json';
+    } else if (target === 'surge') {
+      const { proxies } = await fetchAllUserProxies(fullCfg);
+      nodesCount = proxies.length;
+      output = convertToSurgeList(proxies, fullCfg);
+      filename = 'surge_rules.conf';
+    } else if (target === 'base64') {
+      const { proxies } = await fetchAllUserProxies(fullCfg);
+      nodesCount = proxies.length;
+      output = convertToBase64(proxies);
+      filename = 'nodes_base64.txt';
+    } else {
+      // Default Clash / Mihomo YAML
+      const clashRes = await aggregateClashYaml(fullCfg, clientUa);
+      output = clashRes.yaml || '';
+      nodesCount = clashRes.totalNodes || 0;
+      filename = 'clash_config.yaml';
+    }
+
+    res.json({
+      success: true,
+      target,
+      filename,
+      nodesCount,
+      content: output
+    });
+  } catch (err) {
+    res.status(500).json({ error: '瞬态编译失败: ' + err.message });
+  }
 });
 
 app.post('/api/preview', authMiddleware, (req, res) => {
@@ -1762,6 +1834,19 @@ async function checkAndRefreshAllSubscriptions() {
 
 const BUILTIN_VERSIONS_ZH = [
   {
+    version: '1.0.4',
+    tag: 'v1.0.4',
+    name: 'SubHub v1.0.4 · 数据存储与隐私双轨制体系与免登录纯本地工作台',
+    publishedAt: '2026-08-28T10:45:00Z',
+    highlights: ['🛡️ 纯浏览器本地离线单机模式 (0 云端留存)', '⚡ 免登录即开即用访客工作台', '💾 云端同步 vs 本地单机双轨制切换', '📥 浏览器本地一键即时生成下载', '☁️ 访客一键无缝升级同步云端'],
+    changelogZh: `### 🛡️ 双轨制数据存储体系与免登录纯本地离线工作台
+- **双轨制架构切换**：在设置中支持「☁️ 云端托管同步模式」与「🛡️ 纯浏览器本地离线单机模式」一键自由切换；
+- **免登录即开即用**：登录页提供「🛡️ 免登录 · 进入纯本地离线工作台」入口，0 注册、0 账号、数据 100% 留存在浏览器 LocalStorage，物理级绝对隐私；
+- **本地一键即时编译下载**：在客户端面板中，为离线单机用户提供 Clash YAML、Sing-box JSON、Surge 规则列表、Base64 与 JS 覆写脚本的一键即时编译与下载；
+- **云端数据彻底抹除**：切换至本地模式时，提供一键彻底物理抹除服务器磁盘上的加密配置文件；
+- **一键升级云端同步**：本地离线访客可随时一键注册账号，当前配置一秒无缝同步上传至云端 AES-256-GCM 加密存储。`
+  },
+  {
     version: '1.0.3',
     tag: 'v1.0.3',
     name: 'SubHub v1.0.3 · 多租户零知识私有数据加密与快照盲化备份系统',
@@ -1990,7 +2075,7 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
 init().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
-    console.log(`🚀 Clash Sub Hub v1.0.3 已启动`);
+    console.log(`🚀 Clash Sub Hub v1.0.4 已启动`);
     console.log(`🌐 Web 管理端: http://localhost:${PORT}`);
     console.log(`👤 默认账号: admin / admin`);
     console.log(`====================================================`);

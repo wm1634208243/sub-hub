@@ -238,6 +238,23 @@
             <span v-else>立即注册并开始使用</span>
           </button>
         </form>
+
+        <!-- 分隔线与免登录纯本地工作台入口 -->
+        <div class="relative my-5">
+          <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
+          <div class="relative flex justify-center text-[11px]"><span class="bg-slate-900 px-3 text-slate-500 font-medium">或者 极致隐私选择</span></div>
+        </div>
+
+        <button 
+          type="button" 
+          @click="enterGuestOfflineMode"
+          class="w-full bg-slate-950 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/60 font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer text-xs group"
+        >
+          <span class="text-base group-hover:scale-110 transition-transform">🛡️</span>
+          <span>免登录 · 进入纯本地离线工作台</span>
+          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-normal">0云端存储</span>
+        </button>
+        <p class="text-[10px] text-slate-500 text-center mt-2">无需注册账号 · 数据 100% 存在浏览器 LocalStorage · 物理级绝对隐私</p>
       </div>
     </div>
 
@@ -259,7 +276,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.3' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.4' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -317,11 +334,10 @@
               📋 日志
             </button>
             <button 
-              v-if="currentUser.role === 'admin'"
-              @click="activeTab = 'users'" 
-              :class="activeTab === 'users' ? 'bg-slate-800 text-amber-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-amber-300'"
+              @click="activeTab = 'settings'" 
+              :class="activeTab === 'settings' ? 'bg-slate-800 text-amber-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-amber-300'"
               class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer shrink-0"
-              title="平台多用户、全局数据备份与系统升级管理"
+              title="双轨制数据存储、平台设置与系统运维"
             >
               ⚙️ 设置
             </button>
@@ -356,8 +372,25 @@
               </label>
             </div>
 
-            <!-- 用户身份胶囊 & 修改密码入口 -->
+            <!-- 访客专属：一键注册并同步至云端按钮 -->
             <button 
+              v-if="currentUser.isGuest"
+              @click="showPromoteModal = true"
+              class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
+              title="将当前本地配置一键升级为云端账号"
+            >
+              <span>☁️</span>
+              <span>注册并同步至云端</span>
+            </button>
+
+            <!-- 用户身份胶囊 / 离线访客胶囊 -->
+            <div v-if="currentUser.isGuest" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs whitespace-nowrap shrink-0">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="font-semibold text-emerald-300">纯离线访客</span>
+              <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 font-mono">0云存储</span>
+            </div>
+            <button 
+              v-else
               @click="openPwdModal" 
               class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-xs whitespace-nowrap shrink-0 transition-all cursor-pointer"
               title="点击修改当前账户密码"
@@ -369,21 +402,21 @@
 
             <!-- 保存并发布按钮 -->
             <button 
-              @click="saveConfig" 
+              @click="saveConfig()" 
               :disabled="saving"
               class="relative bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-60 text-white font-semibold px-3.5 sm:px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all whitespace-nowrap shrink-0 cursor-pointer"
             >
               <span v-if="isDirty" class="w-2 h-2 rounded-full bg-amber-400 absolute -top-0.5 -right-0.5 animate-ping"></span>
               <span v-if="isDirty" class="w-2 h-2 rounded-full bg-amber-400 absolute -top-0.5 -right-0.5"></span>
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-              <span>{{ saving ? '发布中...' : '保存发布' }}</span>
+              <span>{{ saving ? (storageMode === 'local' ? '本地保存中...' : '发布中...') : (storageMode === 'local' ? '保存本地' : '保存发布') }}</span>
             </button>
 
-            <!-- 退出登录 -->
+            <!-- 退出登录 / 退出离线工作台 -->
             <button 
               @click="logout" 
               class="text-slate-400 hover:text-rose-400 p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
-              title="退出登录"
+              :title="currentUser.isGuest ? '退出离线工作台' : '退出登录'"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             </button>
@@ -1894,7 +1927,95 @@
             <!-- 专区 2: 🛰️ 全托管聚合订阅模式 (Full Aggregated Subscriptions) -->
             <!-- ============================================================== -->
             <div v-show="clientCategory === 'subs'" class="space-y-5">
-              <!-- 聚合订阅链接工具条 -->
+
+              <!-- 纯本地离线单机模式：一键即时生成并下载配置文件 -->
+              <div v-if="currentUser.isGuest || storageMode === 'local'" class="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-xl space-y-3.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-lg font-bold">
+                      🛡️
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <span>纯本地离线单机模式：一键生成并下载客户端配置文件</span>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-normal">0 云端存储</span>
+                      </h3>
+                      <p class="text-xs text-slate-400">当前处于纯离线模式（云端不保留您的订阅）。点击下方按钮即可即时拉取节点并下载专属配置文件手动导入客户端：</p>
+                    </div>
+                  </div>
+                  <button 
+                    v-if="currentUser.isGuest"
+                    @click="showPromoteModal = true"
+                    class="px-3.5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    ☁️ 升级为云端 24h 自动拉取
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-800">
+                  <button 
+                    @click="downloadLocalCompiled('clash')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-cyan-400 flex items-center justify-between">
+                      <span>🌟 Clash / Mihomo</span>
+                      <span v-if="compilingLocalTarget === 'clash'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .yaml 配置</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('singbox')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-amber-400 flex items-center justify-between">
+                      <span>📦 Sing-Box / Neko</span>
+                      <span v-if="compilingLocalTarget === 'singbox'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .json 配置</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('surge')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-rose-500/30 hover:border-rose-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-rose-400 flex items-center justify-between">
+                      <span>⚡ Surge 规则</span>
+                      <span v-if="compilingLocalTarget === 'surge'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .conf 列表</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('base64')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-emerald-400 flex items-center justify-between">
+                      <span>🍎 Base64 节点</span>
+                      <span v-if="compilingLocalTarget === 'base64'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .txt 节点</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('js')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-purple-500/30 hover:border-purple-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1 col-span-2 sm:col-span-1"
+                  >
+                    <div class="text-[11px] font-bold text-purple-400 flex items-center justify-between">
+                      <span>💻 JS 预处理覆写</span>
+                      <span v-if="compilingLocalTarget === 'js'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .js 脚本</div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 聚合订阅链接工具条 (云端模式显示直链) -->
               <div class="bg-gradient-to-r from-cyan-950/40 via-slate-950 to-slate-950 border border-cyan-500/30 rounded-2xl p-4.5 space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
@@ -2289,13 +2410,139 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
         </div>
 
         <!-- ========================================== -->
-        <!-- Tab 5: 用户管理 (Admin Only) -->
+        <!-- Tab 5: 系统设置与双轨制存储管理 (Settings & Dual-Track Storage) -->
         <!-- ========================================== -->
-        <div v-if="currentUser.role === 'admin'" v-show="activeTab === 'users'" class="space-y-6">
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div v-show="activeTab === 'settings' || activeTab === 'users'" class="space-y-6">
 
-            <!-- 用户列表 -->
-            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <!-- 💾 数据存储与隐私双轨制模式卡片 (Dual-Track Storage & Privacy Card) -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl font-bold">
+                  💾
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>数据存储与隐私模式（双轨制架构）</span>
+                    <span class="text-[10px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                      Dual-Track Storage
+                    </span>
+                  </h3>
+                  <p class="text-xs text-slate-400">支持「云端托管同步模式」与「纯浏览器本地离线模式」自由无缝切换</p>
+                </div>
+              </div>
+
+              <!-- 当前模式状态徽章 -->
+              <div>
+                <span v-if="storageMode === 'local' || currentUser.isGuest" class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-full">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>🛡️ 纯浏览器本地离线模式 (0 云端存储)</span>
+                </span>
+                <span v-else class="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-semibold rounded-full">
+                  <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  <span>☁️ 云端托管同步模式 (AES-256-GCM 加密)</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- 模式选择双栏卡片 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- 模式 A: 云端托管同步 -->
+              <div 
+                @click="!currentUser.isGuest && (storageMode = 'cloud', localStorage.setItem('subhub_storage_mode', 'cloud'), saveConfig())"
+                :class="storageMode === 'cloud' && !currentUser.isGuest ? 'border-cyan-500/60 bg-cyan-950/20 shadow-lg shadow-cyan-500/10' : 'border-slate-800 bg-slate-950/80 hover:border-slate-700'"
+                class="border rounded-2xl p-5 space-y-3 transition-all cursor-pointer relative overflow-hidden"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xl">☁️</span>
+                    <span class="font-bold text-sm text-white">云端托管同步模式</span>
+                  </div>
+                  <span v-if="storageMode === 'cloud' && !currentUser.isGuest" class="text-[10px] bg-cyan-500 text-slate-950 font-bold px-2 py-0.5 rounded-full">
+                    当前使用中
+                  </span>
+                </div>
+
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  订阅与规则经 <strong>AES-256-GCM 零知识加密</strong> 保存在服务器。支持手机、电脑、软路由客户端 <strong>24 小时静默自动更新订阅</strong>；多设备换机登录即可同步。
+                </p>
+
+                <div class="text-[11px] text-cyan-400 font-mono flex items-center gap-1">
+                  <span>✓ 24h 客户端自动拉取</span> · <span>✓ 多设备换机同步</span> · <span>✓ 盲化加密防窥探</span>
+                </div>
+              </div>
+
+              <!-- 模式 B: 纯本地离线单机 -->
+              <div 
+                @click="storageMode = 'local', localStorage.setItem('subhub_storage_mode', 'local'), saveConfig()"
+                :class="storageMode === 'local' || currentUser.isGuest ? 'border-emerald-500/60 bg-emerald-950/20 shadow-lg shadow-emerald-500/10' : 'border-slate-800 bg-slate-950/80 hover:border-slate-700'"
+                class="border rounded-2xl p-5 space-y-3 transition-all cursor-pointer relative overflow-hidden"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xl">🛡️</span>
+                    <span class="font-bold text-sm text-white">纯浏览器本地离线模式</span>
+                  </div>
+                  <span v-if="storageMode === 'local' || currentUser.isGuest" class="text-[10px] bg-emerald-500 text-slate-950 font-bold px-2 py-0.5 rounded-full">
+                    当前使用中
+                  </span>
+                </div>
+
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  所有机场订阅与规则 <strong>100% 保存在当前浏览器 LocalStorage 中</strong>。云端服务器 <strong>0 存储、0 记录、物理级绝对隐私</strong>；支持在浏览器一键生成并下载客户端配置文件。
+                </p>
+
+                <div class="text-[11px] text-emerald-400 font-mono flex items-center gap-1">
+                  <span>✓ 云端 0 记录 0 存储</span> · <span>✓ 免注册即开即用</span> · <span>✓ 本地即时编译下载</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 针对已登录用户的云端数据彻底抹除操作 -->
+            <div v-if="!currentUser.isGuest && storageMode === 'local'" class="p-4 rounded-xl bg-rose-950/20 border border-rose-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div class="space-y-0.5">
+                <div class="font-bold text-rose-300 flex items-center gap-1.5">
+                  <span>🗑️ 清空该账号在云端的历史配置备份</span>
+                </div>
+                <div class="text-slate-400 text-[11px]">
+                  您已切换至纯本地离线模式。点击右侧按钮可彻底物理删除云端上的加密配置文件，实现服务器 0 残留。
+                </div>
+              </div>
+              <button 
+                type="button" 
+                @click="purgeCloudData" 
+                :disabled="purgingCloud"
+                class="px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl font-semibold transition-all cursor-pointer whitespace-nowrap"
+              >
+                {{ purgingCloud ? '抹除中...' : '🗑️ 立即抹除云端记录' }}
+              </button>
+            </div>
+
+            <!-- 针对访客的升级云端提示 -->
+            <div v-if="currentUser.isGuest" class="p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div class="space-y-0.5">
+                <div class="font-bold text-cyan-300 flex items-center gap-1.5">
+                  <span>☁️ 想要手机客户端 24h 自动拉取更新？</span>
+                </div>
+                <div class="text-slate-400 text-[11px]">
+                  您可以随时注册一个账号，当前在浏览器配置好的所有订阅与规则将一秒无缝同步上传至云端加密空间。
+                </div>
+              </div>
+              <button 
+                type="button" 
+                @click="showPromoteModal = true"
+                class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl font-semibold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
+              >
+                ☁️ 注册并同步至云端
+              </button>
+            </div>
+          </div>
+
+          <div v-if="currentUser.role === 'admin'" class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              <!-- 用户列表 -->
+              <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
               <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
                 <div>
                   <h3 class="text-base font-bold text-white">平台用户列表</h3>
@@ -2904,7 +3151,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.3' }}
+                      v{{ versionInfo.currentVersion || '1.0.4' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -2929,6 +3176,83 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
       <footer class="border-t border-slate-900 text-center py-4 text-xs text-slate-600">
         Clash Sub Hub &copy; 2026 - 多订阅聚合、实时流量看板与极速分流
       </footer>
+    <!-- 访客一键升级云端同步账号模态框 (Promote Guest to Cloud Modal) -->
+    <div v-if="showPromoteModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4.5 relative overflow-hidden">
+        <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-cyan-500/25">
+              ☁️
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">升级为云端同步账号</h3>
+              <p class="text-[11px] text-slate-400">保留当前本地所有配置，一秒无缝同步至云端</p>
+            </div>
+          </div>
+          <button @click="showPromoteModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <form @submit.prevent="promoteGuestToCloud" class="space-y-3.5 text-xs">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">设置用户名</label>
+            <input 
+              v-model="promoteForm.username" 
+              type="text" 
+              placeholder="2-32 位字母/数字/下划线"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-cyan-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">设置密码</label>
+            <input 
+              v-model="promoteForm.password" 
+              type="password" 
+              placeholder="至少 4 位字符"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-cyan-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">确认密码</label>
+            <input 
+              v-model="promoteForm.confirmPassword" 
+              type="password" 
+              placeholder="再次输入密码"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white focus:outline-none focus:border-cyan-500"
+              required
+            />
+          </div>
+
+          <div class="p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[11px] text-cyan-300 space-y-1">
+            <div class="font-bold flex items-center gap-1">
+              <span>🛡️ 零知识加密无缝继承：</span>
+            </div>
+            <p class="text-cyan-200/80 leading-relaxed text-[10px]">
+              创建账号后，您当前的 {{ (config.subscriptions || []).length }} 个订阅源与全部规则将自动通过 AES-256-GCM 强加密上传并分配专属短直链，支持手机/客户端 24h 自动静默拉取更新。
+            </p>
+          </div>
+
+          <div class="flex items-center justify-end gap-2.5 pt-2">
+            <button 
+              type="button" 
+              @click="showPromoteModal = false"
+              class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+            >
+              取消
+            </button>
+            <button 
+              type="submit" 
+              :disabled="loading"
+              class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-cyan-500/25 cursor-pointer transition-all flex items-center gap-1.5"
+            >
+              <span>{{ loading ? '同步注册中...' : '立即升级并同步' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- 多版本归档管理与更新中心模态框 (Multi-Version Release Hub Modal) -->
@@ -2959,7 +3283,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.0.3' }}
+                v{{ versionInfo.currentVersion || '1.0.4' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -4097,15 +4421,26 @@ function main(config, profileName) {
       components: { RuleSectionCard },
       setup() {
         const savedToken = localStorage.getItem('rule_hub_token') || '';
-        let savedUser = { username: '', role: 'user' };
-        try {
-          const uStr = localStorage.getItem('rule_hub_user');
-          if (uStr) savedUser = JSON.parse(uStr);
-        } catch {}
+        const savedIsGuest = localStorage.getItem('subhub_is_guest') === 'true';
+        let savedUser = { username: '', role: 'user', isGuest: false };
+        if (savedIsGuest) {
+          savedUser = { username: '本地离线访客', role: 'guest', isGuest: true };
+        } else {
+          try {
+            const uStr = localStorage.getItem('rule_hub_user');
+            if (uStr) savedUser = JSON.parse(uStr);
+          } catch {}
+        }
 
-        const isLoggedIn = ref(!!savedToken);
+        const isLoggedIn = ref(!!savedToken || savedIsGuest);
         const token = ref(savedToken);
         const currentUser = ref(savedUser);
+        const storageMode = ref(localStorage.getItem('subhub_storage_mode') || (savedIsGuest ? 'local' : 'cloud'));
+        const isGuest = ref(savedIsGuest);
+        const purgingCloud = ref(false);
+        const showPromoteModal = ref(false);
+        const promoteForm = ref({ username: '', password: '', confirmPassword: '' });
+        const compilingLocalTarget = ref('');
         const authMode = ref('login'); // 'login' | 'register'
         const usernameInput = ref('');
         const passwordInput = ref('');
@@ -4132,8 +4467,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.0.3',
-          latestVersion: '1.0.3',
+          currentVersion: '1.0.4',
+          latestVersion: '1.0.4',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -4851,6 +5186,23 @@ function main(config, profileName) {
           }
         };
 
+        const getLocalStorageKey = () => {
+          if (currentUser.value.isGuest) return 'subhub_guest_local_config';
+          return `subhub_local_config_${currentUser.value.username || 'default'}`;
+        };
+
+        // 免登录进入纯本地离线工作台
+        const enterGuestOfflineMode = async () => {
+          isGuest.value = true;
+          storageMode.value = 'local';
+          localStorage.setItem('subhub_is_guest', 'true');
+          localStorage.setItem('subhub_storage_mode', 'local');
+          currentUser.value = { username: '本地离线访客', role: 'guest', isGuest: true };
+          isLoggedIn.value = true;
+          showToast('🛡️ 已进入纯本地离线工作台！所有数据仅存本浏览器，云端 0 存储。');
+          await loadConfig();
+        };
+
         // 登录
         const login = async () => {
           loading.value = true;
@@ -4866,7 +5218,9 @@ function main(config, profileName) {
             const data = await res.json();
             if (res.ok && data.success) {
               token.value = data.token;
-              currentUser.value = { username: data.username, role: data.role };
+              currentUser.value = { username: data.username, role: data.role, isGuest: false };
+              isGuest.value = false;
+              localStorage.removeItem('subhub_is_guest');
               localStorage.setItem('rule_hub_token', data.token);
               localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
               isLoggedIn.value = true;
@@ -4907,7 +5261,9 @@ function main(config, profileName) {
             const data = await res.json();
             if (res.ok && data.success) {
               token.value = data.token;
-              currentUser.value = { username: data.username, role: data.role };
+              currentUser.value = { username: data.username, role: data.role, isGuest: false };
+              isGuest.value = false;
+              localStorage.removeItem('subhub_is_guest');
               localStorage.setItem('rule_hub_token', data.token);
               localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
               isLoggedIn.value = true;
@@ -4925,17 +5281,22 @@ function main(config, profileName) {
           }
         };
 
-        // 登出
+        // 登出 / 退出离线工作台
         const logout = async () => {
-          try {
-            await fetch('/api/logout', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${token.value}` }
-            });
-          } catch {}
+          if (!currentUser.value.isGuest && token.value) {
+            try {
+              await fetch('/api/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token.value}` }
+              });
+            } catch {}
+          }
           token.value = '';
           localStorage.removeItem('rule_hub_token');
           localStorage.removeItem('rule_hub_user');
+          localStorage.removeItem('subhub_is_guest');
+          isGuest.value = false;
+          currentUser.value = { username: '', role: 'user', isGuest: false };
           isLoggedIn.value = false;
           isDirty.value = false;
         };
@@ -4947,8 +5308,54 @@ function main(config, profileName) {
           registerPasswordConfirm.value = '';
         };
 
-        // 读取配置
+        // 读取配置 (支持本地 LocalStorage 与云端 AES 加密无缝分支)
         const loadConfig = async () => {
+          if (currentUser.value.isGuest || storageMode.value === 'local') {
+            const key = getLocalStorageKey();
+            const localRaw = localStorage.getItem(key);
+            let parsed = {};
+            if (localRaw) {
+              try { parsed = JSON.parse(localRaw); } catch {}
+            }
+            config.value = {
+              mode: 'gui',
+              subscriptionToken: 'local_offline_token',
+              tokenExpiresAt: null,
+              fallbackRule: 'DIRECT',
+              enableGeoSiteCn: true,
+              enableGeoIpCn: true,
+              enableSniffer: true,
+              enableTcpConcurrent: true,
+              enableNoResolve: true,
+              enableUnifiedDelay: true,
+              enableProcessStrict: true,
+              customProxyGroupName: '',
+              subscriptions: [],
+              nameservers: ['223.5.5.5', '119.29.29.29'],
+              fallbackDns: ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query'],
+              proxyIps: [],
+              proxyProcesses: [],
+              proxyKeywords: [],
+              proxyDomains: [],
+              directIps: [],
+              directProcesses: [],
+              directKeywords: [],
+              directDomains: [],
+              fakeIpFilter: [],
+              customScript: '',
+              targetPlatforms: ['macos', 'windows', 'ios', 'android'],
+              enableAutoPlatformDetect: true,
+              ...parsed,
+              subscriptions: parsed.subscriptions || [],
+              targetPlatforms: parsed.targetPlatforms || ['macos', 'windows', 'ios', 'android']
+            };
+            isLoggedIn.value = true;
+            isDirty.value = false;
+            await updateEditorContent();
+            return;
+          }
+
+          // 云端托管模式
           try {
             const res = await fetch('/api/config', {
               headers: { 'Authorization': `Bearer ${token.value}` }
@@ -5003,13 +5410,25 @@ function main(config, profileName) {
           }
         };
 
-        // 保存配置
+        // 保存配置 (支持本地 LocalStorage 与云端 AES 加密无缝分支)
         const saveConfig = async (silent = false) => {
           saving.value = true;
           try {
             if (config.value.mode === 'custom' && editorInstance) {
               config.value.customScript = editorInstance.getValue();
             }
+
+            if (currentUser.value.isGuest || storageMode.value === 'local') {
+              const key = getLocalStorageKey();
+              localStorage.setItem(key, JSON.stringify(config.value));
+              isDirty.value = false;
+              if (!silent) {
+                showToast('🛡️ 本地配置已保存至浏览器 LocalStorage (云端 0 存储)！');
+              }
+              await updateEditorContent();
+              return true;
+            }
+
             const res = await fetch('/api/config', {
               method: 'POST',
               headers: {
@@ -5035,6 +5454,108 @@ function main(config, profileName) {
             return false;
           } finally {
             saving.value = false;
+          }
+        };
+
+        // 纯本地离线单机模式：即时编译并下载客户端配置文件
+        const downloadLocalCompiled = async (target) => {
+          compilingLocalTarget.value = target;
+          try {
+            const res = await fetch('/api/public/compile-transient', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                config: config.value,
+                target,
+                clientUa: navigator.userAgent
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              const blob = new Blob([data.content], { type: 'text/plain;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = data.filename || `subhub_${target}_config.txt`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              showToast(`🎉 成功编译并下载 ${data.filename} (聚合 ${data.nodesCount || 0} 个节点)！`);
+            } else {
+              showToast(data.error || '编译下载失败', 'error');
+            }
+          } catch (err) {
+            showToast('编译下载失败: ' + err.message, 'error');
+          } finally {
+            compilingLocalTarget.value = '';
+          }
+        };
+
+        // 一键彻底抹除云端历史数据 (切换至纯本地离线时使用)
+        const purgeCloudData = async () => {
+          if (!confirm('⚠️ 确认彻底抹除服务器上的云端配置数据？\n\n此操作将物理删除云端持久化加密文件。若您已保存在本地浏览器中，本地数据不会受影响。')) return;
+          purgingCloud.value = true;
+          try {
+            const res = await fetch('/api/config/purge', {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast('🗑️ 云端配置数据已彻底物理抹除！');
+            } else {
+              showToast(data.error || '抹除失败', 'error');
+            }
+          } catch (e) {
+            showToast('抹除失败: ' + e.message, 'error');
+          } finally {
+            purgingCloud.value = false;
+          }
+        };
+
+        // 访客一键升级为云端同步账号 (无缝继承本地配置)
+        const promoteGuestToCloud = async () => {
+          if (!promoteForm.value.username || !promoteForm.value.password) {
+            return showToast('请填写新用户名和密码', 'error');
+          }
+          if (promoteForm.value.password.length < 4) {
+            return showToast('密码长度至少 4 位', 'error');
+          }
+          if (promoteForm.value.password !== promoteForm.value.confirmPassword) {
+            return showToast('两次输入的密码不一致', 'error');
+          }
+          loading.value = true;
+          try {
+            const res = await fetch('/api/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: promoteForm.value.username.trim(),
+                password: promoteForm.value.password,
+                initialConfig: config.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              token.value = data.token;
+              currentUser.value = { username: data.username, role: data.role, isGuest: false };
+              storageMode.value = 'cloud';
+              localStorage.setItem('rule_hub_token', data.token);
+              localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
+              localStorage.setItem('subhub_storage_mode', 'cloud');
+              localStorage.removeItem('subhub_is_guest');
+              isGuest.value = false;
+              showPromoteModal.value = false;
+              showToast('🎉 账号注册成功！当前本地配置已无缝同步至云端！');
+              await loadConfig();
+            } else {
+              showToast(data.error || '升级云端账号失败', 'error');
+            }
+          } catch (err) {
+            showToast('网络错误: ' + err.message, 'error');
+          } finally {
+            loading.value = false;
           }
         };
 
@@ -5884,9 +6405,11 @@ function main(config, profileName) {
             updateEditorContent();
           } else if (newTab === 'logs') {
             loadLogs();
-          } else if (newTab === 'users') {
-            loadAdminUsers();
-            loadSystemSettings();
+          } else if (newTab === 'users' || newTab === 'settings') {
+            if (currentUser.value.role === 'admin') {
+              loadAdminUsers();
+              loadSystemSettings();
+            }
           }
         });
 
@@ -5899,7 +6422,13 @@ function main(config, profileName) {
         });
 
         onMounted(async () => {
-          // 1. 若本地已存有 Token 与用户信息，优先保持已登录状态渲染页面，避免刷新闪烁
+          // 1. 若本地为免登录访客模式，优先加载本地离线配置
+          if (savedIsGuest) {
+            await loadConfig();
+            return;
+          }
+
+          // 2. 若本地已存有 Token 与用户信息，优先保持已登录状态渲染页面，避免刷新闪烁
           if (token.value) {
             const savedUserStr = localStorage.getItem('rule_hub_user');
             if (savedUserStr) {
@@ -5981,6 +6510,16 @@ function main(config, profileName) {
           formatFullTime,
           calcDaysLeft,
           getSubExpireInfo,
+          storageMode,
+          isGuest,
+          enterGuestOfflineMode,
+          downloadLocalCompiled,
+          compilingLocalTarget,
+          purgeCloudData,
+          purgingCloud,
+          showPromoteModal,
+          promoteForm,
+          promoteGuestToCloud,
           login,
           register,
           logout,
