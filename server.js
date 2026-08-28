@@ -1983,41 +1983,116 @@ app.get('/api/system/version', authMiddleware, async (req, res) => {
 
     if (doCheck) {
       checked = true;
+      const discoveredVersions = new Map();
+
+      // Seed with builtin versions
+      for (const b of BUILTIN_VERSIONS_ZH) {
+        discoveredVersions.set(b.version, { ...b });
+      }
+
+      // 1. Fetch remote tags from GitHub Tags API
       try {
-        // 1. Fetch remote releases from GitHub API
+        const tagsRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/tags?per_page=30`, {
+          headers: { 'User-Agent': 'SubHub-Updater', 'Accept': 'application/vnd.github.v3+json' },
+          signal: AbortSignal.timeout(6000)
+        });
+        if (tagsRes.ok) {
+          const tags = await tagsRes.json();
+          if (Array.isArray(tags)) {
+            for (const t of tags) {
+              const rawVer = (t.name || '').replace(/^v/, '').trim();
+              if (rawVer && !discoveredVersions.has(rawVer)) {
+                discoveredVersions.set(rawVer, {
+                  version: rawVer,
+                  tag: t.name || `v${rawVer}`,
+                  name: `SubHub v${rawVer} · 官方最新发布版`,
+                  publishedAt: new Date().toISOString(),
+                  highlights: ['官方 GitHub 发布版本', '点击右侧升级按钮即可在线平滑更新'],
+                  changelogZh: `### 🚀 SubHub v${rawVer} 发布\n- 包含最新的功能特性、性能优化与安全修复。\n- 点击右侧升级按钮可在线完成无损平滑升级。`
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {}
+
+      // 2. Fetch remote releases from GitHub Releases API
+      try {
         const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=30`, {
           headers: { 'User-Agent': 'SubHub-Updater', 'Accept': 'application/vnd.github.v3+json' },
           signal: AbortSignal.timeout(6000)
         });
         if (ghRes.ok) {
           const ghReleases = await ghRes.json();
-          if (Array.isArray(ghReleases) && ghReleases.length > 0) {
-            const remoteMapped = ghReleases.map(r => {
-              const rawVer = (r.tag_name || '').replace(/^v/, '');
-              const builtinMatch = BUILTIN_VERSIONS_ZH.find(b => b.version === rawVer);
-              return {
-                version: rawVer,
-                tag: r.tag_name || `v${rawVer}`,
-                name: r.name || (builtinMatch ? builtinMatch.name : `SubHub v${rawVer}`),
-                publishedAt: r.published_at || (builtinMatch ? builtinMatch.publishedAt : ''),
-                highlights: builtinMatch ? builtinMatch.highlights : ['官方发布版本'],
-                changelogZh: (builtinMatch ? builtinMatch.changelogZh : '') || r.body || '暂无详细中文更新说明',
-                url: r.html_url
-              };
-            });
-            // Merge: keep remoteMapped first, append any builtin versions that might not be on GitHub
-            const existingVers = new Set(remoteMapped.map(r => r.version));
-            for (const b of BUILTIN_VERSIONS_ZH) {
-              if (!existingVers.has(b.version)) {
-                remoteMapped.push(b);
+          if (Array.isArray(ghReleases)) {
+            for (const r of ghReleases) {
+              const rawVer = (r.tag_name || '').replace(/^v/, '').trim();
+              if (rawVer) {
+                const existing = discoveredVersions.get(rawVer);
+                discoveredVersions.set(rawVer, {
+                  version: rawVer,
+                  tag: r.tag_name || `v${rawVer}`,
+                  name: r.name || (existing ? existing.name : `SubHub v${rawVer}`),
+                  publishedAt: r.published_at || (existing ? existing.publishedAt : ''),
+                  highlights: existing ? existing.highlights : ['官方发布版本'],
+                  changelogZh: r.body || (existing ? existing.changelogZh : '暂无详细中文更新说明'),
+                  url: r.html_url
+                });
               }
             }
-            versionsList = remoteMapped;
           }
         }
-      } catch (err) {
-        // GitHub API network error or rate limit - fallback to BUILTIN_VERSIONS_ZH
+      } catch (err) {}
+
+      // 3. Fallback: check remote package.json from raw GitHub main branch
+      try {
+        const rawPkgRes = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/package.json`, {
+          headers: { 'User-Agent': 'SubHub-Updater' },
+          signal: AbortSignal.timeout(5000)
+        });
+        if (rawPkgRes.ok) {
+          const rawPkg = await rawPkgRes.json();
+          if (rawPkg && rawPkg.version) {
+            const rawVer = String(rawPkg.version).trim();
+            if (rawVer && !discoveredVersions.has(rawVer)) {
+              discoveredVersions.set(rawVer, {
+                version: rawVer,
+                tag: `v${rawVer}`,
+                name: `SubHub v${rawVer} · 官方最新发布版`,
+                publishedAt: new Date().toISOString(),
+                highlights: ['官方 GitHub 主分支最新发布版'],
+                changelogZh: `### 🚀 SubHub v${rawVer} 发布\n- 包含最新的代码提交与功能修复。`
+              });
+            }
+          }
+        }
+      } catch (err) {}
+
+      // 4. If Git is present, query remote tags via git ls-remote
+      if (isGit) {
+        try {
+          const { stdout } = await execPromise('git ls-remote --tags origin', { cwd: __dirname });
+          const tagLines = stdout.split('\n');
+          for (const line of tagLines) {
+            const match = line.match(/refs\/tags\/v?([0-9]+\.[0-9]+\.[0-9]+)/);
+            if (match && match[1]) {
+              const rawVer = match[1];
+              if (!discoveredVersions.has(rawVer)) {
+                discoveredVersions.set(rawVer, {
+                  version: rawVer,
+                  tag: `v${rawVer}`,
+                  name: `SubHub v${rawVer} · 官方发布版`,
+                  publishedAt: new Date().toISOString(),
+                  highlights: ['官方 Git Tag 版本'],
+                  changelogZh: `### 🚀 SubHub v${rawVer}\n- 点击升级按钮即可即时拉取此版本。`
+                });
+              }
+            }
+          }
+        } catch (err) {}
       }
+
+      versionsList = Array.from(discoveredVersions.values());
     }
 
     // Sort versions descending
