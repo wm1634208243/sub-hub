@@ -5456,14 +5456,20 @@ function main(config, profileName) {
           return clean || 'sub.yourdomain.com';
         });
 
+        const currentAppPort = computed(() => {
+          return window.location.port || (window.location.protocol === 'https:' ? '443' : '3000');
+        });
+
         const caddyConfigPreview = computed(() => {
           const host = cleanHostnameInput.value;
-          return `${host} {\n    reverse_proxy 127.0.0.1:3000\n}`;
+          const port = currentAppPort.value;
+          return `${host} {\n    reverse_proxy 127.0.0.1:${port}\n}`;
         });
 
         const nginxConfigPreview = computed(() => {
           const host = cleanHostnameInput.value;
-          return `server {\n    server_name ${host};\n    location / {\n        proxy_pass http://127.0.0.1:3000;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}`;
+          const port = currentAppPort.value;
+          return `server {\n    server_name ${host};\n    location / {\n        proxy_pass http://127.0.0.1:${port};\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}`;
         });
 
         const copyCaddyConfig = () => {

@@ -460,6 +460,18 @@ setup_domain_ssl() {
     fi
     custom_domain=$(echo "$custom_domain" | sed -e 's|^https\?://||' -e 's|/.*$||')
 
+    # 自动探测 SubHub 运行端口 (原生环境或 Docker 映射端口)
+    local target_port="3000"
+    if [ -f "$INSTALL_DIR/.env" ]; then
+        local env_port=$(grep -E '^PORT=' "$INSTALL_DIR/.env" | cut -d'=' -f2 | tr -d '"' | tr -d "'" | tr -d '\r')
+        [ -n "$env_port" ] && target_port="$env_port"
+    elif docker ps --format '{{.Ports}}' 2>/dev/null | grep -q "clash-sub-hub"; then
+        local docker_port=$(docker ps --format '{{.Ports}}' | grep "clash-sub-hub" | sed -E 's/.*:([0-9]+)->3000.*/\1/')
+        [ -n "$docker_port" ] && target_port="$docker_port"
+    fi
+    read -p "请输入 SubHub 当前后端端口 [默认: $target_port]: " input_port
+    target_port="${input_port:-$target_port}"
+
     echo -e "\n请选择反向代理与 HTTPS 证书签发引擎:"
     echo -e " ${BOLD}1.${NC} ⚡ Caddy (${GREEN}推荐 · 极速 4 行配置 · 80/443 全自动申请与续签 Let's Encrypt 证书${NC})"
     echo -e " ${BOLD}2.${NC} ☁️  Cloudflare CDN 模式 (${CYAN}无需在服务器安装证书，开启小黄云自动 HTTPS${NC})"
@@ -493,7 +505,7 @@ setup_domain_ssl() {
             mkdir -p /etc/caddy
             cat <<CADDY > /etc/caddy/Caddyfile
 $custom_domain {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:$target_port
 }
 CADDY
             systemctl enable caddy 2>/dev/null || true
@@ -514,7 +526,7 @@ CADDY
 server {
     server_name $custom_domain;
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:$target_port;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
