@@ -7,6 +7,7 @@ yarn-error.log*
 # User Data & Private Credentials (IMPORTANT: Do NOT commit personal configs to GitHub)
 data/users.json
 data/sessions.json
+data/logs.json
 data/config.json
 data/config.json.migrated
 data/configs/*.json
