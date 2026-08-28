@@ -2430,6 +2430,24 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                     <option value="user">普通用户 (仅管理个人规则)</option>
                     <option value="admin">超级管理员 (拥有全站管理权限)</option>
                   </select>
+
+                  <!-- 角色权限即时提示 -->
+                  <div v-if="newUser.role === 'admin'" class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200 space-y-1">
+                    <div class="font-bold text-amber-300 flex items-center gap-1.5">
+                      <span>👑 超级管理员权限</span>
+                    </div>
+                    <p class="text-amber-200/80 leading-relaxed text-[10px]">
+                      拥有全站最高权限：用户全生命周期增删改禁、全局域名与 SSL 反代绑定、在线 OTA 版本升级与全量快照迁移。
+                    </p>
+                  </div>
+                  <div v-else class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                    <div class="font-bold text-cyan-400 flex items-center gap-1.5">
+                      <span>👤 普通用户权限</span>
+                    </div>
+                    <p class="text-slate-400 leading-relaxed text-[10px]">
+                      分配独立数据沙箱：拥有私有订阅源、个性化分流规则、专属客户端直链与流量看板；无权访问用户管理与系统级设置。
+                    </p>
+                  </div>
                 </div>
                 <button 
                   type="submit" 
@@ -2440,6 +2458,102 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
               </form>
             </div>
 
+          </div>
+
+          <!-- 平台用户权限边界对照指南卡片 (Permission Boundary Matrix) -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm font-bold">
+                  🛡️
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-white">平台用户角色与权限边界规范</h4>
+                  <p class="text-[11px] text-slate-400">严格的多租户数据隔离体系，确保各用户私有订阅与规则互不干扰</p>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono bg-slate-950 text-cyan-400 px-2.5 py-1 rounded-full border border-slate-800">
+                Multi-Tenant RBAC
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- 普通用户权限卡片 -->
+              <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm">👤</span>
+                    <span class="font-bold text-xs text-white">普通用户 (User)</span>
+                  </div>
+                  <span class="text-[10px] bg-slate-900 text-slate-400 border border-slate-800 px-2 py-0.5 rounded-full font-medium">
+                    私有隔离沙箱
+                  </span>
+                </div>
+
+                <div class="space-y-2 text-xs text-slate-300">
+                  <div class="flex items-start gap-2">
+                    <span class="text-emerald-400 shrink-0 mt-0.5">✓</span>
+                    <span class="text-[11px]"><strong>私有订阅聚合与测速</strong>：添加、管理与测试个人独享的机场节点</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-emerald-400 shrink-0 mt-0.5">✓</span>
+                    <span class="text-[11px]"><strong>个性化分流规则库</strong>：代理/直连/DNS/核心策略与 JS 脚本覆写</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-emerald-400 shrink-0 mt-0.5">✓</span>
+                    <span class="text-[11px]"><strong>专属订阅转换直链</strong>：Clash / Sing-box / Surge / Shadowrocket 通用直链</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-emerald-400 shrink-0 mt-0.5">✓</span>
+                    <span class="text-[11px]"><strong>个人 3X-UI 流量看板</strong>：实时上下行用量统计与历史访问日志</span>
+                  </div>
+                  <div class="flex items-start gap-2 pt-1 border-t border-slate-900 text-slate-500">
+                    <span class="text-rose-400 shrink-0 mt-0.5">✕</span>
+                    <span class="text-[11px] text-slate-400"><strong>无法访问用户管理</strong>：不可查看、修改或封禁他人账号</span>
+                  </div>
+                  <div class="flex items-start gap-2 text-slate-500">
+                    <span class="text-rose-400 shrink-0 mt-0.5">✕</span>
+                    <span class="text-[11px] text-slate-400"><strong>无权修改系统设置</strong>：不可绑定全局域名、申请 SSL 或执行 OTA 升级</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 超级管理员权限卡片 -->
+              <div class="bg-slate-950/80 border border-amber-500/20 rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm">👑</span>
+                    <span class="font-bold text-xs text-amber-300">超级管理员 (Admin)</span>
+                  </div>
+                  <span class="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-semibold">
+                    全权系统管控
+                  </span>
+                </div>
+
+                <div class="space-y-2 text-xs text-slate-300">
+                  <div class="flex items-start gap-2">
+                    <span class="text-amber-400 shrink-0 mt-0.5">👑</span>
+                    <span class="text-[11px]"><strong>完整拥有普通用户全部权限</strong>：可维护管理员个人独立的订阅与规则</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-amber-400 shrink-0 mt-0.5">👑</span>
+                    <span class="text-[11px]"><strong>用户全生命周期管理</strong>：增删用户、重置密码、修改权限、临时/永久封禁</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-amber-400 shrink-0 mt-0.5">👑</span>
+                    <span class="text-[11px]"><strong>全局域名与 SSL 自动化反代</strong>：绑定公开域名、一键申请 Let's Encrypt 证书</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-amber-400 shrink-0 mt-0.5">👑</span>
+                    <span class="text-[11px]"><strong>版本发布中心与平滑升级</strong>：实时比对 GitHub 版本、一键升级或历史版本回退</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-amber-400 shrink-0 mt-0.5">👑</span>
+                    <span class="text-[11px]"><strong>全量系统快照与跨机迁移</strong>：一键导出全站账号与规则快照，新 VPS 一秒复原</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- ========================================== -->
