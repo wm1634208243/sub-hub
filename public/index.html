@@ -442,8 +442,8 @@
         <!-- ========================================== -->
         <div v-show="activeTab === 'subs'" class="space-y-6">
 
-          <!-- 专属全格式聚合直链 Banner (全客户端自适应与多格式导出) -->
-          <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-850 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3.5">
+          <!-- 云端托管模式：专属全格式聚合直链 Banner -->
+          <div v-if="storageMode === 'cloud' && !currentUser.isGuest" class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-850 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3.5">
             <!-- 标题与状态行 -->
             <div class="flex items-center justify-between gap-3 flex-wrap">
               <div class="flex items-center gap-2.5">
@@ -549,6 +549,97 @@
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- 纯本地离线单机模式：本地生成与配置下载 Banner (替代不可用的服务端直链) -->
+          <div v-else class="bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xl space-y-3.5">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 text-base font-bold">
+                  🛡️
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-white">纯本地离线单机工作台</span>
+                    <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.2 rounded-full border border-emerald-500/30 font-mono">0 云端存储 · 极致隐私</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 mt-0.5">所有数据仅存本浏览器，已自动隐藏不可用的云端直链；点击下方按钮一键即时生成并下载文件：</p>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button 
+                  v-if="currentUser.isGuest"
+                  @click="showPromoteModal = true"
+                  class="px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-cyan-500/20 transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <span>☁️ 升级云端开启 24h 自动同步</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 本地快速下载配置栏 (5个按钮) -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-800">
+              <button 
+                @click="downloadLocalCompiled('clash')" 
+                :disabled="!!compilingLocalTarget"
+                class="bg-slate-950 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-0.5"
+              >
+                <div class="text-[11px] font-bold text-cyan-400 flex items-center justify-between">
+                  <span>🌟 Clash YAML</span>
+                  <span v-if="compilingLocalTarget === 'clash'" class="animate-spin text-xs">⏳</span>
+                </div>
+                <div class="text-[10px] text-slate-400">下载 .yaml 配置</div>
+              </button>
+
+              <button 
+                @click="downloadLocalCompiled('singbox')" 
+                :disabled="!!compilingLocalTarget"
+                class="bg-slate-950 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-0.5"
+              >
+                <div class="text-[11px] font-bold text-amber-400 flex items-center justify-between">
+                  <span>📦 Sing-Box JSON</span>
+                  <span v-if="compilingLocalTarget === 'singbox'" class="animate-spin text-xs">⏳</span>
+                </div>
+                <div class="text-[10px] text-slate-400">下载 .json 配置</div>
+              </button>
+
+              <button 
+                @click="downloadLocalCompiled('surge')" 
+                :disabled="!!compilingLocalTarget"
+                class="bg-slate-950 hover:bg-slate-800 border border-rose-500/30 hover:border-rose-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-0.5"
+              >
+                <div class="text-[11px] font-bold text-rose-400 flex items-center justify-between">
+                  <span>⚡ Surge Rules</span>
+                  <span v-if="compilingLocalTarget === 'surge'" class="animate-spin text-xs">⏳</span>
+                </div>
+                <div class="text-[10px] text-slate-400">下载 .conf 规则</div>
+              </button>
+
+              <button 
+                @click="downloadLocalCompiled('base64')" 
+                :disabled="!!compilingLocalTarget"
+                class="bg-slate-950 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-0.5"
+              >
+                <div class="text-[11px] font-bold text-emerald-400 flex items-center justify-between">
+                  <span>🍎 Base64 节点</span>
+                  <span v-if="compilingLocalTarget === 'base64'" class="animate-spin text-xs">⏳</span>
+                </div>
+                <div class="text-[10px] text-slate-400">下载 .txt 节点</div>
+              </button>
+
+              <button 
+                @click="downloadLocalCompiled('js')" 
+                :disabled="!!compilingLocalTarget"
+                class="bg-slate-950 hover:bg-slate-800 border border-purple-500/30 hover:border-purple-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-0.5 col-span-2 sm:col-span-1"
+              >
+                <div class="text-[11px] font-bold text-purple-400 flex items-center justify-between">
+                  <span>💻 JS 覆写脚本</span>
+                  <span v-if="compilingLocalTarget === 'js'" class="animate-spin text-xs">⏳</span>
+                </div>
+                <div class="text-[10px] text-slate-400">下载 .js 脚本</div>
+              </button>
             </div>
           </div>
 
@@ -1668,13 +1759,23 @@
             <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
               <span class="text-xs text-slate-400 font-mono">main(config, profileName) 代码预览与编辑</span>
               <div class="flex items-center gap-2">
-<button 
+                <button 
+                  v-if="storageMode === 'cloud' && !currentUser.isGuest"
                   @click="copyRulesJsUrl" 
                   class="text-xs text-purple-300 hover:text-white bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
                   title="复制直接可供客户端引入的 JS 规则脚本 URL 链接"
                 >
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
                   <span>⚡ 复制 JS 脚本直链</span>
+                </button>
+                <button 
+                  v-else
+                  @click="downloadLocalCompiled('js')" 
+                  class="text-xs text-purple-300 hover:text-white bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all font-semibold cursor-pointer"
+                  title="下载当前本地 JS 覆写脚本文件"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  <span>📥 下载 JS 脚本文件</span>
                 </button>
                 <button 
                   @click="parseCurrentEditorToGui" 
@@ -1702,8 +1803,8 @@
         <!-- ========================================== -->
         <div v-show="activeTab === 'clients'" class="space-y-6">
 
-          <!-- 顶部：全局订阅 Token & 安全设置胶囊卡片 -->
-          <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-850 border border-slate-800 rounded-3xl p-5 shadow-xl">
+          <!-- 顶部：全局订阅 Token (云端模式) 或 离线模式提示 (本地模式) -->
+          <div v-if="storageMode === 'cloud' && !currentUser.isGuest" class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-850 border border-slate-800 rounded-3xl p-5 shadow-xl">
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div class="space-y-1">
                 <div class="flex items-center gap-2 flex-wrap">
@@ -1755,11 +1856,39 @@
             </div>
           </div>
 
-          <!-- 主体：全平台客户端接入中心（按「纯规则分流」与「全托管聚合订阅」分类） -->
+          <!-- 本地离线模式顶部横幅 (替代 Token 卡片) -->
+          <div v-else class="bg-gradient-to-r from-emerald-950/50 via-slate-900 to-slate-850 border border-emerald-500/30 rounded-3xl p-5 shadow-xl">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>🛡️ 纯浏览器本地离线单机模式</span>
+                  </span>
+                  <span class="text-[10px] bg-emerald-500/10 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">0 云端存储 · 极致隐私</span>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                  所有订阅与分流规则仅存储在当前浏览器 LocalStorage 中。<strong>服务端无数据留存，已自动隐藏不可用的云端直链</strong>。请在下方一键下载配置文件后直接离线导入客户端使用。
+                </p>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <button 
+                  v-if="currentUser.isGuest"
+                  @click="showPromoteModal = true"
+                  class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold text-xs rounded-xl shadow-lg shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                >
+                  <span>☁️ 注册并升级云端 (开启 24h 自动拉取)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主体：客户端接入中心 -->
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
 
-            <!-- 顶部：大类模式选择栏 (Primary Categories) -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <!-- 顶部：大类模式选择栏 (云端模式显示 规则 vs 聚合订阅; 本地模式显示 导出配置 vs 导入指引) -->
+            <!-- 云端模式标签 -->
+            <div v-if="storageMode === 'cloud' && !currentUser.isGuest" class="grid grid-cols-1 md:grid-cols-3 gap-3">
               <!-- 类别 1: 纯规则分流 -->
               <button 
                 @click="clientCategory = 'rules'"
@@ -1815,10 +1944,67 @@
               </button>
             </div>
 
+            <!-- 本地离线模式专属标签 -->
+            <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <!-- 本地类别 1: 一键生成并下载文件 -->
+              <button 
+                @click="clientCategory = 'subs'"
+                :class="clientCategory === 'subs' || clientCategory === 'rules' ? 'bg-emerald-950/40 border-emerald-500 shadow-lg shadow-emerald-950/50' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 opacity-70 hover:opacity-100'"
+                class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5"
+              >
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
+                  📥
+                </div>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">一键导出客户端配置</span>
+                    <span v-if="clientCategory === 'subs' || clientCategory === 'rules'" class="text-[10px] bg-emerald-500 text-slate-950 px-1.5 py-0.2 rounded-full font-bold">当前</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">在浏览器本地即时清洗编译 Clash YAML、Sing-box JSON、Surge、Base64 与 JS 脚本</p>
+                </div>
+              </button>
+
+              <!-- 本地类别 2: 客户端离线手动导入步骤 -->
+              <button 
+                @click="clientCategory = 'guide'"
+                :class="clientCategory === 'guide' ? 'bg-cyan-950/40 border-cyan-500 shadow-lg shadow-cyan-950/50' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 opacity-70 hover:opacity-100'"
+                class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5"
+              >
+                <div class="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center justify-center text-lg shrink-0">
+                  📖
+                </div>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">离线导入客户端指南</span>
+                    <span v-if="clientCategory === 'guide'" class="text-[10px] bg-cyan-500 text-slate-950 px-1.5 py-0.2 rounded-full font-bold">当前</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">提供 Clash Verge Rev、Mihomo Party、Sing-box、Surge、Shadowrocket 本地导入图文指南</p>
+                </div>
+              </button>
+
+              <!-- 本地类别 3: FAQ 常见疑问 -->
+              <button 
+                @click="clientCategory = 'faq'"
+                :class="clientCategory === 'faq' ? 'bg-slate-800/80 border-slate-600 shadow-lg' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 opacity-70 hover:opacity-100'"
+                class="text-left p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5"
+              >
+                <div class="w-10 h-10 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 flex items-center justify-center text-lg shrink-0">
+                  ❓
+                </div>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-white">常见问题 FAQ</span>
+                    <span v-if="clientCategory === 'faq'" class="text-[10px] bg-slate-700 text-white px-1.5 py-0.2 rounded-full font-medium">当前</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">纯本地模式与云端直链差异、单机数据备份导入导出与跨机同步说明</p>
+                </div>
+              </button>
+            </div>
+
             <!-- ============================================================== -->
-            <!-- 专区 1: ⚡ 纯规则分流模式 (Rule Routing / Script Override) -->
+            <!-- 专区 1 (云端模式): ⚡ 纯规则分流模式 (JS Script Override) -->
             <!-- ============================================================== -->
-            <div v-show="clientCategory === 'rules'" class="space-y-5">
+            <div v-if="storageMode === 'cloud' && !currentUser.isGuest && clientCategory === 'rules'" class="space-y-5">
               <!-- 纯规则脚本直链横幅 -->
               <div class="bg-gradient-to-r from-purple-950/40 via-slate-950 to-slate-950 border border-purple-500/30 rounded-2xl p-4.5 space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1934,97 +2120,9 @@
             </div>
 
             <!-- ============================================================== -->
-            <!-- 专区 2: 🛰️ 全托管聚合订阅模式 (Full Aggregated Subscriptions) -->
+            <!-- 专区 2 (云端模式): 🛰️ 全托管聚合订阅模式 (Smart Auto-Detect) -->
             <!-- ============================================================== -->
-            <div v-show="clientCategory === 'subs'" class="space-y-5">
-
-              <!-- 纯本地离线单机模式：一键即时生成并下载配置文件 -->
-              <div v-if="currentUser.isGuest || storageMode === 'local'" class="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-xl space-y-3.5">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-lg font-bold">
-                      🛡️
-                    </div>
-                    <div>
-                      <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <span>纯本地离线单机模式：一键生成并下载客户端配置文件</span>
-                        <span class="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-normal">0 云端存储</span>
-                      </h3>
-                      <p class="text-xs text-slate-400">当前处于纯离线模式（云端不保留您的订阅）。点击下方按钮即可即时拉取节点并下载专属配置文件手动导入客户端：</p>
-                    </div>
-                  </div>
-                  <button 
-                    v-if="currentUser.isGuest"
-                    @click="showPromoteModal = true"
-                    class="px-3.5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
-                  >
-                    ☁️ 升级为云端 24h 自动拉取
-                  </button>
-                </div>
-
-                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-slate-800">
-                  <button 
-                    @click="downloadLocalCompiled('clash')" 
-                    :disabled="!!compilingLocalTarget"
-                    class="bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
-                  >
-                    <div class="text-[11px] font-bold text-cyan-400 flex items-center justify-between">
-                      <span>🌟 Clash / Mihomo</span>
-                      <span v-if="compilingLocalTarget === 'clash'" class="animate-spin text-xs">⏳</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400">下载 .yaml 配置</div>
-                  </button>
-
-                  <button 
-                    @click="downloadLocalCompiled('singbox')" 
-                    :disabled="!!compilingLocalTarget"
-                    class="bg-slate-900 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
-                  >
-                    <div class="text-[11px] font-bold text-amber-400 flex items-center justify-between">
-                      <span>📦 Sing-Box / Neko</span>
-                      <span v-if="compilingLocalTarget === 'singbox'" class="animate-spin text-xs">⏳</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400">下载 .json 配置</div>
-                  </button>
-
-                  <button 
-                    @click="downloadLocalCompiled('surge')" 
-                    :disabled="!!compilingLocalTarget"
-                    class="bg-slate-900 hover:bg-slate-800 border border-rose-500/30 hover:border-rose-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
-                  >
-                    <div class="text-[11px] font-bold text-rose-400 flex items-center justify-between">
-                      <span>⚡ Surge 规则</span>
-                      <span v-if="compilingLocalTarget === 'surge'" class="animate-spin text-xs">⏳</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400">下载 .conf 列表</div>
-                  </button>
-
-                  <button 
-                    @click="downloadLocalCompiled('base64')" 
-                    :disabled="!!compilingLocalTarget"
-                    class="bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1"
-                  >
-                    <div class="text-[11px] font-bold text-emerald-400 flex items-center justify-between">
-                      <span>🍎 Base64 节点</span>
-                      <span v-if="compilingLocalTarget === 'base64'" class="animate-spin text-xs">⏳</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400">下载 .txt 节点</div>
-                  </button>
-
-                  <button 
-                    @click="downloadLocalCompiled('js')" 
-                    :disabled="!!compilingLocalTarget"
-                    class="bg-slate-900 hover:bg-slate-800 border border-purple-500/30 hover:border-purple-500/60 p-2.5 rounded-xl text-left cursor-pointer transition-all space-y-1 col-span-2 sm:col-span-1"
-                  >
-                    <div class="text-[11px] font-bold text-purple-400 flex items-center justify-between">
-                      <span>💻 JS 预处理覆写</span>
-                      <span v-if="compilingLocalTarget === 'js'" class="animate-spin text-xs">⏳</span>
-                    </div>
-                    <div class="text-[10px] text-slate-400">下载 .js 脚本</div>
-                  </button>
-                </div>
-              </div>
-
+            <div v-if="storageMode === 'cloud' && !currentUser.isGuest && clientCategory === 'subs'" class="space-y-5">
               <!-- 聚合订阅链接工具条 (云端模式显示直链) -->
               <div class="bg-gradient-to-r from-cyan-950/40 via-slate-950 to-slate-950 border border-cyan-500/30 rounded-2xl p-4.5 space-y-3">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2175,57 +2273,359 @@
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">1</span>
-                    <span class="text-xs font-bold text-white">复制 Sing-Box JSON 直链</span>
+                    <span class="text-xs font-bold text-white">复制 Sing-Box 配置直链</span>
                   </div>
-                  <p class="text-[11px] text-slate-400">点击复制 JSON 远程配置直链：</p>
+                  <p class="text-[11px] text-slate-400">点击下方按钮复制 Sing-Box JSON 配置直链：</p>
                   <button 
                     @click="copySingBoxUrl" 
                     class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
-                    复制 Sing-Box JSON 直链
+                    复制 Sing-Box 直链
                   </button>
                 </div>
 
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">2</span>
-                    <span class="text-xs font-bold text-white">导入远程配置</span>
+                    <span class="text-xs font-bold text-white">客户端新建远程配置</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    在 <strong>Sing-box</strong> / <strong>NekoBox</strong> / <strong>Karing</strong> 中选择「添加配置」->「从网络导入 / Remote URL」，输入直链保存。
+                    在 <strong>Sing-Box / NekoBox</strong> 中进入配置管理 -> 点击「新建 / 添加」-> 类型选择「Remote URL」-> 粘贴直链。
                   </p>
                 </div>
 
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">3</span>
-                    <span class="text-xs font-bold text-white">自动解析运行</span>
+                    <span class="text-xs font-bold text-white">保存并启动核心</span>
                   </div>
                   <p class="text-[11px] text-slate-400">
-                    客户端自动加载包含 outbounds 与路由规则的完整链路配置。
+                    点击保存并更新配置，选择该配置文件启动代理核心。
                   </p>
                 </div>
               </div>
 
               <!-- Surge 步骤 -->
-              <div v-show="clientSubsSubTab === 'surge'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-show="clientSubsSubTab === 'surge'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
                   <div class="flex items-center gap-2">
                     <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center">1</span>
-                    <span class="text-xs font-bold text-white">复制 Surge Proxy List 直链</span>
+                    <span class="text-xs font-bold text-white">复制 Surge Proxy 列表直链</span>
                   </div>
+                  <p class="text-[11px] text-slate-400">点击下方按钮复制 Surge 策略列表直链：</p>
                   <button 
                     @click="copySurgeUrl" 
-                    class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-rose-600/20 transition-all cursor-pointer"
+                    class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
                   >
-                    ⚡ 复制 Surge 列表直链
+                    复制 Surge 规则链接
                   </button>
                 </div>
 
-                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
-                  <div class="text-xs font-bold text-white">2. Surge 配置文件样例</div>
-                  <pre class="bg-slate-900 p-2.5 rounded-xl font-mono text-[11px] text-cyan-300 overflow-x-auto select-all">[Proxy Group]
-SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center">2</span>
+                    <span class="text-xs font-bold text-white">配置 [Proxy Group]</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    在 Surge 配置文件中的策略组下添加 <code class="text-rose-300 font-mono">policy-path=直链URL</code> 外部策略集。
+                  </p>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                  <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center">3</span>
+                    <span class="text-xs font-bold text-white">保存并重载 Surge</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    保存配置后 Surge 将自动拉取策略集并注入分流列表中。
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- 纯本地离线单机模式专区 (已隐藏无效直链，聚焦一键下载与本地导入) -->
+            <!-- ============================================================== -->
+            <div v-if="(storageMode === 'local' || currentUser.isGuest) && clientCategory !== 'faq'" class="space-y-6">
+
+              <!-- 本地一键即时生成并下载卡片 (5大文件) -->
+              <div class="bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-2xl p-5 shadow-xl space-y-3.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-lg font-bold">
+                      📥
+                    </div>
+                    <div>
+                      <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <span>一键生成并下载客户端配置文件</span>
+                        <span class="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-normal">0 云端残留</span>
+                      </h3>
+                      <p class="text-xs text-slate-400">点击下方按钮即可即时拉取节点并生成专属配置文件，直接下载保存至本地：</p>
+                    </div>
+                  </div>
+                  <button 
+                    v-if="currentUser.isGuest"
+                    @click="showPromoteModal = true"
+                    class="px-3.5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-cyan-500/20 transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    ☁️ 升级为云端 24h 自动拉取
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2 border-t border-slate-800">
+                  <button 
+                    @click="downloadLocalCompiled('clash')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 hover:border-cyan-500/60 p-3 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-cyan-400 flex items-center justify-between">
+                      <span>🌟 Clash / Mihomo</span>
+                      <span v-if="compilingLocalTarget === 'clash'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .yaml 配置文件</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('singbox')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-amber-500/30 hover:border-amber-500/60 p-3 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-amber-400 flex items-center justify-between">
+                      <span>📦 Sing-Box / Neko</span>
+                      <span v-if="compilingLocalTarget === 'singbox'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .json 配置文件</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('surge')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-rose-500/30 hover:border-rose-500/60 p-3 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-rose-400 flex items-center justify-between">
+                      <span>⚡ Surge 规则列表</span>
+                      <span v-if="compilingLocalTarget === 'surge'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .conf 规则文件</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('base64')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500/60 p-3 rounded-xl text-left cursor-pointer transition-all space-y-1"
+                  >
+                    <div class="text-[11px] font-bold text-emerald-400 flex items-center justify-between">
+                      <span>🍎 Base64 节点</span>
+                      <span v-if="compilingLocalTarget === 'base64'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .txt 节点列表</div>
+                  </button>
+
+                  <button 
+                    @click="downloadLocalCompiled('js')" 
+                    :disabled="!!compilingLocalTarget"
+                    class="bg-slate-900 hover:bg-slate-800 border border-purple-500/30 hover:border-purple-500/60 p-3 rounded-xl text-left cursor-pointer transition-all space-y-1 col-span-2 sm:col-span-1"
+                  >
+                    <div class="text-[11px] font-bold text-purple-400 flex items-center justify-between">
+                      <span>💻 JS 覆写脚本</span>
+                      <span v-if="compilingLocalTarget === 'js'" class="animate-spin text-xs">⏳</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">下载 .js 覆写脚本</div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 客户端本地离线导入指南 -->
+              <div class="space-y-4 pt-2">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>📖 各大客户端本地文件导入详细指引</span>
+                  </h4>
+                  <span class="text-[10px] text-slate-400">离线单机 · 物理级隔离</span>
+                </div>
+
+                <!-- 客户端切换小标签 -->
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs overflow-x-auto custom-scrollbar">
+                  <button 
+                    @click="clientSubsSubTab = 'clash'"
+                    :class="clientSubsSubTab === 'clash' ? 'bg-cyan-500/20 text-cyan-300 font-bold border-cyan-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                    class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    🌟 Clash Verge Rev / Mihomo Party
+                  </button>
+                  <button 
+                    @click="clientSubsSubTab = 'singbox'"
+                    :class="clientSubsSubTab === 'singbox' ? 'bg-amber-500/20 text-amber-300 font-bold border-amber-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                    class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    📦 Sing-Box / NekoBox
+                  </button>
+                  <button 
+                    @click="clientSubsSubTab = 'shadowrocket'"
+                    :class="clientSubsSubTab === 'shadowrocket' ? 'bg-emerald-500/20 text-emerald-300 font-bold border-emerald-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                    class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    🍎 Shadowrocket / 小火箭
+                  </button>
+                  <button 
+                    @click="clientSubsSubTab = 'surge'"
+                    :class="clientSubsSubTab === 'surge' ? 'bg-rose-500/20 text-rose-300 font-bold border-rose-500/40' : 'text-slate-400 hover:text-white border-transparent'"
+                    class="px-3.5 py-1.5 rounded-xl border transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    ⚡ Surge (Mac / iOS)
+                  </button>
+                </div>
+
+                <!-- Clash Verge / Mihomo Party 本地导入步骤 -->
+                <div v-show="clientSubsSubTab === 'clash'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center">1</span>
+                      <span class="text-xs font-bold text-white">下载 Clash YAML 文件</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">点击上方按钮下载已合并清洗好的 <code class="text-cyan-300 font-mono">clash_config.yaml</code> 文件。</p>
+                    <button 
+                      @click="downloadLocalCompiled('clash')" 
+                      :disabled="!!compilingLocalTarget"
+                      class="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>📥 立即下载 Clash YAML</span>
+                    </button>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center">2</span>
+                      <span class="text-xs font-bold text-white">客户端从本地文件导入</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      打开 <strong>Clash Verge Rev</strong> 或 <strong>Mihomo Party</strong>，进入「订阅 / 配置」页面 -> 点击右上角「新建 / 导入」-> 选择<strong>「Local / 从本地文件导入」</strong>。
+                    </p>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center justify-center">3</span>
+                      <span class="text-xs font-bold text-white">选中并设为活动配置</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      选择刚刚下载的 <code class="text-cyan-300 font-mono">clash_config.yaml</code>，右键点击设为活动配置并开启系统代理即可！
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Sing-box 本地导入步骤 -->
+                <div v-show="clientSubsSubTab === 'singbox'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">1</span>
+                      <span class="text-xs font-bold text-white">下载 Sing-box JSON 文件</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">点击上方按钮下载 <code class="text-amber-300 font-mono">singbox_config.json</code> 完整配置文件。</p>
+                    <button 
+                      @click="downloadLocalCompiled('singbox')" 
+                      :disabled="!!compilingLocalTarget"
+                      class="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>📥 立即下载 Sing-box JSON</span>
+                    </button>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">2</span>
+                      <span class="text-xs font-bold text-white">导入到 Sing-Box / NekoBox</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      打开 <strong>Sing-Box</strong> 或 <strong>NekoBox</strong> 客户端，进入配置管理 -> 点击「导入」-> 选择<strong>「从本地文件导入」</strong>。
+                    </p>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">3</span>
+                      <span class="text-xs font-bold text-white">保存并启动核心</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      选择已导入的配置文件，启动 Sing-Box 代理核心即可。
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Shadowrocket 本地导入步骤 -->
+                <div v-show="clientSubsSubTab === 'shadowrocket'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-center">1</span>
+                      <span class="text-xs font-bold text-white">下载 Base64 节点文件</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">点击下载包含清洗后节点的 <code class="text-emerald-300 font-mono">nodes_base64.txt</code> 文件。</p>
+                    <button 
+                      @click="downloadLocalCompiled('base64')" 
+                      :disabled="!!compilingLocalTarget"
+                      class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>📥 立即下载 Base64 节点</span>
+                    </button>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-center">2</span>
+                      <span class="text-xs font-bold text-white">导入到小火箭</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      打开 <strong>Shadowrocket</strong>，点击首页右上角「+」-> 选择「从文件导入」或直接全选复制 txt 内容并在小火箭中粘贴导入。
+                    </p>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-center">3</span>
+                      <span class="text-xs font-bold text-white">开启连接</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      节点导入后选择所需节点，开启顶部开关即可建立安全连接。
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Surge 本地导入步骤 -->
+                <div v-show="clientSubsSubTab === 'surge'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center">1</span>
+                      <span class="text-xs font-bold text-white">下载 Surge 规则列表</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">点击下载 <code class="text-rose-300 font-mono">surge_rules.conf</code> 策略列表文件。</p>
+                    <button 
+                      @click="downloadLocalCompiled('surge')" 
+                      :disabled="!!compilingLocalTarget"
+                      class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <span>📥 立即下载 Surge 规则</span>
+                    </button>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center">2</span>
+                      <span class="text-xs font-bold text-white">放入 Surge 配置目录</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      将文件保存到 Surge 的配置文件夹下，在主配置中通过本地文件路径引用该 policy-path。
+                    </p>
+                  </div>
+
+                  <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center justify-center">3</span>
+                      <span class="text-xs font-bold text-white">重载 Surge 配置</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">
+                      重载 Surge 配置后即可立即加载完整的策略组和分流规则。
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
