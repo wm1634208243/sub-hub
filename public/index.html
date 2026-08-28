@@ -2643,15 +2643,13 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <span class="text-cyan-400 font-bold text-[11px]">⚡ Caddyfile 4 行极简配置 (编辑 /etc/caddy/Caddyfile):</span>
                   <button 
                     type="button" 
-                    @click="copyCode((domainInput ? domainInput.trim().replace(/^https?:\\/\\//i, '') : 'sub.yourdomain.com') + ' {\\n    reverse_proxy 127.0.0.1:3000\\n}')"
+                    @click="copyCaddyConfig"
                     class="text-[11px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1 cursor-pointer"
                   >
                     📋 复制 Caddyfile
                   </button>
                 </div>
-                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-cyan-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ domainInput ? domainInput.trim().replace(/^https?:\/\//i, '') : 'sub.yourdomain.com' }} {
-    reverse_proxy 127.0.0.1:3000
-}</pre>
+                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-cyan-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ caddyConfigPreview }}</pre>
                 <div class="text-slate-400 text-[11px] flex items-center gap-2">
                   <span>💡 提示：配置保存后运行 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-cyan-300 font-mono">systemctl reload caddy</code> 即可自动申请与续签 Let's Encrypt 证书。</span>
                 </div>
@@ -2663,24 +2661,15 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <span class="text-emerald-400 font-bold text-[11px]">🛡️ Nginx 反向代理配置 (保存在 /etc/nginx/conf.d/subhub.conf):</span>
                   <button 
                     type="button" 
-                    @click="copyCode('server {\\n    server_name ' + (domainInput ? domainInput.trim().replace(/^https?:\\/\\//i, '') : 'sub.yourdomain.com') + ';\\n    location / {\\n        proxy_pass http://127.0.0.1:3000;\\n        proxy_set_header Host $host;\\n        proxy_set_header X-Real-IP $remote_addr;\\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\\n        proxy_set_header X-Forwarded-Proto $scheme;\\n    }\\n}')"
+                    @click="copyNginxConfig"
                     class="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1 cursor-pointer"
                   >
                     📋 复制 Nginx 配置
                   </button>
                 </div>
-                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-emerald-300 font-mono overflow-x-auto border border-slate-800 select-text">server {
-    server_name {{ domainInput ? domainInput.trim().replace(/^https?:\/\//i, '') : 'sub.yourdomain.com' }};
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}</pre>
+                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-emerald-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ nginxConfigPreview }}</pre>
                 <div class="text-slate-400 text-[11px] flex items-center gap-2">
-                  <span>💡 提示：使用 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300 font-mono">certbot --nginx -d {{ domainInput ? domainInput.trim().replace(/^https?:\/\//i, '') : 'sub.yourdomain.com' }}</code> 即可一键自动签发并注入 SSL 证书。</span>
+                  <span>💡 提示：使用 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300 font-mono">certbot --nginx -d {{ cleanHostnameInput }}</code> 即可一键自动签发并注入 SSL 证书。</span>
                 </div>
               </div>
             </div>
@@ -2996,7 +2985,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           <div class="flex items-center justify-between">
             <span class="text-slate-400 font-medium">目标绑定域名:</span>
             <span class="font-mono font-bold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-lg border border-cyan-500/30">
-              https://{{ domainInput.trim().replace(/^https?:\/\//i, '') }}
+              https://{{ cleanHostnameInput }}
             </span>
           </div>
 
@@ -3047,7 +3036,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           </button>
           <a
             v-if="sslProvisionSuccess"
-            :href="'https://' + domainInput.trim().replace(/^https?:\/\//i, '')"
+            :href="'https://' + cleanHostnameInput"
             target="_blank"
             class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
           >
@@ -5433,6 +5422,30 @@ function main(config, profileName) {
           }
         };
 
+        const cleanHostnameInput = computed(() => {
+          const raw = domainInput.value || '';
+          const clean = raw.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          return clean || 'sub.yourdomain.com';
+        });
+
+        const caddyConfigPreview = computed(() => {
+          const host = cleanHostnameInput.value;
+          return `${host} {\n    reverse_proxy 127.0.0.1:3000\n}`;
+        });
+
+        const nginxConfigPreview = computed(() => {
+          const host = cleanHostnameInput.value;
+          return `server {\n    server_name ${host};\n    location / {\n        proxy_pass http://127.0.0.1:3000;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}`;
+        });
+
+        const copyCaddyConfig = () => {
+          copyCode(caddyConfigPreview.value);
+        };
+
+        const copyNginxConfig = () => {
+          copyCode(nginxConfigPreview.value);
+        };
+
         // 切换模式
         const switchMode = (mode) => {
           config.value.mode = mode;
@@ -5828,7 +5841,12 @@ function main(config, profileName) {
           sslProvisionLogs,
           sslProvisionSuccess,
           openSslModal,
-          executeSslProvision
+          executeSslProvision,
+          cleanHostnameInput,
+          caddyConfigPreview,
+          nginxConfigPreview,
+          copyCaddyConfig,
+          copyNginxConfig
         };
       }
     });
