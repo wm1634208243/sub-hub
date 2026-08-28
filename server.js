@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.5';
+const CURRENT_VERSION = '1.0.6';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1666,6 +1666,81 @@ app.post('/api/admin/system/domain/test', authMiddleware, adminOnly, async (req,
 });
 
 // Admin one-click SSL certificate & reverse proxy provisioning
+
+// Admin upload / save custom SSL certificate & private key
+app.post('/api/admin/system/ssl/custom-cert', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { cert, key, domain } = req.body;
+    if (!cert || !key || typeof cert !== 'string' || typeof key !== 'string') {
+      return res.status(400).json({ error: '请提供完整的 SSL 证书内容 (PEM) 与私钥 (KEY)' });
+    }
+
+    const sslDir = path.join(DATA_DIR, 'ssl');
+    if (!fs.existsSync(sslDir)) {
+      fs.mkdirSync(sslDir, { recursive: true });
+    }
+
+    fs.writeFileSync(path.join(sslDir, 'cert.pem'), cert.trim(), 'utf8');
+    fs.writeFileSync(path.join(sslDir, 'key.pem'), key.trim(), 'utf8');
+
+    let cleanDomain = '';
+    if (domain && typeof domain === 'string') {
+      cleanDomain = domain.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    }
+
+    const updatedSettings = await saveSystemSettings({
+      enableNativeHttps: true,
+      customDomain: cleanDomain ? `https://${cleanDomain}` : undefined,
+      enableHttpsRedirect: true
+    });
+
+    res.json({
+      success: true,
+      message: '🎉 SSL 证书与私钥保存成功！原生 HTTPS 服务已就绪（将在下次重启或平滑重载时生效）。',
+      settings: updatedSettings
+    });
+  } catch (err) {
+    res.status(500).json({ error: '保存 SSL 证书失败: ' + err.message });
+  }
+});
+
+// Admin one-click generate high-grade self-signed TLS cert (Ideal for Cloudflare Full SSL)
+app.post('/api/admin/system/ssl/generate-self-signed', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { domain } = req.body;
+    let hostname = 'localhost';
+    if (domain && typeof domain === 'string') {
+      hostname = domain.trim().replace(/^https?:\/\//i, '').split('/')[0].split(':')[0].trim() || 'localhost';
+    }
+
+    const sslDir = path.join(DATA_DIR, 'ssl');
+    if (!fs.existsSync(sslDir)) {
+      fs.mkdirSync(sslDir, { recursive: true });
+    }
+
+    const certPath = path.join(sslDir, 'cert.pem');
+    const keyPath = path.join(sslDir, 'key.pem');
+
+    // Generate self-signed cert using openssl
+    const cmd = `openssl req -x509 -newkey rsa:2048 -nodes -keyout "${keyPath}" -out "${certPath}" -days 3650 -subj "/CN=${hostname}" 2>&1`;
+    await execPromise(cmd);
+
+    const updatedSettings = await saveSystemSettings({
+      enableNativeHttps: true,
+      customDomain: `https://${hostname}`,
+      enableHttpsRedirect: true
+    });
+
+    res.json({
+      success: true,
+      message: `🎉 成功为 ${hostname} 自动生成 10 年期原生 TLS 证书！已开启原生 HTTPS。配合 Cloudflare Full SSL 模式即可实现 0 端口纯净 HTTPS 访问！`,
+      settings: updatedSettings
+    });
+  } catch (err) {
+    res.status(500).json({ error: '生成自签证书失败: ' + err.message });
+  }
+});
+
 app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (req, res) => {
   try {
     let { domain, port, engine = 'caddy' } = req.body;
@@ -1882,6 +1957,18 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.0.6',
+    tag: 'v1.0.6',
+    name: 'SubHub v1.0.6 · 原生内置 HTTPS 服务、自定义 SSL 证书/私钥导入与 Cloudflare 0 端口原生穿透方案',
+    publishedAt: '2026-08-28T05:51:19.742Z',
+    highlights: ['🔒 原生内置 HTTPS 服务与直接端口监听', '📋 自定义 SSL 证书/私钥粘贴与持久化导入', '✨ 一键生成 10 年期原生 TLS 证书', '☁️ 完美适配 Cloudflare Full SSL 0 端口纯净访问', '🛠️ 4 合 1 交互式 SSL 与域名管理中台'],
+    changelogZh: `### 🔒 原生内置 HTTPS 服务与多模式证书中台
+- **原生内置 HTTPS 引擎**：SubHub 服务端直接支持原生加载 TLS 证书并在当前服务端口启动 HTTPS，彻底摆脱对外部 80/443 反代软件的强依赖；
+- **自定义 SSL 证书/私钥导入**：支持在 Web 端直接粘贴已有的 CRT/PEM 证书与私钥（完美支持 Cloudflare 15 年免费 Origin CA 证书、腾讯云、阿里云等证书）；
+- **一键生成 10 年期自签 TLS 证书**：专为配合 Cloudflare Full (完全) SSL 模式打造，一键自动生成 10 年期高强度证书并开启原生 HTTPS，彻底攻克 DMIT 等机房的 Cloudflare 1034 限制，实现零端口纯净 https:// 访问；
+- **全新 4 合 1 SSL 管理弹窗**：整合 Caddy 自动化反代、Cloudflare 原生穿透、自有证书导入、原生端口直连 4 大场景方案。`
+  },
   {
     version: '1.0.5',
     tag: 'v1.0.5',
@@ -2209,14 +2296,42 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 
-init().then(() => {
+function startHttpServer() {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
-    console.log(`🚀 Clash Sub Hub v1.0.5 已启动`);
+    console.log(`🚀 Clash Sub Hub v${CURRENT_VERSION} 已启动`);
     console.log(`🌐 Web 管理端: http://localhost:${PORT}`);
     console.log(`👤 默认账号: admin / admin`);
     console.log(`====================================================`);
   });
+}
+
+init().then(() => {
+  const sslCertPath = path.join(DATA_DIR, 'ssl/cert.pem');
+  const sslKeyPath = path.join(DATA_DIR, 'ssl/key.pem');
+  const sysSettings = loadSystemSettings();
+
+  if (sysSettings.enableNativeHttps && fs.existsSync(sslCertPath) && fs.existsSync(sslKeyPath)) {
+    try {
+      const https = require('https');
+      const httpsServer = https.createServer({
+        key: fs.readFileSync(sslKeyPath),
+        cert: fs.readFileSync(sslCertPath)
+      }, app);
+      httpsServer.listen(PORT, '0.0.0.0', () => {
+        console.log(`====================================================`);
+        console.log(`🚀 Clash Sub Hub v${CURRENT_VERSION} [原生 HTTPS 模式] 已启动`);
+        console.log(`🔒 Web 管理端: https://localhost:${PORT}`);
+        console.log(`👤 默认账号: admin / admin`);
+        console.log(`====================================================`);
+      });
+    } catch (httpsErr) {
+      console.error('⚠️ 原生 HTTPS 证书加载异常，降级至 HTTP 启动:', httpsErr.message);
+      startHttpServer();
+    }
+  } else {
+    startHttpServer();
+  }
 
   // Start periodic background subscription auto-updater and user ban expiration sweep
   sweepExpiredUserBans();

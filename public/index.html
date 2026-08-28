@@ -286,7 +286,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.5' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.6' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -3740,7 +3740,7 @@
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.5' }}
+                      v{{ versionInfo.currentVersion || '1.0.6' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -3966,7 +3966,7 @@
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.0.5' }}
+                v{{ versionInfo.currentVersion || '1.0.6' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -4188,86 +4188,155 @@
           <button v-if="!provisioningSsl" @click="showSslModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
         </div>
 
-        <!-- 目标域名、端口与引擎选项 -->
+        <!-- 模式切换与选项卡 -->
         <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3.5 text-xs">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <span class="text-slate-400 font-medium">目标全局直链预览:</span>
+            <span class="text-slate-400 font-medium">全局直链效果预览:</span>
             <span class="font-mono font-bold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-lg border border-cyan-500/30 truncate">
               {{ targetPreviewUrl }}
             </span>
           </div>
 
-          <!-- 端口选择区 -->
-          <div class="space-y-1.5 pt-1 border-t border-slate-900">
-            <label class="text-slate-300 font-semibold flex items-center justify-between">
-              <span>对外访问端口:</span>
-              <span class="text-[10px] text-slate-500 font-normal">支持直接 3000 直连或自定义 HTTPS 端口</span>
-            </label>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button 
-                type="button" 
-                @click="sslPort = currentAppPort; sslEngine = 'direct'"
-                :class="sslPort === currentAppPort && sslEngine === 'direct' ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
-                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
-              >
-                <div class="text-[11px]">⚡ :{{ currentAppPort }} 当前端口</div>
-                <div class="text-[9px] opacity-75">直连 · 当前部署端口</div>
-              </button>
-              <button 
-                type="button" 
-                @click="sslPort = '443'; if (sslEngine === 'direct') sslEngine = 'caddy'"
-                :class="sslPort === '443' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
-                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
-              >
-                <div class="text-[11px]">🔒 443 标准 HTTPS</div>
-                <div class="text-[9px] opacity-75">无端口 · 80/443</div>
-              </button>
-              <button 
-                type="button" 
-                @click="sslPort = '8443'; if (sslEngine === 'direct') sslEngine = 'caddy'"
-                :class="sslPort === '8443' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
-                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
-              >
-                <div class="text-[11px]">☁️ 8443 HTTPS</div>
-                <div class="text-[9px] opacity-75">Cloudflare 兼容</div>
-              </button>
-              <button 
-                type="button" 
-                @click="sslPort = '2096'; if (sslEngine === 'direct') sslEngine = 'caddy'"
-                :class="sslPort === '2096' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
-                class="p-2 rounded-xl border text-center transition-all cursor-pointer"
-              >
-                <div class="text-[11px]">🛡️ 2096 HTTPS</div>
-                <div class="text-[9px] opacity-75">X-UI 兼容端口</div>
-              </button>
-            </div>
+          <!-- 模式切换标签 -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-slate-900 rounded-xl border border-slate-800">
+            <button 
+              type="button" 
+              @click="sslModalTab = 'caddy'; sslEngine = 'caddy'"
+              :class="sslModalTab === 'caddy' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-slate-400 hover:text-white border border-transparent'"
+              class="py-1.5 rounded-lg text-center transition-all cursor-pointer text-[11px]"
+            >
+              ⚡ Caddy 自动 SSL
+            </button>
+            <button 
+              type="button" 
+              @click="sslModalTab = 'cloudflare'; sslEngine = 'direct'"
+              :class="sslModalTab === 'cloudflare' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-transparent'"
+              class="py-1.5 rounded-lg text-center transition-all cursor-pointer text-[11px]"
+            >
+              ☁️ Cloudflare 原生
+            </button>
+            <button 
+              type="button" 
+              @click="sslModalTab = 'custom'"
+              :class="sslModalTab === 'custom' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-white border border-transparent'"
+              class="py-1.5 rounded-lg text-center transition-all cursor-pointer text-[11px]"
+            >
+              🔒 导入自有证书
+            </button>
+            <button 
+              type="button" 
+              @click="sslModalTab = 'direct'; sslEngine = 'direct'; sslPort = currentAppPort"
+              :class="sslModalTab === 'direct' ? 'bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30' : 'text-slate-400 hover:text-white border border-transparent'"
+              class="py-1.5 rounded-lg text-center transition-all cursor-pointer text-[11px]"
+            >
+              🚀 原生端口直连
+            </button>
           </div>
 
-          <!-- 模式与引擎选择 -->
-          <div class="space-y-1.5 pt-1 border-t border-slate-900">
-            <label class="text-slate-300 font-semibold block">绑定与反代引擎方式:</label>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <label class="flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'direct' ? 'bg-cyan-500/10 border-cyan-500/40 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
-                <input type="radio" v-model="sslEngine" value="direct" class="mt-0.5" />
-                <div class="space-y-0.5">
-                  <div class="font-bold text-white text-[11px]">⚡ 原生端口直连</div>
-                  <div class="text-[9px] text-slate-400 leading-tight">无需额外反代软件，直接绑定当前运行端口 ({{ currentAppPort }})</div>
-                </div>
-              </label>
-              <label class="flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'caddy' ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
-                <input type="radio" v-model="sslEngine" value="caddy" class="mt-0.5" />
-                <div class="space-y-0.5">
-                  <div class="font-bold text-white text-[11px]">⚡ Caddy 自动 SSL</div>
-                  <div class="text-[9px] text-slate-400 leading-tight">原生内置 ACME，全自动申请并持久续签</div>
-                </div>
-              </label>
-              <label class="flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'nginx' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
-                <input type="radio" v-model="sslEngine" value="nginx" class="mt-0.5" />
-                <div class="space-y-0.5">
-                  <div class="font-bold text-white text-[11px]">🛡️ Nginx + Certbot</div>
-                  <div class="text-[9px] text-slate-400 leading-tight">生成 Nginx 配置并通过 Certbot 签发</div>
-                </div>
-              </label>
+          <!-- Tab 1: Caddy 自动 SSL -->
+          <div v-show="sslModalTab === 'caddy'" class="space-y-3 pt-1">
+            <div class="space-y-1.5">
+              <label class="text-slate-300 font-semibold block">选择对外反代监听端口:</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button 
+                  type="button" 
+                  @click="sslPort = '443'"
+                  :class="sslPort === '443' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
+                  class="p-2 rounded-xl border text-center transition-all cursor-pointer"
+                >
+                  <div class="text-[11px]">443 标准端口</div>
+                  <div class="text-[9px] opacity-75">无端口 · 标准 HTTPS</div>
+                </button>
+                <button 
+                  type="button" 
+                  @click="sslPort = '8443'"
+                  :class="sslPort === '8443' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
+                  class="p-2 rounded-xl border text-center transition-all cursor-pointer"
+                >
+                  <div class="text-[11px]">8443 兼容端口</div>
+                  <div class="text-[9px] opacity-75">避开 443 限制</div>
+                </button>
+                <button 
+                  type="button" 
+                  @click="sslPort = '2096'"
+                  :class="sslPort === '2096' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 font-bold' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'"
+                  class="p-2 rounded-xl border text-center transition-all cursor-pointer"
+                >
+                  <div class="text-[11px]">2096 端口</div>
+                  <div class="text-[9px] opacity-75">X-UI 兼容</div>
+                </button>
+              </div>
+            </div>
+            <p class="text-[11px] text-slate-400 leading-relaxed bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+              💡 <strong>说明</strong>：Caddy 将在后台监听所选端口，并将流量全自动反代至本机运行的 SubHub 核心 (:{{ currentAppPort }})。
+            </p>
+          </div>
+
+          <!-- Tab 2: Cloudflare 0 端口原生方案 -->
+          <div v-show="sslModalTab === 'cloudflare'" class="space-y-3 pt-1">
+            <div class="bg-cyan-950/20 border border-cyan-500/30 p-3 rounded-xl space-y-2 text-cyan-200">
+              <div class="font-bold flex items-center gap-1.5 text-xs text-cyan-300">
+                <span>☁️ Cloudflare 0 端口纯净域名最佳实践 (推荐 · 100% 成功)</span>
+              </div>
+              <ol class="list-decimal list-inside text-[11px] text-slate-300 space-y-1 leading-relaxed">
+                <li>在 Cloudflare DNS 将 <code class="text-cyan-300">{{ cleanHostnameInput }}</code> 设为 <strong>🟠 橙色云朵 (已代理)</strong>；</li>
+                <li>在 Cloudflare <strong>Rules ➔ Origin Rules</strong> 中将 443 端口重写至 <strong>{{ currentAppPort }}</strong>；</li>
+                <li>在 SSL/TLS 中选择 <strong>Flexible</strong>（或点击下方按钮生成自签证书并选 <strong>Full</strong>）。</li>
+              </ol>
+            </div>
+            <button 
+              type="button" 
+              @click="generateSelfSignedCert" 
+              :disabled="generatingSelfSigned"
+              class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span v-if="generatingSelfSigned" class="animate-spin text-sm">⏳</span>
+              <span>{{ generatingSelfSigned ? '正在生成原生 TLS 证书...' : '✨ 一键生成 10 年期原生 TLS 证书并启用' }}</span>
+            </button>
+          </div>
+
+          <!-- Tab 3: 自定义导入 SSL 证书 -->
+          <div v-show="sslModalTab === 'custom'" class="space-y-2.5 pt-1">
+            <div class="space-y-1">
+              <label class="text-[11px] text-slate-300 font-semibold block">证书公钥内容 (Certificate CRT/PEM):</label>
+              <textarea 
+                v-model="customCertPem" 
+                placeholder="-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----"
+                rows="3" 
+                class="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-[10px] font-mono text-emerald-300 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50"
+              ></textarea>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[11px] text-slate-300 font-semibold block">私钥内容 (Private KEY):</label>
+              <textarea 
+                v-model="customKeyPem" 
+                placeholder="-----BEGIN PRIVATE KEY-----
+...
+-----END PRIVATE KEY-----"
+                rows="3" 
+                class="w-full bg-slate-900 border border-slate-800 rounded-xl p-2 text-[10px] font-mono text-emerald-300 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50"
+              ></textarea>
+            </div>
+            <button 
+              type="button" 
+              @click="submitCustomCert" 
+              :disabled="savingCustomCert || !customCertPem.trim() || !customKeyPem.trim()"
+              class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <span v-if="savingCustomCert" class="animate-spin text-sm">⏳</span>
+              <span>{{ savingCustomCert ? '正在保存并生效...' : '💾 保存并启用原生 SSL 证书' }}</span>
+            </button>
+          </div>
+
+          <!-- Tab 4: 原生端口直连 -->
+          <div v-show="sslModalTab === 'direct'" class="space-y-2.5 pt-1">
+            <div class="bg-purple-950/20 border border-purple-500/30 p-3 rounded-xl space-y-1.5 text-purple-200">
+              <div class="font-bold text-xs text-purple-300">🚀 原生端口直连模式</div>
+              <p class="text-[11px] text-slate-300 leading-relaxed">
+                直接使用当前服务端口 (:{{ currentAppPort }}) 生成全站直链，无需任何反向代理配置。
+              </p>
             </div>
           </div>
         </div>
@@ -5301,8 +5370,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.0.5',
-          latestVersion: '1.0.5',
+          currentVersion: '1.0.6',
+          latestVersion: '1.0.6',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -5386,7 +5455,12 @@ function main(config, profileName) {
         // 一键 SSL 证书与自动化反向代理状态
         const showSslModal = ref(false);
         const sslEngine = ref('caddy'); // 'caddy' | 'nginx' | 'direct'
-        const sslPort = ref('3000');
+        const sslPort = ref('443');
+        const sslModalTab = ref('caddy'); // 'caddy' | 'cloudflare' | 'custom' | 'direct'
+        const customCertPem = ref('');
+        const customKeyPem = ref('');
+        const savingCustomCert = ref(false);
+        const generatingSelfSigned = ref(false);
         const provisioningSsl = ref(false);
         const sslProvisionLogs = ref('');
         const sslProvisionSuccess = ref(false);
@@ -7037,6 +7111,68 @@ function main(config, profileName) {
           }
         };
 
+        
+        const submitCustomCert = async () => {
+          if (!customCertPem.value.trim() || !customKeyPem.value.trim()) {
+            return showToast('请填写完整的证书公钥与私钥', 'error');
+          }
+          savingCustomCert.value = true;
+          try {
+            const res = await fetch('/api/admin/system/ssl/custom-cert', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                cert: customCertPem.value.trim(),
+                key: customKeyPem.value.trim(),
+                domain: cleanHostnameInput.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast(data.message || '🎉 自定义 SSL 证书已成功保存并生效！');
+              showSslModal.value = false;
+            } else {
+              showToast(data.error || '保存证书失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，保存证书失败', 'error');
+          } finally {
+            savingCustomCert.value = false;
+          }
+        };
+
+        const generateSelfSignedCert = async () => {
+          generatingSelfSigned.value = true;
+          try {
+            const res = await fetch('/api/admin/system/ssl/generate-self-signed', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                domain: cleanHostnameInput.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast(data.message || '🎉 成功生成 10 年期原生 TLS 证书！');
+              showSslModal.value = false;
+            } else {
+              showToast(data.error || '生成自签证书失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，生成自签证书失败', 'error');
+          } finally {
+            generatingSelfSigned.value = false;
+          }
+        };
+
         const openSslModal = () => {
           if (!domainInput.value.trim()) {
             return showToast('请先输入要配置证书的域名', 'error');
@@ -7582,6 +7718,13 @@ function main(config, profileName) {
           showSslModal,
           sslEngine,
           sslPort,
+          sslModalTab,
+          customCertPem,
+          customKeyPem,
+          savingCustomCert,
+          generatingSelfSigned,
+          submitCustomCert,
+          generateSelfSignedCert,
           targetPreviewUrl,
           quickBindCurrentPort,
           provisioningSsl,
