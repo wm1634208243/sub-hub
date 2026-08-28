@@ -255,6 +255,16 @@
           <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-normal">0云端存储</span>
         </button>
         <p class="text-[10px] text-slate-500 text-center mt-2">无需注册账号 · 数据 100% 存在浏览器 LocalStorage · 物理级绝对隐私</p>
+
+        <div class="flex items-center justify-center mt-4 pt-3 border-t border-slate-850">
+          <button 
+            type="button" 
+            @click="showBoundaryModal = true"
+            class="text-[11px] text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1 cursor-pointer font-medium"
+          >
+            <span>⚖️ 纯本地模式 vs 账号云端模式 功能边界对照表</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -2538,6 +2548,117 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             </div>
           </div>
 
+          <!-- ⚖️ 纯本地离线单机 vs 账号云端托管 功能边界对照规范卡片 -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-xl font-bold">
+                  ⚖️
+                </div>
+                <div>
+                  <h4 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>纯本地模式 vs 账号云端模式 功能边界规范</span>
+                    <span class="text-[10px] font-mono bg-slate-950 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800 font-normal">
+                      Boundary Matrix
+                    </span>
+                  </h4>
+                  <p class="text-xs text-slate-400">清晰界定两种模式在数据存储、隐私安全、多端自动拉取与跨机漫游上的能力边界</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="text-slate-400 border-b border-slate-800 bg-slate-950/80 font-semibold">
+                    <th class="py-3 px-4 w-1/4">功能与特性维度</th>
+                    <th class="py-3 px-4 w-3/8 text-emerald-400 font-bold">🛡️ 纯本地离线单机模式 (0 云端存储)</th>
+                    <th class="py-3 px-4 w-3/8 text-cyan-400 font-bold">☁️ 账号云端托管同步模式 (AES-256-GCM)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">1. 账户体系与门槛</td>
+                    <td class="py-3.5 px-4 text-emerald-300">
+                      <span class="font-bold">免注册即开即用</span>（0 账号生成、无需密码）
+                    </td>
+                    <td class="py-3.5 px-4 text-slate-300">
+                      需注册用户名并设置独立密码
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">2. 数据存储位置</td>
+                    <td class="py-3.5 px-4 text-emerald-300">
+                      100% 仅保存在当前浏览器 <code class="bg-slate-950 px-1.5 py-0.5 rounded font-mono text-[11px] text-emerald-400 border border-emerald-500/20">LocalStorage</code>
+                    </td>
+                    <td class="py-3.5 px-4 text-cyan-300">
+                      VPS 磁盘持久化，全量 <code class="bg-slate-950 px-1.5 py-0.5 rounded font-mono text-[11px] text-cyan-400 border border-cyan-500/20">AES-256-GCM</code> 强加密
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">3. 隐私保护与云端留存</td>
+                    <td class="py-3.5 px-4 text-emerald-300">
+                      <span class="font-bold text-emerald-400">0 云端存储、0 访问日志</span>，物理级彻底杜绝泄露
+                    </td>
+                    <td class="py-3.5 px-4 text-slate-300">
+                      零知识加密盲化，管理员快照备份无法反解用户数据
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">4. 手机/客户端 24h 自动静默更新</td>
+                    <td class="py-3.5 px-4 text-slate-400">
+                      <span class="text-rose-400 font-semibold">❌ 不支持短直链定时拉取</span><br>
+                      <span class="text-[11px] text-slate-500">（需在浏览器生成并下载 YAML/JSON 手动导入客户端）</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-emerald-400">
+                      <span class="font-semibold text-emerald-400">✅ 完整支持</span><br>
+                      <span class="text-[11px] text-slate-300">（Clash / Sing-box / 小火箭 24 小时后台静默定时拉取）</span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">5. 跨设备多端漫游同步</td>
+                    <td class="py-3.5 px-4 text-slate-400">
+                      <span class="text-amber-400 font-semibold">⚠️ 单机隔离</span><br>
+                      <span class="text-[11px] text-slate-500">（换设备浏览器需手动通过 JSON 备份导入/导出）</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-emerald-400">
+                      <span class="font-semibold text-emerald-400">✅ 全平台漫游同步</span><br>
+                      <span class="text-[11px] text-slate-300">（在任何手机或电脑浏览器登录即可秒级同步规则）</span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">6. 分流规则/正则重命名/DNS</td>
+                    <td class="py-3.5 px-4 text-emerald-400 font-semibold">✅ 完整支持（GUI 规则库、国旗注入、去重）</td>
+                    <td class="py-3.5 px-4 text-emerald-400 font-semibold">✅ 完整支持（GUI 规则库、国旗注入、去重）</td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">7. 节点真机握手延迟测速</td>
+                    <td class="py-3.5 px-4 text-emerald-400 font-semibold">✅ 浏览器端发起真实 TCP/HTTP 测速</td>
+                    <td class="py-3.5 px-4 text-emerald-400 font-semibold">✅ 服务端后台发起即时与定时真实测速</td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">8. 3X-UI 流量看板与到期管理</td>
+                    <td class="py-3.5 px-4 text-slate-400">
+                      <span class="text-slate-500">仅单次查看（不持久化历史用量日志）</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-emerald-400">
+                      <span class="font-semibold text-emerald-400">✅ 实时流量看板、预警与到期自动管理</span>
+                    </td>
+                  </tr>
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="py-3.5 px-4 font-semibold text-slate-200">9. 模式平滑迁移与升级</td>
+                    <td class="py-3.5 px-4 text-cyan-300">
+                      随时可点击「☁️ 注册并同步至云端」一秒升级
+                    </td>
+                    <td class="py-3.5 px-4 text-cyan-300">
+                      随时可切回本地模式并「🗑️ 一键物理抹除云端记录」
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div v-if="currentUser.role === 'admin'" class="space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -3252,6 +3373,98 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- 纯本地模式 vs 账号云端模式 功能边界对照弹窗 (Mode Boundary Modal) -->
+    <div v-if="showBoundaryModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-3xl w-full shadow-2xl space-y-4.5 relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="flex items-center justify-between pb-3.5 border-b border-slate-800 shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl font-bold shadow-lg shadow-cyan-500/10">
+              ⚖️
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <span>纯本地模式 vs 账号云端模式 功能边界对照表</span>
+                <span class="text-[10px] font-mono bg-slate-950 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800 font-normal">
+                  Boundary Guide
+                </span>
+              </h3>
+              <p class="text-[11px] text-slate-400">帮助您根据对“自动同步便利性”与“极致隐私零存储”的需求选择最佳模式</p>
+            </div>
+          </div>
+          <button @click="showBoundaryModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <div class="overflow-y-auto custom-scrollbar flex-1 space-y-4 pr-1">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-800 bg-slate-950/80 font-semibold sticky top-0">
+                <th class="py-2.5 px-3 w-1/4">功能特性维度</th>
+                <th class="py-2.5 px-3 w-3/8 text-emerald-400 font-bold">🛡️ 纯本地离线单机模式</th>
+                <th class="py-2.5 px-3 w-3/8 text-cyan-400 font-bold">☁️ 账号云端托管同步模式</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60">
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">1. 账户体系</td>
+                <td class="py-2.5 px-3 text-emerald-300">免注册即开即用（0 账号生成）</td>
+                <td class="py-2.5 px-3 text-slate-300">需注册并使用独立密码登录</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">2. 数据存储</td>
+                <td class="py-2.5 px-3 text-emerald-300">仅本浏览器 LocalStorage</td>
+                <td class="py-2.5 px-3 text-cyan-300">VPS 磁盘 AES-256-GCM 强加密</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">3. 隐私与留存</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-bold">0 云端存储、0 访问日志</td>
+                <td class="py-2.5 px-3 text-slate-300">盲化加密，快照无法反解窥探</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">4. 客户端 24h 自动拉取</td>
+                <td class="py-2.5 px-3 text-rose-400 font-semibold">❌ 不支持（需手动下载配置导入）</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-semibold">✅ 完整支持短直链静默更新</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">5. 多设备漫游</td>
+                <td class="py-2.5 px-3 text-amber-400 font-semibold">⚠️ 单机隔离（需手动导 JSON 备份）</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-semibold">✅ 登录同一账号全端秒级同步</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">6. 规则/重命名/DNS</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-semibold">✅ 完整支持全部 GUI 规则</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-semibold">✅ 完整支持全部 GUI 规则</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">7. 节点真实握手测速</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-semibold">✅ 浏览器端发起真实测速</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-semibold">✅ 服务端发起即时与定时测速</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">8. 3X-UI 流量看板</td>
+                <td class="py-2.5 px-3 text-slate-400">仅单次查看（不存历史日志）</td>
+                <td class="py-2.5 px-3 text-emerald-400 font-semibold">✅ 实时看板、预警与到期管理</td>
+              </tr>
+              <tr class="hover:bg-slate-950/40">
+                <td class="py-2.5 px-3 font-semibold text-slate-200">9. 模式迁移与升级</td>
+                <td class="py-2.5 px-3 text-cyan-300">随时一键升级为云端同步账号</td>
+                <td class="py-2.5 px-3 text-cyan-300">随时切换本地并一键抹除云端记录</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="flex items-center justify-end pt-3 border-t border-slate-800 shrink-0">
+          <button 
+            type="button" 
+            @click="showBoundaryModal = false"
+            class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+          >
+            知道了，关闭对照表
+          </button>
+        </div>
       </div>
     </div>
 
@@ -4439,6 +4652,7 @@ function main(config, profileName) {
         const isGuest = ref(savedIsGuest);
         const purgingCloud = ref(false);
         const showPromoteModal = ref(false);
+        const showBoundaryModal = ref(false);
         const promoteForm = ref({ username: '', password: '', confirmPassword: '' });
         const compilingLocalTarget = ref('');
         const authMode = ref('login'); // 'login' | 'register'
@@ -6518,6 +6732,7 @@ function main(config, profileName) {
           purgeCloudData,
           purgingCloud,
           showPromoteModal,
+          showBoundaryModal,
           promoteForm,
           promoteGuestToCloud,
           login,
