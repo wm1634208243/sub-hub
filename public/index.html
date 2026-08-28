@@ -3116,9 +3116,11 @@
                 </div>
                 <button 
                   @click="loadAdminUsers" 
-                  class="bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 px-3.5 py-1.5 rounded-xl border border-slate-700 transition-all cursor-pointer"
+                  :disabled="loadingUsers"
+                  class="bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 px-3.5 py-1.5 rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  刷新
+                  <svg v-if="loadingUsers" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  <span>{{ loadingUsers ? '加载中...' : '刷新' }}</span>
                 </button>
               </div>
 
@@ -3134,6 +3136,18 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-slate-800/60 font-mono">
+                    <tr v-if="adminUsers.length === 0">
+                      <td colspan="5" class="py-8 text-center text-slate-500 font-sans">
+                        <div v-if="loadingUsers" class="inline-flex items-center gap-2 text-cyan-400">
+                          <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                          <span>正在加载用户列表...</span>
+                        </div>
+                        <div v-else class="space-y-1">
+                          <div>暂无平台用户数据</div>
+                          <button @click="loadAdminUsers" class="text-xs text-cyan-400 hover:underline cursor-pointer">点击刷新重试</button>
+                        </div>
+                      </td>
+                    </tr>
                     <tr v-for="u in adminUsers" :key="u.username" class="hover:bg-slate-800/30" :class="{ 'opacity-60 bg-rose-950/10': u.disabled }">
                       <td class="py-3 px-3 font-semibold text-white flex items-center gap-1.5">
                         <span>{{ u.username }}</span>
@@ -5180,6 +5194,7 @@ function main(config, profileName) {
 
         // Admin 用户管理
         const adminUsers = ref([]);
+        const loadingUsers = ref(false);
         const newUser = ref({ username: '', password: '', role: 'user' });
 
         // 封禁管理状态
@@ -5888,6 +5903,10 @@ function main(config, profileName) {
               passwordInput.value = '';
               showToast(`欢迎回来，${data.username}！`);
               await loadConfig();
+              if (data.role === 'admin') {
+                loadAdminUsers();
+                loadSystemSettings();
+              }
             } else {
               showToast(data.error || '登录失败', 'error');
             }
@@ -6488,14 +6507,22 @@ function main(config, profileName) {
         // Admin: 用户管理
         const loadAdminUsers = async () => {
           if (currentUser.value.role !== 'admin') return;
+          loadingUsers.value = true;
           try {
             const res = await fetch('/api/admin/users', {
               headers: { 'Authorization': `Bearer ${token.value}` }
             });
             if (res.ok) {
               adminUsers.value = await res.json();
+            } else {
+              const err = await res.json().catch(() => ({}));
+              showToast(err.error || '获取用户列表失败', 'error');
             }
-          } catch {}
+          } catch (e) {
+            console.error('Failed to load admin users:', e);
+          } finally {
+            loadingUsers.value = false;
+          }
         };
 
         const createUser = async () => {
@@ -7097,6 +7124,9 @@ function main(config, profileName) {
             }
             await loadConfig();
             loadSystemSettings();
+            if (currentUser.value.role === 'admin') {
+              loadAdminUsers();
+            }
             fetchVersionInfo(true, false); // 仅加载本地版本元信息，不自动发起远端检查
           }
 
@@ -7108,9 +7138,13 @@ function main(config, profileName) {
             if (res.ok) {
               const data = await res.json();
               if (data.success) {
-                currentUser.value = { username: data.username, role: data.role };
+                currentUser.value = { username: data.username, role: data.role, isGuest: false };
                 isLoggedIn.value = true;
                 localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
+                if (data.role === 'admin') {
+                  loadAdminUsers();
+                  loadSystemSettings();
+                }
               }
             } else if (res.status === 401 || res.status === 403) {
               logout();
@@ -7157,6 +7191,7 @@ function main(config, profileName) {
           tokenExpiryInput,
           logs,
           adminUsers,
+          loadingUsers,
           newUser,
           toast,
           subscriptionUrl,
