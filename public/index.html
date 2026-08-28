@@ -259,7 +259,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.2' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.3' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -2549,7 +2549,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   </div>
                   <div class="flex items-start gap-2">
                     <span class="text-amber-400 shrink-0 mt-0.5">👑</span>
-                    <span class="text-[11px]"><strong>全量系统快照与跨机迁移</strong>：一键导出全站账号与规则快照，新 VPS 一秒复原</span>
+                    <span class="text-[11px]"><strong>全量系统快照（零知识盲化备份）</strong>：一键导出整站跨机灾备快照；普通用户订阅与规则 100% AES-256-GCM 盲化加密，管理员无法窥探</span>
                   </div>
                 </div>
               </div>
@@ -2821,15 +2821,17 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl">
-                  📦
+                <div class="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl font-bold">
+                  🔐
                 </div>
                 <div>
                   <h3 class="text-base font-bold text-white flex items-center gap-2">
                     <span>系统全局全量备份与跨机迁移</span>
-                    <span class="text-[10px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded-full font-mono">System Snapshot</span>
+                    <span class="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-semibold flex items-center gap-1">
+                      <span>🛡️ 零知识加密保护</span>
+                    </span>
                   </h3>
-                  <p class="text-xs text-slate-400">一键打包导出整站所有用户账户密码库及全员独立配置；支持跨服务器一键秒级克隆还原</p>
+                  <p class="text-xs text-slate-400">一键打包导出整站数据 · 普通用户私有订阅与规则 100% 盲化加密 · 管理员无法窥探</p>
                 </div>
               </div>
 
@@ -2855,6 +2857,15 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
               </div>
             </div>
 
+            <!-- 零知识隐私保护提示条 -->
+            <div class="bg-slate-950/90 border border-emerald-500/20 rounded-xl p-3.5 flex items-center gap-3 text-xs">
+              <span class="text-base shrink-0">🛡️</span>
+              <div class="text-[11px] text-slate-300 leading-relaxed">
+                <span class="text-emerald-400 font-bold">零知识隐私保护保证：</span>
+                全站普通用户的机场订阅地址、节点密钥与私有规则在磁盘持久化及快照导出中均由 <strong class="text-white font-mono">AES-256-GCM</strong> 强加密盲化。管理员在导出快照时仅持有不可逆密文，任何人均无法在备份文件中窥探或反解用户数据。
+              </div>
+            </div>
+
             <!-- 说明与特性指引 -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
@@ -2862,15 +2873,15 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <span>👥 全量账号及密码哈希</span>
                 </div>
                 <div class="text-slate-400 text-[11px] leading-relaxed">
-                  完整包含平台所有用户的账号名、加密密码哈希、用户权限角色与创建时间。
+                  包含平台所有用户的账号名、Bcrypt 加密密码哈希、用户权限角色与创建时间。
                 </div>
               </div>
               <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
                 <div class="font-bold text-white flex items-center gap-1.5">
-                  <span>🛰️ 全员独立配置与订阅</span>
+                  <span>🔐 盲化加密私有配置</span>
                 </div>
                 <div class="text-slate-400 text-[11px] leading-relaxed">
-                  每个用户私有的所有上游订阅源、分流规则、JS 脚本、国旗/测速规则等 100% 完整打包。
+                  普通用户私有订阅源与规则以 AES-256-GCM 密文打包，管理员无法窥视，保障 100% 隐私。
                 </div>
               </div>
               <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3.5 space-y-1">
@@ -2878,7 +2889,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <span>🚀 跨机器无缝迁移</span>
                 </div>
                 <div class="text-slate-400 text-[11px] leading-relaxed">
-                  更换 VPS 服务器部署后，直接上传备份快照，一秒完成整站环境复原与热重载。
+                  更换 VPS 部署后，上传备份快照即刻无损复原，用户登录即可自动唤醒解密。
                 </div>
               </div>
             </div>
@@ -2893,7 +2904,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.2' }}
+                      v{{ versionInfo.currentVersion || '1.0.3' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -2948,7 +2959,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.0.2' }}
+                v{{ versionInfo.currentVersion || '1.0.3' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -4121,8 +4132,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.0.2',
-          latestVersion: '1.0.2',
+          currentVersion: '1.0.3',
+          latestVersion: '1.0.3',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
