@@ -259,7 +259,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.2' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.3' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -2495,7 +2495,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                         @keyup.enter="testDnsResolution"
                       />
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-2 shrink-0 flex-wrap">
                       <button 
                         type="button" 
                         @click="testDnsResolution" 
@@ -2504,6 +2504,15 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                       >
                         <span v-if="testingDns" class="animate-spin text-sm">⏳</span>
                         <span>{{ testingDns ? '探测中...' : '🔍 测试 DNS 解析' }}</span>
+                      </button>
+                      <button 
+                        type="button" 
+                        @click="openSslModal" 
+                        :disabled="!domainInput.trim()"
+                        class="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                        title="一键自动安装 Caddy 并向 Let's Encrypt 申请 SSL 证书"
+                      >
+                        <span>⚡ 一键申请 SSL 证书</span>
                       </button>
                       <button 
                         type="button" 
@@ -2714,7 +2723,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.2' }}
+                      v{{ versionInfo.currentVersion || '1.0.3' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -2763,7 +2772,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">当前运行版本</span>
             <span class="text-xs font-mono font-extrabold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-              v{{ versionInfo.currentVersion || '1.0.2' }}
+              v{{ versionInfo.currentVersion || '1.0.3' }}
             </span>
           </div>
 
@@ -2921,6 +2930,99 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all cursor-pointer flex items-center gap-1.5"
           >
             <span>立即执行升级</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 一键申请 SSL 证书与自动化反代模态框 (SSL Provisioning Modal) -->
+    <div v-if="showSslModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 relative overflow-hidden">
+        <!-- 弹窗顶部标题 -->
+        <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white text-base font-bold shadow-lg shadow-amber-500/25">
+              ⚡
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">一键申请 SSL 证书与自动化反向代理</h3>
+              <p class="text-[11px] text-slate-400">零配置 Let's Encrypt / ZeroSSL 证书申请与 80/443 极速反代</p>
+            </div>
+          </div>
+          <button v-if="!provisioningSsl" @click="showSslModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <!-- 目标域名与引擎选项 -->
+        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3.5 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-medium">目标绑定域名:</span>
+            <span class="font-mono font-bold text-cyan-300 bg-cyan-950/40 px-2.5 py-1 rounded-lg border border-cyan-500/30">
+              https://{{ domainInput.trim().replace(/^https?:\/\//i, '') }}
+            </span>
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="text-slate-300 font-semibold block">选择自动化反向代理与 ACME 证书引擎:</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'caddy' ? 'bg-amber-500/10 border-amber-500/40 text-amber-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
+                <input type="radio" v-model="sslEngine" value="caddy" class="mt-0.5" />
+                <div class="space-y-0.5">
+                  <div class="font-bold text-white text-[11px]">⚡ Caddy (强力推荐)</div>
+                  <div class="text-[10px] text-slate-400 leading-tight">原生内置 ACME，全自动向 Let's Encrypt 申请并永久自动续签</div>
+                </div>
+              </label>
+              <label class="flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all" :class="sslEngine === 'nginx' ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'">
+                <input type="radio" v-model="sslEngine" value="nginx" class="mt-0.5" />
+                <div class="space-y-0.5">
+                  <div class="font-bold text-white text-[11px]">🛡️ Nginx + Certbot</div>
+                  <div class="text-[10px] text-slate-400 leading-tight">标准 Nginx 配置文件生成与 Certbot 证书申请</div>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 执行日志输出控制台 -->
+        <div v-if="sslProvisionLogs" class="space-y-1.5">
+          <div class="text-[11px] text-slate-400 font-semibold flex items-center justify-between">
+            <span>🖥️ 执行进度与详细日志</span>
+            <span v-if="provisioningSsl" class="text-amber-400 flex items-center gap-1">
+              <span class="animate-spin text-xs">⏳</span> 正在配置与签发中...
+            </span>
+            <span v-else-if="sslProvisionSuccess" class="text-emerald-400 flex items-center gap-1">
+              ✅ 证书申请与反代已就绪
+            </span>
+          </div>
+          <pre class="bg-black/90 p-3.5 rounded-xl text-[11px] text-emerald-400 font-mono overflow-y-auto max-h-48 whitespace-pre-wrap leading-relaxed border border-slate-800 select-text">{{ sslProvisionLogs }}</pre>
+        </div>
+
+        <!-- 底部操作按钮 -->
+        <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-800">
+          <button 
+            type="button" 
+            v-if="!provisioningSsl"
+            @click="showSslModal = false" 
+            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+          >
+            关闭
+          </button>
+          <a
+            v-if="sslProvisionSuccess"
+            :href="'https://' + domainInput.trim().replace(/^https?:\/\//i, '')"
+            target="_blank"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <span>🚀 立即访问 HTTPS 站点</span>
+          </a>
+          <button 
+            type="button" 
+            v-if="!sslProvisionSuccess"
+            @click="executeSslProvision" 
+            :disabled="provisioningSsl"
+            class="px-5 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-lg shadow-amber-500/25 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <span v-if="provisioningSsl" class="animate-spin text-sm">⏳</span>
+            <span>{{ provisioningSsl ? '正在全自动配置中...' : '⚡ 开始一键配置与签发' }}</span>
           </button>
         </div>
       </div>
@@ -3801,7 +3903,7 @@ function main(config, profileName) {
 
         // 系统版本管理与在线更新状态
         const versionInfo = ref({
-          currentVersion: '1.0.2',
+          currentVersion: '1.0.3',
           latestVersion: null,
           hasUpdate: false,
           releaseNotes: '',
@@ -3861,6 +3963,13 @@ function main(config, profileName) {
         const dnsTestResult = ref(null);
         const savingDomain = ref(false);
         const domainGuideTab = ref('cloudflare'); // 'cloudflare' | 'caddy' | 'nginx'
+
+        // 一键 SSL 证书与自动化反向代理状态
+        const showSslModal = ref(false);
+        const sslEngine = ref('caddy'); // 'caddy' | 'nginx'
+        const provisioningSsl = ref(false);
+        const sslProvisionLogs = ref('');
+        const sslProvisionSuccess = ref(false);
 
         let editorInstance = null;
 
@@ -5226,6 +5335,65 @@ function main(config, profileName) {
           await saveSystemDomainSettings();
         };
 
+        const openSslModal = () => {
+          if (!domainInput.value.trim()) {
+            return showToast('请先输入要配置证书的域名', 'error');
+          }
+          sslProvisionLogs.value = '';
+          sslProvisionSuccess.value = false;
+          showSslModal.value = true;
+        };
+
+        const executeSslProvision = async () => {
+          const raw = domainInput.value.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          if (!raw) {
+            return showToast('请输入有效的域名', 'error');
+          }
+          provisioningSsl.value = true;
+          sslProvisionSuccess.value = false;
+          sslProvisionLogs.value = `🚀 正在向服务端发起【${sslEngine.value === 'caddy' ? 'Caddy 自动化引擎' : 'Nginx + Certbot'}】一键 SSL 证书申请与反代配置流水线...\n\n`;
+
+          try {
+            const res = await fetch('/api/admin/system/ssl/provision', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                domain: raw,
+                engine: sslEngine.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              if (data.logs) {
+                sslProvisionLogs.value += data.logs + '\n\n';
+              }
+              if (data.isDocker) {
+                sslProvisionLogs.value += `ℹ️ ${data.message}\n${data.command}\n`;
+                showToast(data.message);
+                provisioningSsl.value = false;
+                return;
+              }
+              sslProvisionLogs.value += `🎉 ${data.message}\n`;
+              sslProvisionSuccess.value = true;
+              if (data.settings) {
+                systemSettings.value = data.settings;
+              }
+              showToast('🎉 SSL 证书与反代已成功配置！全站直链已全局升级为 HTTPS！');
+            } else {
+              sslProvisionLogs.value += `❌ 配置失败: ${data.error || '未知错误'}\n`;
+              showToast(data.error || '配置失败', 'error');
+            }
+          } catch (e) {
+            sslProvisionLogs.value += `❌ 请求异常: ${e.message}\n`;
+            showToast('网络请求异常', 'error');
+          } finally {
+            provisioningSsl.value = false;
+          }
+        };
+
         // 切换模式
         const switchMode = (mode) => {
           config.value.mode = mode;
@@ -5614,7 +5782,14 @@ function main(config, profileName) {
           testDnsResolution,
           saveSystemDomainSettings,
           clearSystemDomain,
-          loadSystemSettings
+          loadSystemSettings,
+          showSslModal,
+          sslEngine,
+          provisioningSsl,
+          sslProvisionLogs,
+          sslProvisionSuccess,
+          openSslModal,
+          executeSslProvision
         };
       }
     });

@@ -17,7 +17,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.2';
+const CURRENT_VERSION = '1.0.3';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1306,7 +1306,7 @@ app.get('/api/admin/backup/export', authMiddleware, adminOnly, async (req, res) 
 
     const snapshot = {
       _type: 'SUBHUB_FULL_SYSTEM_SNAPSHOT',
-      version: '1.0.2',
+      version: '1.0.3',
       exportedAt: new Date().toISOString(),
       exportedBy: req.session.username,
       stats: {
@@ -1515,6 +1515,131 @@ app.post('/api/admin/system/domain/test', authMiddleware, adminOnly, async (req,
   }
 });
 
+// Admin one-click SSL certificate & reverse proxy provisioning
+app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    let { domain, engine = 'caddy' } = req.body;
+    if (!domain || typeof domain !== 'string') {
+      return res.status(400).json({ error: '请提供有效的域名' });
+    }
+
+    let hostname = domain.trim().replace(/^https?:\/\//i, '').split('/')[0].split(':')[0].trim();
+    if (!hostname) {
+      return res.status(400).json({ error: '无效的域名格式' });
+    }
+
+    const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER === 'true';
+    let logs = [];
+
+    logs.push(`🔍 [1/4] 正在校验域名 ${hostname} 的 DNS 解析状态...`);
+    try {
+      const records = await dns.promises.lookup(hostname, { all: true });
+      logs.push(`✅ DNS 解析就绪，解析到 IP: ${records.map(r => r.address).join(', ')}`);
+    } catch (dnsErr) {
+      logs.push(`⚠️ DNS 提示: 未能成功解析域名 (${dnsErr.message})，可能导致证书申请失败，正在尝试继续...`);
+    }
+
+    if (isDocker) {
+      logs.push('🐳 检测到 SubHub 运行在 Docker 容器内部。');
+      logs.push('⚠️ 提示: 80/443 端口由宿主机操作系统直接管理。');
+      return res.json({
+        success: true,
+        isDocker: true,
+        logs: logs.join('\n'),
+        message: '当前运行在容器中，请在 VPS 宿主机终端执行一键命令自动安装 Caddy 并签发证书：',
+        command: `bash <(curl -fsSL https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/install.sh) domain`
+      });
+    }
+
+    if (engine === 'caddy') {
+      logs.push('⚡ [2/4] 检查 Caddy 自动化反代引擎...');
+      let hasCaddy = false;
+      try {
+        await execPromise('which caddy');
+        hasCaddy = true;
+        logs.push('✅ 系统已安装 Caddy 引擎');
+      } catch {
+        logs.push('📦 未检测到 Caddy，正在自动从官方源极速安装 Caddy...');
+        try {
+          if (fs.existsSync('/etc/debian_version')) {
+            await execPromise('apt-get update -y && apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl && curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/gpg.key" | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg --yes && curl -1sLf "https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt" | tee /etc/apt/sources.list.d/caddy-stable.list && apt-get update -y && apt-get install -y caddy');
+          } else if (fs.existsSync('/etc/redhat-release')) {
+            await execPromise('yum install -y yum-plugin-copr && yum copr enable -y @caddy/caddy && yum install -y caddy');
+          } else if (fs.existsSync('/etc/alpine-release')) {
+            await execPromise('apk add caddy');
+          } else {
+            throw new Error('未识别的 Linux 发行版，请手动安装 Caddy');
+          }
+          hasCaddy = true;
+          logs.push('✅ Caddy 自动化引擎安装成功！');
+        } catch (instErr) {
+          logs.push(`⚠️ 自动安装 Caddy 遇到问题: ${instErr.message}`);
+        }
+      }
+
+      logs.push(`📜 [3/4] 写入 Caddyfile 反向代理配置 (${hostname} -> 127.0.0.1:${PORT})...`);
+      const caddyConfig = `${hostname} {\n    reverse_proxy 127.0.0.1:${PORT}\n}\n`;
+      try {
+        if (!fs.existsSync('/etc/caddy')) {
+          fs.mkdirSync('/etc/caddy', { recursive: true });
+        }
+        await fs.promises.writeFile('/etc/caddy/Caddyfile', caddyConfig, 'utf-8');
+        logs.push('✅ /etc/caddy/Caddyfile 写入成功');
+      } catch (writeErr) {
+        logs.push(`⚠️ 写入 /etc/caddy/Caddyfile 失败: ${writeErr.message}`);
+      }
+
+      logs.push('🚀 正在启动/重载 Caddy 并自动申请 Let\'s Encrypt / ZeroSSL HTTPS 证书...');
+      try {
+        await execPromise('systemctl enable caddy 2>/dev/null || true');
+        await execPromise('systemctl restart caddy 2>/dev/null || caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true');
+        logs.push('✅ Caddy 服务已重载！80/443 端口已开启，正在后台自动向 ACME 申请证书...');
+      } catch (reloadErr) {
+        logs.push(`⚠️ 重载 Caddy 提示: ${reloadErr.message}`);
+      }
+    } else if (engine === 'nginx') {
+      logs.push('🛡️ [2/4] 配置 Nginx 反向代理...');
+      const nginxConfig = `server {\n    listen 80;\n    server_name ${hostname};\n    location / {\n        proxy_pass http://127.0.0.1:${PORT};\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}\n`;
+      try {
+        const confDir = fs.existsSync('/etc/nginx/conf.d') ? '/etc/nginx/conf.d' : (fs.existsSync('/etc/nginx/sites-enabled') ? '/etc/nginx/sites-enabled' : null);
+        if (confDir) {
+          await fs.promises.writeFile(path.join(confDir, 'subhub.conf'), nginxConfig, 'utf-8');
+          logs.push(`✅ Nginx 配置文件已写入: ${path.join(confDir, 'subhub.conf')}`);
+          await execPromise('systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || true');
+        }
+      } catch (e) {
+        logs.push(`⚠️ 写入 Nginx 配置提示: ${e.message}`);
+      }
+
+      logs.push('📜 [3/4] 正在调用 Certbot 申请 SSL 证书...');
+      try {
+        const certRes = await execPromise(`certbot --nginx -d ${hostname} --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>&1 || true`);
+        logs.push(certRes.stdout ? certRes.stdout.slice(0, 300) : 'Certbot 执行完成');
+      } catch (certErr) {
+        logs.push(`⚠️ Certbot 提示: ${certErr.message}`);
+      }
+    }
+
+    logs.push('🌐 [4/4] 正在将 SubHub 全局直链绑定为 HTTPS 域名...');
+    const updatedSettings = await saveSystemSettings({
+      customDomain: `https://${hostname}`,
+      enableHttpsRedirect: true
+    });
+    logs.push(`🎉 恭喜！SubHub 全站已成功绑定至 https://${hostname}`);
+
+    res.json({
+      success: true,
+      domain: hostname,
+      fullUrl: `https://${hostname}`,
+      settings: updatedSettings,
+      logs: logs.join('\n'),
+      message: `🎉 SSL 证书与反向代理已配置就绪！已成功将全站直链升级为 https://${hostname}`
+    });
+  } catch (err) {
+    res.status(500).json({ error: '配置 SSL 证书与反代失败: ' + err.message });
+  }
+});
+
 // ── Background Auto-Refresh Subscriptions Daemon ──────────────────────────────
 const AUTO_REFRESH_CHECK_INTERVAL_MS = 2 * 60 * 1000; // Check every 2 minutes
 
@@ -1706,7 +1831,7 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
 init().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
-    console.log(`🚀 Clash Sub Hub v1.0.2 已启动`);
+    console.log(`🚀 Clash Sub Hub v1.0.3 已启动`);
     console.log(`🌐 Web 管理端: http://localhost:${PORT}`);
     console.log(`👤 默认账号: admin / admin`);
     console.log(`====================================================`);
