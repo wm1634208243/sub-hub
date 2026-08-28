@@ -109,19 +109,21 @@ https://你的域名/api/sub?token=你的专属Token
 
 ### 方式一：Linux VPS 极速一键管理脚本（强烈推荐）
 
-适用于 **Ubuntu / Debian / CentOS / Alpine / RockyLinux** 等主流发行版，自动检测并安装 Docker，内置交互式运维菜单：
+适用于 **Ubuntu / Debian / CentOS / Alpine / RockyLinux / Fedora** 等主流发行版，支持 **原生 Node.js + Systemd** 与 **Docker 容器化** 双模式一键安装与运维：
 
 ```bash
-# 运行一键交互式管理脚本
+# 运行一键全能交互式管理脚本
 bash <(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/install.sh)
 ```
 
 > **💡 脚本支持快捷命令**：
-> - `bash install.sh install`：全新安装
-> - `bash install.sh update`：无损更新升级至最新版本
-> - `bash install.sh restart`：重启服务
-> - `bash install.sh logs`：实时追踪日志
-> - `bash install.sh backup`：一键全量打包备份
+> - `bash install.sh install`：原生 Node.js + Systemd 极速部署（推荐 · 极低资源）
+> - `bash install.sh docker`：Docker 容器化一键部署
+> - `bash install.sh update`：无损更新升级至最新版本（自动适配运行模式）
+> - `bash install.sh start / stop / restart`：启停与重启服务
+> - `bash install.sh logs`：实时追踪运行日志
+> - `bash install.sh backup`：一键全量数据快照备份 (.tar.gz)
+> - `bash install.sh uninstall`：彻底卸载清理
 
 ---
 
