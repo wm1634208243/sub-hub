@@ -1,16 +1,23 @@
 <div align="center">
 
-# 🚀 Clash Sub Hub (SubHub)
+# 🚀 SubHub (Clash Sub Hub)
 
-### 新一代企业级通用订阅聚合、智能分流覆写与流量看板中台
+### 新一代企业级通用订阅聚合、智能分流覆写、多源流量看板与纯本地隐私中台
 **Modern, High-Performance Universal Subscription Aggregator, Live Quota Dashboard & Rule Override Hub**
 
 [![Node.js Version](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
-[![Docker Pulls](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/wm1634208243/sub-hub)
+[![GitHub Stars](https://img.shields.io/github/stars/wm1634208243/sub-hub?style=social)](https://github.com/wm1634208243/sub-hub)
 
-[✨ 功能特性](#-核心功能特性) • [📊 对比 Sub-Store](#-subhub-vs-sub-store-深度功能对比) • [🛠️ 快速部署](#️-快速部署指南) • [📱 客户端配置](#-全平台客户端接入指南) • [🔌 API 接口](#-开放订阅端点一览)
+<br>
+
+<img src="./docs/images/preview-dashboard.png" alt="SubHub Dashboard Preview" width="92%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+
+<br><br>
+
+[✨ 核心特性](#-核心功能特性) • [🖼️ 界面全景展示](#️-系统界面全景) • [⚖️ 双轨制架构](#️-双轨制架构纯本地-vs-云端托管) • [📊 对比 Sub-Store](#-subhub-vs-sub-store-深度对比) • [🛠️ 极速部署](#️-多方式极速部署指南) • [📱 客户端接入](#-全平台客户端接入指南) • [🔌 开放 API](#-开放订阅端点一览)
 
 </div>
 
@@ -23,25 +30,84 @@
 - **流量/到期难以统揽**：无法直观知道哪个订阅快用完了、哪个 VPS 节点下个月要续费；
 - **节点命名杂乱/死节点多**：上游机场常带有冗长的广告、倍率说明（如 `[1.5x]`、`剩余流量`），且经常有失联死节点导致网络卡顿；
 - **多客户端格式割裂**：Clash (YAML)、Sing-Box (JSON)、Surge (List)、Shadowrocket (Base64) 格式各异，管理成本极高；
-- **多用户共享缺乏隐私**：搭建给家人或朋友使用时，管理员能轻易窥探到普通用户的私密节点。
+- **多用户共享缺乏隐私**：搭建给家人或朋友使用时，管理员能轻易窥探到普通用户的私密节点；
+- **云端信任顾虑**：部分用户担心私密订阅存放在服务器数据库存在泄露风险。
 
-**SubHub (Clash Sub Hub)** 专为解决上述痛点而生，提供一个**开箱即用、极速轻量、安全隔离**的现代化中台服务。
+**SubHub** 专为解决上述痛点而生，率先采用 **「纯本地离线隐私模式」** 与 **「AES-256 多租户云端模式」** 的**双轨制架构**，提供一个**开箱即用、极速轻量、安全隔离**的现代化中台服务。
 
 ---
 
-## 📊 SubHub vs Sub-Store 深度功能对比
+## 🖼️ 系统界面全景
+
+<div align="center">
+
+### 1. 📊 全局订阅聚合与实时流量大屏
+汇聚多个 VPS 及商业订阅，实时追踪总配额、已用流量、剩余可用量与最早到期倒计时。支持服务端并发真机测速与死节点剔除。
+
+<img src="./docs/images/preview-dashboard.png" alt="订阅聚合与流量大屏" width="90%" style="border-radius: 10px; margin-bottom: 24px;">
+
+---
+
+### 2. 🎨 场景化专属分流策略组与多平台自适应
+专为 AI、国际流媒体、Telegram、游戏平台设计独立策略组；智能识别目标平台，移动端自动过滤不支持的进程分流。
+
+<img src="./docs/images/preview-rules.png" alt="场景化分流与平台自适应" width="90%" style="border-radius: 10px; margin-bottom: 24px;">
+
+---
+
+### 3. 📥 纯本地离线工作台与全平台导入指南
+无需注册登录即可进入纯本地工作台，所有数据仅存浏览器本地。支持 5 大客户端配置一键本地编译导出与分步导入指引。
+
+<img src="./docs/images/preview-clients.png" alt="客户端接入中心" width="90%" style="border-radius: 10px; margin-bottom: 24px;">
+
+---
+
+### 4. ⚖️ 纯本地模式 vs 账号云端模式 双轨制边界规范
+透明公开的功能边界对照表，用户可随时一键平滑升级至云端，或随时物理抹除云端记录回到本地。
+
+<img src="./docs/images/preview-dual-track.png" alt="双轨制功能边界" width="90%" style="border-radius: 10px; margin-bottom: 24px;">
+
+---
+
+### 5. ⚙️ 企业级多租户用户管理、安全封禁与系统配置
+管理员零知识隐私（无法窥视普通用户节点），支持临时/永久封禁倒计时解禁、暗黑毛玻璃安全重置密码与独立域名 HTTPS 绑定。
+
+<img src="./docs/images/preview-settings.png" alt="系统设置与多租户管理" width="90%" style="border-radius: 10px;">
+
+</div>
+
+---
+
+## ⚖️ 双轨制架构：纯本地 vs 云端托管
+
+SubHub 首创**双轨制设计**，用户可根据自身对「隐私安全」与「多端漫游」的侧重自由选择：
+
+| 功能维度 | 🛡️ 纯本地离线模式 (Local-First) | ☁️ 账号云端托管模式 (Cloud Mode) |
+| :--- | :--- | :--- |
+| **账号与登录门槛** | ⭐️ **免注册 / 免登录**，点击即刻进入工作台 | 需输入账号密码登录 / 自主注册 |
+| **数据存储位置** | **100% 存储于用户当前浏览器 LocalStorage** | 服务端 **AES-256-GCM 独立密钥密文加密** |
+| **云端留存风险** | 🟢 **服务端 0 留存、0 数据库记录** | 私有化部署保障，数据库严密加密隔离 |
+| **客户端配置获取方式** | **一键生成并本地下载 5 大客户端配置文件** | 复制终身固定自适应直链 (`/api/sub?token=...`) |
+| **跨设备自动同步** | 离线手动导出 JSON 备份 / 导入 | 登录账号即可**全设备秒级自动漫游同步** |
+| **服务端定时真机测速** | 浏览器发起单次真实测速 | **服务端后台发起即时与定时真实测速** |
+| **模式平滑迁移** | 随时可点击「☁️ 注册并同步至云端」一秒升级 | 随时可切换回本地并「🗑️ 一键物理抹除云端记录」 |
+
+---
+
+## 📊 SubHub vs Sub-Store 深度对比
 
 | 功能维度 | 🚀 **SubHub (本项目)** | 📦 **Sub-Store** | 优势说明 |
 | :--- | :--- | :--- | :--- |
 | **上手门槛与定位** | ⭐️⭐️⭐️⭐️⭐️ **零门槛开箱即用**<br>现代化暗黑 Web GUI，全图形化配置 | ⭐️⭐️⭐️ 偏极客<br>需学习专有算子语法与脚本编程 | SubHub 无论是小白还是资深玩家均可 1 分钟上手 |
+| **隐私保护架构** | 🛡️ **双轨制**（支持纯本地 0 云端存储） | 依赖外部 Gist 或部署实例存储 | 极致隐私顾虑用户可选择纯离线模式运行 |
 | **全局多源流量看板** | ✅ **原生聚合大屏**<br>实时汇聚所有上游 `Subscription-Userinfo`，汇总总配额、已用量、最早到期日 | ❌ **无全局多源看板**<br>仅能单独展示单订阅信息 | SubHub 实时掌握所有资产的流量与续费状态 |
 | **通用智能客户端自适应** | ✅ **单一直链 (`/api/sub`)**<br>自动嗅探 User-Agent 智能下发对应格式 | ❌ 需在 URL 显式指定参数<br>`?target=clash` / `?target=sing-box` | 无论什么客户端，只需复制一个通用直链即可 |
+| **场景化策略组生成** | ✅ **内置一键开关**<br>AI专线、流媒体、Telegram、游戏、广告拦截等 | ⚠️ 需手动编写复杂规则集或算子 | 开箱即用生成标准的专属分流策略组 |
+| **多端自适应分流** | ✅ **智能过滤移动端无效规则**<br>iOS/Android 自动剔除 `PROCESS-NAME` | ⚠️ 需手动拆分多份配置 | 避免移动端客户端因进程规则报错 |
 | **服务端真机并发测速** | ✅ **原生服务端并发 TCP 探测**<br>支持**自动剔除死节点**与**按真实延迟排序** | ⚠️ 依赖外部脚本或客户端本地探测 | 在服务端下发前就过滤掉挂掉的节点，客户端始终丝滑 |
-| **国旗注入与地区定位** | ✅ **全自动流水线**<br>关键字匹配 + **离线 MaxMind GeoIP 定位** + 广告/倍率清洗 | ✅ 支持（需自行配置组合算子） | SubHub 即使节点名无任何地区信息，也能通过 IP 精准识别国旗 |
-| **多用户权限与隐私隔离** | ✅ **企业级 RBAC 多租户**<br>管理员**零知识隐私**（不可窥视普通用户节点），支持禁用账号与防爆破锁定 | ❌ 默认单用户模式<br>无细粒度多租户隔离与账号管理 | 适合多人/团队/家庭私有化共用部署 |
-| **规则注入与 DNS 防泄漏** | ✅ **内置精细分流引擎**<br>支持域名/IP/关键词/进程分流，内置严格 `fake-ip-filter` 杜绝 DNS 泄漏 | ⚠️ 主要专注于节点处理，分流需额外配合规则集 | SubHub 集成完整的分流与 DNS 优化模板 |
+| **国旗注入与地区定位** | ✅ **全自动流水线**<br>关键字匹配 + **离线 MaxMind GeoIP 定位** + 广告清洗 | ✅ 支持（需自行配置组合算子） | SubHub 即使节点名无任何地区信息，也能通过 IP 精准识别国旗 |
+| **多用户权限与隐私隔离** | ✅ **企业级 RBAC 多租户**<br>管理员**零知识隐私**（不可窥视普通用户节点），支持临时禁用与防爆破 | ❌ 默认单用户模式<br>无细粒度多租户隔离与账号管理 | 适合多人/团队/家庭私有化共用部署 |
 | **全量备份与跨机迁移** | ✅ **一键单文件全局快照备份/恢复**<br>支持用户数据、哈希密码、配置全量无缝还原 | ⚠️ 依赖 Gist 同步或手动拷贝配置文件 | 换服务器或灾备只需 1 秒一键导入恢复 |
-| **部署与运行资源** | 🐳 **极轻量 Docker / Node 运行时**<br>内存占用仅 30~50MB，毫秒级响应 | 🐳 Docker / Surge / Loon 模块运行 | 极低资源消耗，超轻量 VPS 亦可流畅运行 |
 
 ---
 
@@ -60,44 +126,42 @@ https://你的域名/api/sub?token=你的专属Token
   - 🚀 **通用 Base64**：输出标准 Base64 代理节点列表（适配 Shadowrocket / V2rayN / Loon）；
   - 📜 **JS 规则脚本**：输出 `main(config, profileName)` 预处理覆写脚本。
 
-### 2. 📊 实时多订阅聚合流量看板（Live Quota Dashboard）
+### 2. 🎯 场景化专属分流策略组（Scenario Routing Groups）
+- **🤖 AI 专线**：涵盖 ChatGPT、Claude、Gemini、Copilot、Midjourney 等核心大模型域名与 IP；
+- **🎬 国际流媒体**：涵盖 YouTube、Netflix、Disney+、Spotify、TikTok 等主流音视频平台；
+- **📲 Telegram 消息**：自动分流 Telegram 官方专属 ASN 网段与域名；
+- **🎮 游戏平台**：支持 Steam、Epic、EA、Riot、PSN 智能直连优化；
+- **🍎 Apple / 微软**：针对 App Store、iCloud、Windows Update、GitHub 专属优化；
+- **🛑 广告与隐私拦截**：内置高精度 REJECT 规则阻断常见数据遥测与广告。
+
+### 3. 📱 目标客户端平台与多端自适应分流
+- 支持多选或单选 **🍎 macOS**、**🪟 Windows**、**📱 iOS / Stash**、**🤖 Android**；
+- **智能规避内核报错**：移动端（iOS / Android）将自动过滤不支持的 `PROCESS-NAME` 进程规则，防止客户端崩溃或报错；
+- 支持开启「根据请求 UA 自动适配」，由服务端动态匹配下发。
+
+### 4. 📊 实时多订阅聚合流量看板（Live Quota Dashboard）
 - 自动追踪上游 `Subscription-Userinfo` 响应头；
 - 汇聚多个 VPS / 机场的总流量配额、已用流量、剩余可用量；
 - 智能计算全局**最早到期日**并提供到期倒计时提醒；
 - 添加订阅时点击「⚡ 测试并解析」，**秒级自动识别并回填到期日**。
 
-### 3. ⚡ 服务端后台真实测速与死节点剔除（Backend Latency Check）
+### 5. ⚡ 服务端后台真实测速与死节点剔除（Backend Latency Check）
 - **真机并发探测**：服务端主动对所有聚合节点发起高并发 TCP 握手探测（支持自定义超时时间，如 1500ms）；
 - **死节点自动剔除**：开启「剔除失联节点」后，超时的故障节点在下发给客户端前将被自动剥离；
 - **延迟优先排序**：支持将低延迟的优质节点自动排在列表前列。
 
-### 4. 🇨🇳 国旗 Emoji 智能注入与规范化流水线
-- **地区关键字匹配**：支持识别全球数十个主流国家/地区（HK、JP、US、SG、TW、KR、GB、DE、FR 等）；
+### 6. 🇨🇳 国旗 Emoji 智能注入与规范化流水线
+- **地区关键字匹配**：识别全球数十个主流国家/地区（HK、JP、US、SG、TW、KR、GB、DE、FR 等）；
 - **离线 GeoIP 兜底定位**：当节点名称无地区信息时，自动调用 MaxMind GeoLite 离线 IP 库，根据节点域名解析 IP 进行物理归属地定位并注入国旗；
-- **广告与倍率清洗**：自动去除 `[1.5x]`、`0.2倍率`、`剩余流量: 200G`、`官网地址` 等视觉干扰；
+- **广告与倍率清洗**：自动去除 `[1.5x]`、`0.2倍率`、`剩余流量: 200G` 等干扰；
 - **自定义正则重命名**：提供可视化的正则替换规则列表与实时重命名效果预览。
 
-### 5. 🛡️ 双模分流规则引擎与 DNS 防泄漏优化
-- **GUI 可视化编排**：按域名、关键词、IP-CIDR、进程名（Mac/Win）一键增删分流规则；
-- **Monaco/CodeMirror 在线代码编辑**：支持纯手写 JS 脚本，享受全自由的配置操控；
-- **企业级 DNS 优化**：内置阿里 DNS、腾讯 DNSPod 与 Cloudflare DoH，配备完善的国内大厂 SDK / 银行应用 `fake-ip-filter` 排除名单，彻底告别 DNS 泄漏与国内应用风控。
-
-### 6. 🔐 企业级多租户隔离与零知识隐私安全
+### 7. 🔐 企业级多租户隔离与零知识隐私安全
 - **严格权限隔离**：每个用户拥有完全独立的规则集、上游订阅与专属 Token；
+- **AES-256-GCM 数据密文**：服务端存储配置文件均经由用户密码独立派生密钥加密；
 - **管理员零知识隐私**：管理员在后台**无法查看任何普通用户的私有节点 URL 与订阅详情**；
-- **防暴力破解与时序攻击保护**：
-  - 5 次连续密码错误自动触发账户锁定 15 分钟（HTTP 429）；
-  - 针对非存在用户引入固定时长 Dummy Hash 比较，彻底免疫时序探测攻击；
-- **账号状态控制**：管理员可一键「禁用/启用」违规账户，被禁用户立即销毁 Session 并 403 阻断所有订阅请求。
-
-### 7. 📦 系统全局一键快照备份与跨机迁移
-- **单文件全量快照**：管理员可在后台一键导出包含所有用户账户、加密哈希与私有配置的全局快照（`subhub_system_backup_*.json`）；
-- **无感秒级还原**：新机器一键导入，系统自动原子级写入存储并热重载，无需停机。
-
-### 8. 🚀 在线版本检查、一键平滑升级与 GitHub 联动
-- **版本状态嗅探**：前端自动拉取 GitHub 官方远端 Release 与 Commit 状态，直观展示版本差异；
-- **一键平滑热升级**：管理员在 Web 后台点击「🚀 立即升级」，系统自动在后台执行 `git pull` 与依赖更新，并触发服务原子级热重载，无需登入 SSH 终端；
-- **直通社区**：顶部导航栏常驻 GitHub Star、Releases 及 Issues 反馈通道。
+- **防暴力破解保护**：连续密码错误自动触发账户临时锁定（HTTP 429）；
+- **灵活封禁体系**：支持设置 10m/1h/24h/7d/30d 或永久封禁，支持到期自动解禁。
 
 ---
 
@@ -218,26 +282,6 @@ pm2 save
 pm2 startup
 ```
 
-> **可选：使用 Systemd 守护进程**：
-> 创建服务文件 `/etc/systemd/system/subhub.service`：
-> ```ini
-> [Unit]
-> Description=SubHub Service
-> After=network.target
-> 
-> [Service]
-> Type=simple
-> User=root
-> WorkingDirectory=/opt/subhub
-> ExecStart=/usr/bin/node /opt/subhub/server.js
-> Restart=on-failure
-> Environment=PORT=3000 NODE_ENV=production
-> 
-> [Install]
-> WantedBy=multi-user.target
-> ```
-> 启用命令：`systemctl daemon-reload && systemctl enable --now subhub`
-
 ---
 
 ## 🌐 域名绑定与 HTTPS 配置示例
@@ -291,7 +335,9 @@ sub.yourdomain.com {
 
 ## 📱 全平台客户端接入指南
 
-登录 SubHub 面板后，在首页顶部点击 **「复制通用订阅直链」**（形如 `https://sub.yourdomain.com/api/sub?token=xxx`）：
+### 1. ☁️ 云端托管模式（直链自适应接入）
+
+在 Web 面板复制专属订阅直链（形如 `https://sub.yourdomain.com/api/sub?token=xxx`）：
 
 | 客户端平台 | 推荐软件 | 接入方法 |
 | :--- | :--- | :--- |
@@ -300,6 +346,14 @@ sub.yourdomain.com {
 | **Android** | **Clash Meta for Android** / **Sing-box SFA** | 配置 ➔ 新建配置 ➔ 从 URL 导入 ➔ 粘贴直链 URL ➔ 保存并下载 |
 | **Surge (iOS / Mac)** | **Surge 5** | 策略组 ➔ 外部代理列表 (Policy List) ➔ 填入 `https://.../api/surge.list?token=xxx` |
 | **Sing-Box 原生内核** | **Sing-Box** | 在配置 `endpoints` / `outbounds` 中引用 `https://.../api/sing-box.json?token=xxx` |
+
+### 2. 🛡️ 纯本地离线模式（一键导出文件接入）
+
+在「客户端接入」➔「一键导出客户端配置」区域直接下载编译好的目标文件：
+- **Clash Verge Rev / Mihomo Party**：下载 `clash_config.yaml` ➔ 在软件内拖入或选择「本地导入」；
+- **Sing-box / NekoBox**：下载 `sing_box_config.json` ➔ 选择从本地文件新建配置；
+- **Shadowrocket**：下载 `shadowrocket_nodes.txt` ➔ 隔空投送或导入至小火箭；
+- **Surge**：下载 `surge_proxies.list` ➔ 引入本地 Managed Policy。
 
 ---
 
@@ -319,7 +373,8 @@ sub.yourdomain.com {
 ## 📁 目录架构概览
 
 ```
-rule-hub/
+sub-hub/
+├── docs/images/            # 系统高清界面预览截图
 ├── server.js               # Express 核心 API 服务、路由分发与安全防护
 ├── aggregator.js           # 节点多源聚合、去重与格式标准化引擎
 ├── subscription-fetcher.js # 上游订阅拉取器、缓存管理与 Userinfo 配额解析
@@ -331,7 +386,7 @@ rule-hub/
 │   └── index.html
 ├── data/                   # 持久化数据存储目录 (自动挂载持久卷)
 │   ├── users.json          # 用户账户与角色数据 (Bcrypt 加密存储)
-│   ├── configs/            # 各用户的独立规则与订阅配置文件
+│   ├── configs/            # 各用户的独立规则与订阅配置文件 (AES-256-GCM 密文加密)
 │   └── sessions.json       # 用户登录态 Session
 ├── Dockerfile              # Docker 镜像构建配置
 └── docker-compose.yml      # 一键容器化编排文件
