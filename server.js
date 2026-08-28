@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.4';
+const CURRENT_VERSION = '1.0.5';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1883,6 +1883,19 @@ async function checkAndRefreshAllSubscriptions() {
 
 const BUILTIN_VERSIONS_ZH = [
   {
+    version: '1.0.5',
+    tag: 'v1.0.5',
+    name: 'SubHub v1.0.5 · 动态端口自适应直连绑定、高清晰实机展示与自定义 HTTPS 端口支持',
+    publishedAt: '2026-08-28T05:15:44.642Z',
+    highlights: ['⚡ 原生任意部署端口动态自适应直连', '🔒 自定义 HTTPS 端口 (8443/2096/自定义) 证书签发', '🔑 现代化暗黑重置密码模态框与强密码生成', '🔄 租户密钥轮换自愈与 AES 密文重加密', '📸 全景实机画廊与 README 部署置顶'],
+    changelogZh: `### ⚡ 动态端口自适应直连绑定与自定义 HTTPS 反代
+- **原生部署端口动态直连**：支持直接将域名绑定至当前实际部署端口（如 :3000, :8080 等），无需额外反代软件，彻底避开 DMIT 等机房的 Cloudflare 1034 限制；
+- **自定义 HTTPS 端口签发**：一键 SSL 申请与 Caddy/Nginx 反代支持任意端口（如 :8443, :2096），全自动生成对应监听配置并签发证书；
+- **现代化管理员密码重置模态框**：彻底移除浏览器原生 prompt，采用现代化毛玻璃弹窗，内置 12 位高强度安全密码随机生成器；
+- **租户密钥轮换自愈机制**：用户改密或管理员重置密码时，全自动执行 AES-256-GCM 密文重新加密与密钥轮换，并提供主密钥降级自愈兜底；
+- **全景实机画廊与文档置顶**：README 全面更新高清实机预览与 10 秒置顶极速部署命令。`
+  },
+  {
     version: '1.0.4',
     tag: 'v1.0.4',
     name: 'SubHub v1.0.4 · 数据存储与隐私双轨制体系与免登录纯本地工作台',
@@ -2124,7 +2137,7 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
 init().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
-    console.log(`🚀 Clash Sub Hub v1.0.4 已启动`);
+    console.log(`🚀 Clash Sub Hub v1.0.5 已启动`);
     console.log(`🌐 Web 管理端: http://localhost:${PORT}`);
     console.log(`👤 默认账号: admin / admin`);
     console.log(`====================================================`);
