@@ -149,30 +149,41 @@ check_and_install_nodejs() {
     echo -e "${GREEN}Node.js 环境就绪: $(node -v), npm $(npm -v)${NC}"
 }
 
+# 同步 SubHub 源码 (安全兼容已存在目录与增量覆盖)
+sync_subhub_source() {
+    echo -e "${YELLOW}正在同步 SubHub 核心程序文件...${NC}"
+    if [ -d "$INSTALL_DIR/.git" ]; then
+        echo -e "${GREEN}检测到已有 Git 仓库，正在拉取最新代码...${NC}"
+        cd "$INSTALL_DIR"
+        git fetch origin main && git reset --hard origin/main || git pull || true
+    else
+        if [ ! -d "$INSTALL_DIR" ] || [ -z "$(ls -A "$INSTALL_DIR" 2>/dev/null)" ]; then
+            git clone "$REPO_URL" "$INSTALL_DIR"
+        else
+            echo -e "${YELLOW}检测到目录已存在，正在克隆并覆盖更新源码...${NC}"
+            local tmp_clone="/tmp/subhub_git_tmp_$$"
+            rm -rf "$tmp_clone"
+            git clone "$REPO_URL" "$tmp_clone"
+            mkdir -p "$INSTALL_DIR"
+            cp -r "$tmp_clone/." "$INSTALL_DIR/"
+            rm -rf "$tmp_clone"
+        fi
+    fi
+    mkdir -p "$INSTALL_DIR/data/configs"
+}
+
 # 原生安装主流程
 install_native_mode() {
     print_banner
     check_root
     check_and_install_nodejs
 
-    echo -e "\n${BLUE}[2/4] 配置 SubHub 安装目录...${NC}"
-    mkdir -p "$INSTALL_DIR/data/configs"
-
+    echo -e "\n${BLUE}[2/4] 配置 SubHub 外部访问端口...${NC}"
     read -p "请输入 SubHub 外部访问端口 (默认: 3000): " custom_port
     PORT=${custom_port:-$DEFAULT_PORT}
 
     echo -e "\n${BLUE}[3/4] 同步 SubHub 核心代码与依赖...${NC}"
-    if [ ! -f "$INSTALL_DIR/server.js" ]; then
-        echo -e "${YELLOW}正在从 GitHub 拉取最新源码...${NC}"
-        git clone "$REPO_URL" "$INSTALL_DIR" || {
-            echo -e "${RED}[错误] Git 拉取失败，请检查服务器网络连接！${NC}"
-            exit 1
-        }
-    else
-        echo -e "${GREEN}源码已存在于 $INSTALL_DIR，正在更新...${NC}"
-        cd "$INSTALL_DIR"
-        git pull || true
-    fi
+    sync_subhub_source
 
     cd "$INSTALL_DIR"
     echo -e "${YELLOW}正在安装生产环境运行依赖 (npm install)...${NC}"
@@ -261,20 +272,12 @@ install_docker_mode() {
     check_root
     check_docker
 
-    echo -e "\n${BLUE}[2/3] 配置 SubHub 容器环境与存储目录...${NC}"
-    mkdir -p "$INSTALL_DIR/data/configs"
-
+    echo -e "\n${BLUE}[2/3] 配置 SubHub 容器端口与存储目录...${NC}"
     read -p "请输入 SubHub 外部映射端口 (默认: 3000): " custom_port
     PORT=${custom_port:-$DEFAULT_PORT}
 
     echo -e "\n${BLUE}[3/3] 同步源码并启动 SubHub 容器...${NC}"
-
-    if [ ! -f "$INSTALL_DIR/server.js" ]; then
-        echo -e "${YELLOW}正在从 GitHub 拉取最新代码...${NC}"
-        if command -v git &> /dev/null; then
-            git clone "$REPO_URL" "$INSTALL_DIR" || true
-        fi
-    fi
+    sync_subhub_source
 
     cat <<COMPOSE > "$COMPOSE_FILE"
 version: '3.8'
