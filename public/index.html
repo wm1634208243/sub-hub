@@ -259,7 +259,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.3' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.0.4' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -2474,165 +2474,203 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
               </div>
             </div>
 
-            <!-- 输入表单与 DNS 探测 -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-              <div class="lg:col-span-2 space-y-4">
-                <div class="space-y-1.5">
-                  <label class="text-xs text-slate-300 font-semibold flex items-center justify-between">
-                    <span>🌍 公开访问域名 (Public Domain / URL Origin)</span>
-                    <span class="text-[11px] text-slate-400">示例: <code class="text-cyan-400 font-mono">sub.yourdomain.com</code> 或 <code class="text-cyan-400 font-mono">https://sub.yourdomain.com</code></span>
-                  </label>
-                  <div class="flex flex-wrap sm:flex-nowrap gap-2 items-stretch">
-                    <div class="flex items-center flex-1 min-w-[200px] bg-slate-950 border border-slate-800 rounded-xl overflow-hidden focus-within:border-cyan-500 transition-colors">
-                      <span class="bg-slate-900 border-r border-slate-800 px-3 py-2.5 text-slate-400 text-xs font-mono font-bold select-none shrink-0">
-                        https://
-                      </span>
-                      <input 
-                        v-model="domainInput" 
-                        type="text" 
-                        placeholder="sub.yourdomain.com"
-                        class="w-full bg-transparent px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none font-mono"
-                        @keyup.enter="testDnsResolution"
-                      />
-                    </div>
-                    <div class="flex items-center gap-2 shrink-0 flex-wrap">
-                      <button 
-                        type="button" 
-                        @click="testDnsResolution" 
-                        :disabled="testingDns || !domainInput.trim()"
-                        class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 border border-slate-700 hover:border-cyan-500/40 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                      >
-                        <span v-if="testingDns" class="animate-spin text-sm">⏳</span>
-                        <span>{{ testingDns ? '探测中...' : '🔍 测试 DNS 解析' }}</span>
-                      </button>
-                      <button 
-                        type="button" 
-                        @click="openSslModal" 
-                        :disabled="!domainInput.trim()"
-                        class="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                        title="一键自动安装 Caddy 并向 Let's Encrypt 申请 SSL 证书"
-                      >
-                        <span>⚡ 一键申请 SSL 证书</span>
-                      </button>
-                      <button 
-                        type="button" 
-                        @click="saveSystemDomainSettings" 
-                        :disabled="savingDomain"
-                        class="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                      >
-                        <span>{{ savingDomain ? '保存中...' : '💾 保存并全局应用' }}</span>
-                      </button>
-                      <button 
-                        v-if="systemSettings.customDomain"
-                        type="button" 
-                        @click="clearSystemDomain" 
-                        class="px-3 py-2.5 bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-xs rounded-xl transition-all cursor-pointer whitespace-nowrap"
-                        title="清除自定义域名绑定并回退至默认 IP 直连"
-                      >
-                        解绑
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 实时 DNS 诊断反馈卡片 -->
-                <div v-if="dnsTestResult" class="p-4 rounded-xl border text-xs space-y-2" :class="dnsTestResult.ok ? (dnsTestResult.hasMatch || dnsTestResult.hasCloudflare ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300' : 'bg-amber-950/20 border-amber-500/30 text-amber-300') : 'bg-rose-950/20 border-rose-500/30 text-rose-300'">
-                  <div class="flex items-center justify-between font-bold">
-                    <span class="flex items-center gap-1.5">
-                      <span v-if="dnsTestResult.hasMatch">🟢 精确匹配本机公网 IP</span>
-                      <span v-else-if="dnsTestResult.hasCloudflare">☁️ Cloudflare CDN 加速代理</span>
-                      <span v-else-if="dnsTestResult.ok">🟡 解析成功但 IP 不匹配</span>
-                      <span v-else>🔴 DNS 解析未就绪</span>
+            <!-- 输入表单、DNS 探测与直链预览 (Full Width Main Stack) -->
+            <div class="space-y-4">
+              <div class="space-y-1.5">
+                <label class="text-xs text-slate-300 font-semibold flex items-center justify-between">
+                  <span>🌍 公开访问域名 (Public Domain / URL Origin)</span>
+                  <span class="text-[11px] text-slate-400">示例: <code class="text-cyan-400 font-mono">sub.yourdomain.com</code> 或 <code class="text-cyan-400 font-mono">https://sub.yourdomain.com</code></span>
+                </label>
+                <div class="flex flex-wrap sm:flex-nowrap gap-2 items-stretch">
+                  <div class="flex items-center flex-1 min-w-[240px] bg-slate-950 border border-slate-800 rounded-xl overflow-hidden focus-within:border-cyan-500 transition-colors">
+                    <span class="bg-slate-900 border-r border-slate-800 px-3.5 py-2.5 text-slate-400 text-xs font-mono font-bold select-none shrink-0">
+                      https://
                     </span>
-                    <span class="text-[11px] font-mono opacity-80">目标: {{ dnsTestResult.domain }}</span>
+                    <input 
+                      v-model="domainInput" 
+                      type="text" 
+                      placeholder="sub.yourdomain.com"
+                      class="w-full bg-transparent px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none font-mono"
+                      @keyup.enter="testDnsResolution"
+                    />
                   </div>
-                  <p class="text-[11px] leading-relaxed opacity-90">{{ dnsTestResult.message || dnsTestResult.error }}</p>
-                  <div v-if="dnsTestResult.resolvedIps && dnsTestResult.resolvedIps.length" class="text-[11px] font-mono pt-1 border-t border-white/10 flex items-center gap-3">
-                    <span>📡 解析到 IP: <strong>{{ dnsTestResult.resolvedIps.join(', ') }}</strong></span>
-                    <span v-if="dnsTestResult.serverIp">🖥️ 本机公网 IP: <strong>{{ dnsTestResult.serverIp }}</strong></span>
-                  </div>
-                </div>
-
-                <!-- 直链自适应效果前后对比预览 -->
-                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-2 text-xs">
-                  <div class="text-slate-400 font-semibold flex items-center justify-between">
-                    <span>⚡ 全局直链自适应效果预览 (Before vs After)</span>
-                    <span class="text-[10px] text-cyan-400">一处绑定 · 全局生效</span>
-                  </div>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono pt-1">
-                    <div class="bg-slate-900/90 p-2.5 rounded-lg border border-slate-800 space-y-1">
-                      <span class="text-slate-500 text-[10px] block">默认 IP 直连 (未绑定时)</span>
-                      <span class="text-slate-300 truncate block">http://{{ hostWithoutPort || '38.47.112.79' }}:3000/api/sub?token=...</span>
-                    </div>
-                    <div class="bg-cyan-950/20 p-2.5 rounded-lg border border-cyan-500/30 space-y-1">
-                      <span class="text-cyan-400 text-[10px] block font-semibold">✨ 绑定后全局直链 (安全 HTTPS)</span>
-                      <span class="text-cyan-300 truncate block font-bold">{{ publicOrigin }}/api/sub?token=...</span>
-                    </div>
+                  <div class="flex items-center gap-2 shrink-0 flex-wrap">
+                    <button 
+                      type="button" 
+                      @click="testDnsResolution" 
+                      :disabled="testingDns || !domainInput.trim()"
+                      class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 border border-slate-700 hover:border-cyan-500/40 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    >
+                      <span v-if="testingDns" class="animate-spin text-sm">⏳</span>
+                      <span>{{ testingDns ? '探测中...' : '🔍 测试 DNS 解析' }}</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="openSslModal" 
+                      :disabled="!domainInput.trim()"
+                      class="px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      title="一键自动安装 Caddy 并向 Let's Encrypt 申请 SSL 证书"
+                    >
+                      <span>⚡ 一键申请 SSL 证书</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="saveSystemDomainSettings" 
+                      :disabled="savingDomain"
+                      class="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    >
+                      <span>{{ savingDomain ? '保存中...' : '💾 保存并全局应用' }}</span>
+                    </button>
+                    <button 
+                      v-if="systemSettings.customDomain"
+                      type="button" 
+                      @click="clearSystemDomain" 
+                      class="px-3 py-2.5 bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-xs rounded-xl transition-all cursor-pointer whitespace-nowrap"
+                      title="清除自定义域名绑定并回退至默认 IP 直连"
+                    >
+                      解绑
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <!-- 右侧：反向代理与 HTTPS 配置指南 -->
-              <div class="bg-slate-950 p-4.5 rounded-xl border border-slate-800 space-y-3">
-                <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
-                  <span class="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span>📜 快速配置反代与 SSL</span>
+              <!-- 实时 DNS 诊断反馈卡片 -->
+              <div v-if="dnsTestResult" class="p-4 rounded-xl border text-xs space-y-2" :class="dnsTestResult.ok ? (dnsTestResult.hasMatch || dnsTestResult.hasCloudflare ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300' : 'bg-amber-950/20 border-amber-500/30 text-amber-300') : 'bg-rose-950/20 border-rose-500/30 text-rose-300'">
+                <div class="flex items-center justify-between font-bold">
+                  <span class="flex items-center gap-1.5">
+                    <span v-if="dnsTestResult.hasMatch">🟢 精确匹配本机公网 IP</span>
+                    <span v-else-if="dnsTestResult.hasCloudflare">☁️ Cloudflare CDN 加速代理</span>
+                    <span v-else-if="dnsTestResult.ok">🟡 解析成功但 IP 不匹配</span>
+                    <span v-else>🔴 DNS 解析未就绪</span>
                   </span>
-                  <!-- 指南切换 Tabs -->
-                  <div class="flex bg-slate-900 p-0.5 rounded-lg text-[10px] border border-slate-800">
-                    <button 
-                      type="button"
-                      @click="domainGuideTab = 'cloudflare'"
-                      :class="domainGuideTab === 'cloudflare' ? 'bg-amber-500/20 text-amber-300 font-bold' : 'text-slate-400 hover:text-white'"
-                      class="px-2 py-1 rounded transition-all cursor-pointer"
-                    >
-                      ☁️ Cloudflare
-                    </button>
-                    <button 
-                      type="button"
-                      @click="domainGuideTab = 'caddy'"
-                      :class="domainGuideTab === 'caddy' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400 hover:text-white'"
-                      class="px-2 py-1 rounded transition-all cursor-pointer"
-                    >
-                      ⚡ Caddy
-                    </button>
-                    <button 
-                      type="button"
-                      @click="domainGuideTab = 'nginx'"
-                      :class="domainGuideTab === 'nginx' ? 'bg-emerald-500/20 text-emerald-300 font-bold' : 'text-slate-400 hover:text-white'"
-                      class="px-2 py-1 rounded transition-all cursor-pointer"
-                    >
-                      🛡️ Nginx
-                    </button>
+                  <span class="text-[11px] font-mono opacity-80">目标: {{ dnsTestResult.domain }}</span>
+                </div>
+                <p class="text-[11px] leading-relaxed opacity-90">{{ dnsTestResult.message || dnsTestResult.error }}</p>
+                <div v-if="dnsTestResult.resolvedIps && dnsTestResult.resolvedIps.length" class="text-[11px] font-mono pt-1 border-t border-white/10 flex items-center gap-3">
+                  <span>📡 解析到 IP: <strong>{{ dnsTestResult.resolvedIps.join(', ') }}</strong></span>
+                  <span v-if="dnsTestResult.serverIp">🖥️ 本机公网 IP: <strong>{{ dnsTestResult.serverIp }}</strong></span>
+                </div>
+              </div>
+
+              <!-- 直链自适应效果前后对比预览 -->
+              <div class="bg-slate-950 p-4.5 rounded-xl border border-slate-800/80 space-y-2 text-xs">
+                <div class="text-slate-400 font-semibold flex items-center justify-between">
+                  <span>⚡ 全局直链自适应效果预览 (Before vs After)</span>
+                  <span class="text-[10px] text-cyan-400">一处绑定 · 全局生效</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-mono pt-1">
+                  <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 space-y-1">
+                    <span class="text-slate-500 text-[10px] block">默认 IP 直连 (未绑定时)</span>
+                    <span class="text-slate-300 truncate block">http://{{ hostWithoutPort || '38.47.112.79' }}:3000/api/sub?token=...</span>
+                  </div>
+                  <div class="bg-cyan-950/20 p-3 rounded-xl border border-cyan-500/30 space-y-1">
+                    <span class="text-cyan-400 text-[10px] block font-semibold">✨ 绑定后全局直链 (安全 HTTPS)</span>
+                    <span class="text-cyan-300 truncate block font-bold">{{ publicOrigin }}/api/sub?token=...</span>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <!-- Tab 1: Cloudflare -->
-                <div v-show="domainGuideTab === 'cloudflare'" class="space-y-2 text-[11px] text-slate-300 leading-relaxed">
-                  <div class="text-amber-400 font-semibold">🌟 最简单推荐 · 0 服务器配置直接享 HTTPS</div>
-                  <ol class="list-decimal list-inside space-y-1 text-slate-400">
-                    <li>登录 Cloudflare 将域名 A 记录解析到你的 VPS IP；</li>
-                    <li>开启 <strong class="text-amber-300">Proxy status (小黄云代理)</strong>；</li>
-                    <li>在 Cloudflare SSL/TLS 设置中选择 <strong class="text-cyan-300">Flexible</strong> 或 <strong class="text-cyan-300">Full</strong>；</li>
-                    <li>在上方填入你的域名并保存，即刻大功告成！</li>
-                  </ol>
+            <!-- 底部：反向代理与 HTTPS 手动配置指南 (Full Width Reference Drawer) -->
+            <div class="bg-slate-950 p-4.5 rounded-xl border border-slate-800/90 space-y-3 mt-2">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>📜 常见反向代理与 SSL 部署方案指引</span>
+                  </span>
+                  <span class="text-[10px] text-slate-500 font-sans hidden md:inline">(可选参考 · 若已点击上方「⚡ 一键申请 SSL」则无需手动配置)</span>
                 </div>
+                <!-- 指南切换 Tabs -->
+                <div class="flex bg-slate-900 p-1 rounded-xl text-xs border border-slate-800 shrink-0">
+                  <button 
+                    type="button"
+                    @click="domainGuideTab = 'cloudflare'"
+                    :class="domainGuideTab === 'cloudflare' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-slate-400 hover:text-white border border-transparent'"
+                    class="px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <span>☁️ Cloudflare CDN</span>
+                  </button>
+                  <button 
+                    type="button"
+                    @click="domainGuideTab = 'caddy'"
+                    :class="domainGuideTab === 'caddy' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-slate-400 hover:text-white border border-transparent'"
+                    class="px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <span>⚡ Caddy 模式</span>
+                  </button>
+                  <button 
+                    type="button"
+                    @click="domainGuideTab = 'nginx'"
+                    :class="domainGuideTab === 'nginx' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-400 hover:text-white border border-transparent'"
+                    class="px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <span>🛡️ Nginx 模式</span>
+                  </button>
+                </div>
+              </div>
 
-                <!-- Tab 2: Caddy -->
-                <div v-show="domainGuideTab === 'caddy'" class="space-y-2 text-[11px] text-slate-300 leading-relaxed">
-                  <div class="text-cyan-400 font-semibold">⚡ 全自动申请并续签 Let's Encrypt 证书</div>
-                  <p class="text-slate-400 text-[10px]">在 <code class="text-cyan-300 font-mono">/etc/caddy/Caddyfile</code> 中添加以下 4 行：</p>
-                  <pre class="bg-slate-900 p-2 rounded text-[10px] text-cyan-300 font-mono overflow-x-auto border border-slate-800">{{ domainInput || 'sub.yourdomain.com' }} {
+              <!-- Tab 1: Cloudflare -->
+              <div v-show="domainGuideTab === 'cloudflare'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-slate-300 pt-1">
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <div class="text-amber-400 font-bold text-[11px] flex items-center gap-1">
+                    <span>1. 添加 DNS A 记录</span>
+                  </div>
+                  <p class="text-slate-400 text-[11px] leading-relaxed">登录 Cloudflare 控制台，将域名 A 记录解析到您的服务器公网 IP。</p>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <div class="text-amber-400 font-bold text-[11px] flex items-center gap-1">
+                    <span>2. 开启小黄云代理</span>
+                  </div>
+                  <p class="text-slate-400 text-[11px] leading-relaxed">在 DNS 记录中开启 Proxy status (小黄云代理)，隐藏服务器真实源站 IP。</p>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <div class="text-amber-400 font-bold text-[11px] flex items-center gap-1">
+                    <span>3. SSL/TLS 加密模式</span>
+                  </div>
+                  <p class="text-slate-400 text-[11px] leading-relaxed">在 SSL/TLS 面板中选择 Flexible 或 Full 模式，自动享受免费边缘 SSL。</p>
+                </div>
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <div class="text-amber-400 font-bold text-[11px] flex items-center gap-1">
+                    <span>4. 保存域名绑定</span>
+                  </div>
+                  <p class="text-slate-400 text-[11px] leading-relaxed">在上方输入框填入您的域名并点击「保存并全局应用」即可秒级生效！</p>
+                </div>
+              </div>
+
+              <!-- Tab 2: Caddy -->
+              <div v-show="domainGuideTab === 'caddy'" class="space-y-2 text-xs text-slate-300 pt-1">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span class="text-cyan-400 font-bold text-[11px]">⚡ Caddyfile 4 行极简配置 (编辑 /etc/caddy/Caddyfile):</span>
+                  <button 
+                    type="button" 
+                    @click="copyCode((domainInput ? domainInput.trim().replace(/^https?:\\/\\//i, '') : 'sub.yourdomain.com') + ' {\\n    reverse_proxy 127.0.0.1:3000\\n}')"
+                    class="text-[11px] text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1 cursor-pointer"
+                  >
+                    📋 复制 Caddyfile
+                  </button>
+                </div>
+                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-cyan-300 font-mono overflow-x-auto border border-slate-800 select-text">{{ domainInput ? domainInput.trim().replace(/^https?:\/\//i, '') : 'sub.yourdomain.com' }} {
     reverse_proxy 127.0.0.1:3000
 }</pre>
-                  <p class="text-slate-500 text-[10px]">运行 <code class="text-slate-400 font-mono">systemctl reload caddy</code> 即可自动获取 HTTPS 证书！</p>
+                <div class="text-slate-400 text-[11px] flex items-center gap-2">
+                  <span>💡 提示：配置保存后运行 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-cyan-300 font-mono">systemctl reload caddy</code> 即可自动申请与续签 Let's Encrypt 证书。</span>
                 </div>
+              </div>
 
-                <!-- Tab 3: Nginx -->
-                <div v-show="domainGuideTab === 'nginx'" class="space-y-2 text-[11px] text-slate-300 leading-relaxed">
-                  <div class="text-emerald-400 font-semibold">🛡️ 标准 Nginx 反向代理配置</div>
-                  <pre class="bg-slate-900 p-2 rounded text-[10px] text-emerald-300 font-mono overflow-x-auto border border-slate-800">server {
-    server_name {{ domainInput || 'sub.yourdomain.com' }};
+              <!-- Tab 3: Nginx -->
+              <div v-show="domainGuideTab === 'nginx'" class="space-y-2 text-xs text-slate-300 pt-1">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span class="text-emerald-400 font-bold text-[11px]">🛡️ Nginx 反向代理配置 (保存在 /etc/nginx/conf.d/subhub.conf):</span>
+                  <button 
+                    type="button" 
+                    @click="copyCode('server {\\n    server_name ' + (domainInput ? domainInput.trim().replace(/^https?:\\/\\//i, '') : 'sub.yourdomain.com') + ';\\n    location / {\\n        proxy_pass http://127.0.0.1:3000;\\n        proxy_set_header Host $host;\\n        proxy_set_header X-Real-IP $remote_addr;\\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\\n        proxy_set_header X-Forwarded-Proto $scheme;\\n    }\\n}')"
+                    class="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1 cursor-pointer"
+                  >
+                    📋 复制 Nginx 配置
+                  </button>
+                </div>
+                <pre class="bg-slate-900 p-3 rounded-xl text-xs text-emerald-300 font-mono overflow-x-auto border border-slate-800 select-text">server {
+    server_name {{ domainInput ? domainInput.trim().replace(/^https?:\/\//i, '') : 'sub.yourdomain.com' }};
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
@@ -2641,7 +2679,8 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }</pre>
-                  <p class="text-slate-500 text-[10px]">配好后使用 <code class="text-slate-400 font-mono">certbot --nginx</code> 一键申请 SSL 证书。</p>
+                <div class="text-slate-400 text-[11px] flex items-center gap-2">
+                  <span>💡 提示：使用 <code class="bg-slate-900 px-1.5 py-0.5 rounded text-emerald-300 font-mono">certbot --nginx -d {{ domainInput ? domainInput.trim().replace(/^https?:\/\//i, '') : 'sub.yourdomain.com' }}</code> 即可一键自动签发并注入 SSL 证书。</span>
                 </div>
               </div>
             </div>
@@ -2723,7 +2762,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.3' }}
+                      v{{ versionInfo.currentVersion || '1.0.4' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -2772,7 +2811,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-400 font-medium">当前运行版本</span>
             <span class="text-xs font-mono font-extrabold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-              v{{ versionInfo.currentVersion || '1.0.3' }}
+              v{{ versionInfo.currentVersion || '1.0.4' }}
             </span>
           </div>
 
@@ -3903,7 +3942,7 @@ function main(config, profileName) {
 
         // 系统版本管理与在线更新状态
         const versionInfo = ref({
-          currentVersion: '1.0.3',
+          currentVersion: '1.0.4',
           latestVersion: null,
           hasUpdate: false,
           releaseNotes: '',

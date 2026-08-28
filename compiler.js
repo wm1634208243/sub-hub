@@ -59,7 +59,7 @@ export function compileConfigToJs(data, clientUa = '') {
   }
 
   const script = `// =========================================================================
-// Clash / Mihomo 预处理脚本 (由 Sub Hub 自动化生成 v1.0.3)
+// Clash / Mihomo 预处理脚本 (由 Sub Hub 自动化生成 v1.0.4)
 // 生成时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}
 // 目标平台: ${targetPlatforms.join(', ')} (UA自动适配: ${enableAutoPlatformDetect ? '开启' : '关闭'})
 // =========================================================================
