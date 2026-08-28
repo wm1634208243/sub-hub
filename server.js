@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.6';
+const CURRENT_VERSION = '1.0.7';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1997,6 +1997,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.0.7',
+    tag: 'v1.0.7',
+    name: 'SubHub v1.0.7 · 动态跳转链接精准适配与端口冲突实时诊断',
+    publishedAt: '2026-08-28T06:06:56.938Z',
+    highlights: ['🔗 修复弹窗成功按钮动态跳转 (完整保留端口与协议)', '🔍 Caddy 执行错误与端口冲突实时诊断日志', '🔒 原生内置 HTTPS 引擎与 10 年期自签证书生成', '⚡ 4 合 1 交互式多模式 SSL 管理中心'],
+    changelogZh: `### 🔗 动态跳转链接精准适配与端口冲突实时诊断
+- **动态跳转按钮修复**：彻底修复 SSL 弹窗在直连模式（如 http://域名:3000）下成功跳转按钮强加 https:// 且丢失端口的问题，精确跳转至真实绑定的直链地址；
+- **端口冲突与执行错误全透明诊断**：移除 Caddy 启动命令中的错误掩码，在 Web 日志控制台实时展示 80/443 端口占用与 Caddyfile 语法检查日志；
+- **原生内置 HTTPS 引擎**：SubHub 服务端支持原生加载 TLS 证书并在当前服务端口启动 HTTPS，配合 Cloudflare Full SSL 轻松实现 0 端口访问。`
+  },
   {
     version: '1.0.6',
     tag: 'v1.0.6',
