@@ -17,9 +17,35 @@
 
 <br><br>
 
-[✨ 核心特性](#-核心功能特性) • [🖼️ 界面全景展示](#️-系统界面全景) • [⚖️ 双轨制架构](#️-双轨制架构纯本地-vs-云端托管) • [📊 对比 Sub-Store](#-subhub-vs-sub-store-深度对比) • [🛠️ 极速部署](#️-多方式极速部署指南) • [📱 客户端接入](#-全平台客户端接入指南) • [🔌 开放 API](#-开放订阅端点一览)
+[⚡ 极速部署](#-10-秒极速一键部署-quick-start) • [✨ 核心特性](#-核心功能特性) • [🖼️ 界面全景展示](#️-系统界面全景) • [⚖️ 双轨制架构](#️-双轨制架构纯本地-vs-云端托管) • [📊 对比 Sub-Store](#-subhub-vs-sub-store-深度对比) • [📱 客户端接入](#-全平台客户端接入指南) • [🔌 开放 API](#-开放订阅端点一览)
 
 </div>
+
+---
+
+## ⚡ 10 秒极速一键部署 (Quick Start)
+
+### 🌟 推荐方式：Linux VPS 一键全能交互式管理脚本
+无需配置复杂环境，单行命令完成全自动安装、开机自启、Systemd 守护与端口监听：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/install.sh)
+```
+
+> **💡 常用快捷指令**：
+> - `bash install.sh`：呼出全功能交互式管理菜单
+> - `bash install.sh update`：无损热更新升级到最新版
+> - `bash install.sh start / stop / restart`：启停与重启服务
+> - `bash install.sh logs`：实时追踪运行日志
+
+### 🐳 容器化方式：Docker 单行命令极速启动
+```bash
+mkdir -p /opt/subhub/data && docker run -d --name subhub --restart always -p 3000:3000 -v /opt/subhub/data:/app/data ghcr.io/wm1634208243/sub-hub:latest
+```
+
+> 🌐 **默认面板地址**：`http://你的服务器IP:3000`
+> 👤 **初始管理员账号**：`admin` / **初始密码**：`admin` *(登录后请立即在后台修改)*
+> 📖 [查看完整部署方案（Docker Compose、群晖 NAS、1Panel、PM2、Nginx/Caddy 反代与 SSL）➔](#️-多方式极速部署指南)
 
 ---
 
