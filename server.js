@@ -1697,7 +1697,77 @@ async function checkAndRefreshAllSubscriptions() {
   }
 }
 
-// ── System Version & Update Center ───────────────────────────────────────────
+// ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
+
+const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.0.5',
+    tag: 'v1.0.5',
+    name: 'SubHub v1.0.5 · 域名与 SSL 排版像素级对称优化',
+    publishedAt: '2026-08-28T09:59:00Z',
+    highlights: ['🎨 抽屉 Header-Bar 像素级对称', '⚡ 自动支持任意后端自定义端口 SSL 申请'],
+    changelogZh: `### 🎨 UI 与排版深度优化
+- **独立 Header-Bar 标题栏**：重构「常见反向代理与 SSL 部署方案指引」为独立对称头部，消除文字上下不对称与靠上问题；
+- **全端口 SSL 动态适配**：当 SubHub 运行在自定义端口时（如 8080/8888），Caddy 与 Nginx 自动获取实际端口完成无缝反代与 Let's Encrypt 证书签发。`
+  },
+  {
+    version: '1.0.4',
+    tag: 'v1.0.4',
+    name: 'SubHub v1.0.4 · 域名配置通栏全宽自适应重构',
+    publishedAt: '2026-08-28T09:53:00Z',
+    highlights: ['🌐 通栏满宽自适应排版', '📋 配置文件一键复制', '💻 宽幅代码高亮终端'],
+    changelogZh: `### 🌐 域名卡片布局重构
+- **通栏全宽布局**：告别狭窄的 2:1 双栏挤压结构，输入框、DNS 诊断与前后对比预览享受 100% 满宽展示；
+- **进阶参考抽屉**：底部集成 Cloudflare 4 步流程卡片，以及 Caddy / Nginx 宽幅语法高亮与一键复制。`
+  },
+  {
+    version: '1.0.3',
+    tag: 'v1.0.3',
+    name: 'SubHub v1.0.3 · Web 一键申请 SSL 证书与自动化反向代理上线',
+    publishedAt: '2026-08-28T09:41:00Z',
+    highlights: ['⚡ Web 端一键申请 SSL 证书', '📜 实时终端控制台日志', '🔒 Let\'s Encrypt 终身自动续签'],
+    changelogZh: `### ⚡ 核心新特性
+- **Web 端一键申请证书**：在 Web 控制台直接点击「⚡ 一键申请 SSL 证书」，全自动安装 Caddy 并向 Let's Encrypt / ZeroSSL 申请免费 TLS 证书；
+- **实时控制台日志流**：弹窗全屏实时展示 DNS 预检、引擎安装、Caddyfile 写入与端口监听执行流水线；
+- **全局 HTTPS 直链自动激活**：证书签发成功后全站直链自适应升级为安全 HTTPS 域名。`
+  },
+  {
+    version: '1.0.2',
+    tag: 'v1.0.2',
+    name: 'SubHub v1.0.2 · 自定义公开域名绑定与智能 DNS 探测',
+    publishedAt: '2026-08-28T09:30:00Z',
+    highlights: ['🌐 独立域名绑定', '🔍 智能 DNS 解析探测', '🛡️ Docker 与原生部署双重兼容'],
+    changelogZh: `### 🌐 自定义域名系统
+- **公开域名绑定**：支持在「⚙️ 设置」中绑定专属域名，全站所有客户端订阅直链、二维码与覆写规则自适应升级为自定义域名；
+- **智能 DNS 解析探测**：后端内置 DNS 查询与公网 IP 对比引擎，自动识别 Cloudflare CDN 加速代理；
+- **UI 输入框优化**：修复输入框重叠问题，采用优雅的 input-group 前缀组件。`
+  },
+  {
+    version: '1.0.1',
+    tag: 'v1.0.1',
+    name: 'SubHub v1.0.1 · 系统版本中心与 Web 在线平滑热升级',
+    publishedAt: '2026-08-28T08:50:00Z',
+    highlights: ['🚀 在线一键平滑热升级 (OTA)', '📦 系统全量快照跨机迁移', '⏰ 用户封禁定时自动解禁'],
+    changelogZh: `### 🚀 在线升级与系统快照
+- **在线升级中心 (OTA)**：在 Web 端实时比对 GitHub 官方仓库版本，一键触发代码拉取与服务热重载；
+- **全量系统快照**：支持一键导出包含所有用户账号、密码哈希与独立订阅规则的 JSON 快照，在新服务器一秒导入还原；
+- **定时解禁系统**：后台每 15 秒自动扫描并解封到期的受限用户。`
+  },
+  {
+    version: '1.0.0',
+    tag: 'v1.0.0',
+    name: 'SubHub v1.0.0 · 首个正式企业级发布版',
+    publishedAt: '2026-08-27T08:00:00Z',
+    highlights: ['🚀 多订阅智能聚合与真机测速', '📊 3X-UI 实时流量看板', '🎯 多协议客户端通用直链转换'],
+    changelogZh: `### 🎉 SubHub 正式发布
+- **多订阅智能聚合**：支持订阅去重、节点过滤、正则重命名与全球国旗 Emoji 自动注入；
+- **真机 TCP / HTTP 测速**：一键并行探测节点连通性与真实握手延迟；
+- **3X-UI 流量仪表盘**：实时展示总下行、总上行流量与到期时间；
+- **全客户端通用直链**：支持 Clash / Mihomo / Sing-box / Surge / Shadowrocket 多格式实时转换与 JS 脚本规则注入。`
+  }
+];
+
+// ── System Version & Multi-Release Management ─────────────────────────────────
 
 app.get('/api/system/version', authMiddleware, async (req, res) => {
   try {
@@ -1706,11 +1776,9 @@ app.get('/api/system/version', authMiddleware, async (req, res) => {
     const doCheck = req.query.check === 'true';
     
     let latestVersion = CURRENT_VERSION;
-    let hasUpdate = false;
-    let releaseNotes = '';
-    let publishedAt = '';
     let commitHash = '';
     let checked = false;
+    let versionsList = [...BUILTIN_VERSIONS_ZH];
 
     if (isGit) {
       try {
@@ -1722,54 +1790,76 @@ app.get('/api/system/version', authMiddleware, async (req, res) => {
     if (doCheck) {
       checked = true;
       try {
-        // 1. Fetch latest release from GitHub API
-        const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`, {
+        // 1. Fetch remote releases from GitHub API
+        const ghRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=30`, {
           headers: { 'User-Agent': 'SubHub-Updater', 'Accept': 'application/vnd.github.v3+json' },
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(6000)
         });
         if (ghRes.ok) {
-          const ghData = await ghRes.json();
-          latestVersion = (ghData.tag_name || '').replace(/^v/, '') || CURRENT_VERSION;
-          releaseNotes = ghData.body || '';
-          publishedAt = ghData.published_at || '';
-        } else {
-          // 2. Fallback to package.json on main branch
-          const rawRes = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/package.json`, {
-            headers: { 'User-Agent': 'SubHub-Updater' },
-            signal: AbortSignal.timeout(5000)
-          });
-          if (rawRes.ok) {
-            const rawPkg = await rawRes.json();
-            latestVersion = rawPkg.version || CURRENT_VERSION;
+          const ghReleases = await ghRes.json();
+          if (Array.isArray(ghReleases) && ghReleases.length > 0) {
+            const remoteMapped = ghReleases.map(r => {
+              const rawVer = (r.tag_name || '').replace(/^v/, '');
+              const builtinMatch = BUILTIN_VERSIONS_ZH.find(b => b.version === rawVer);
+              return {
+                version: rawVer,
+                tag: r.tag_name || `v${rawVer}`,
+                name: r.name || (builtinMatch ? builtinMatch.name : `SubHub v${rawVer}`),
+                publishedAt: r.published_at || (builtinMatch ? builtinMatch.publishedAt : ''),
+                highlights: builtinMatch ? builtinMatch.highlights : ['官方发布版本'],
+                changelogZh: (builtinMatch ? builtinMatch.changelogZh : '') || r.body || '暂无详细中文更新说明',
+                url: r.html_url
+              };
+            });
+            // Merge: keep remoteMapped first, append any builtin versions that might not be on GitHub
+            const existingVers = new Set(remoteMapped.map(r => r.version));
+            for (const b of BUILTIN_VERSIONS_ZH) {
+              if (!existingVers.has(b.version)) {
+                remoteMapped.push(b);
+              }
+            }
+            versionsList = remoteMapped;
           }
         }
-        hasUpdate = compareVersions(latestVersion, CURRENT_VERSION) > 0;
       } catch (err) {
-        return res.json({
-          success: true,
-          currentVersion: CURRENT_VERSION,
-          commitHash,
-          repoUrl: REPO_URL,
-          isDocker,
-          isGit,
-          checked: true,
-          checkError: '无法连接到 GitHub 检查更新（网络超时或接口限流）'
-        });
+        // GitHub API network error or rate limit - fallback to BUILTIN_VERSIONS_ZH
       }
     }
+
+    // Sort versions descending
+    versionsList.sort((a, b) => compareVersions(b.version, a.version));
+
+    // Determine latest version
+    latestVersion = versionsList[0]?.version || CURRENT_VERSION;
+
+    // Decorate versions with current/latest/action tags
+    const decoratedVersions = versionsList.map((v, idx) => {
+      const cmp = compareVersions(v.version, CURRENT_VERSION);
+      let actionType = 'current';
+      if (cmp > 0) actionType = 'upgrade';
+      else if (cmp < 0) actionType = 'rollback';
+
+      return {
+        ...v,
+        isLatest: idx === 0,
+        isCurrent: cmp === 0,
+        actionType
+      };
+    });
+
+    const hasUpdate = compareVersions(latestVersion, CURRENT_VERSION) > 0;
 
     res.json({
       success: true,
       currentVersion: CURRENT_VERSION,
-      latestVersion: checked ? latestVersion : null,
-      hasUpdate: checked ? hasUpdate : false,
-      releaseNotes,
-      publishedAt,
+      latestVersion,
+      hasUpdate,
       commitHash,
       checked,
       repoUrl: REPO_URL,
       isDocker,
-      isGit
+      isGit,
+      versions: decoratedVersions
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1780,16 +1870,38 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
   try {
     const isGit = fs.existsSync(path.join(__dirname, '.git'));
     const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER === 'true';
+    const { targetVersion } = req.body || {};
+
+    let targetTag = 'main';
+    let isSpecificVersion = false;
+    if (targetVersion && targetVersion !== 'latest') {
+      const cleanVer = targetVersion.trim().replace(/^v/, '');
+      targetTag = `v${cleanVer}`;
+      isSpecificVersion = true;
+    }
 
     let logs = [];
 
     if (isGit) {
-      logs.push('🚀 [1/3] 正在从 GitHub 远端拉取最新代码 (git fetch & reset)...');
-      try {
-        const pullRes = await execPromise('git fetch origin main && git reset --hard origin/main', { cwd: __dirname });
-        logs.push(pullRes.stdout || pullRes.stderr || '代码拉取成功');
-      } catch (gitErr) {
-        logs.push(`⚠️ Git 拉取警告: ${gitErr.message}`);
+      if (isSpecificVersion) {
+        logs.push(`🎯 [1/3] 正在从 GitHub 远端获取历史版本标签 (git fetch --all --tags)...`);
+        try {
+          await execPromise('git fetch origin main --tags', { cwd: __dirname });
+          logs.push(`🏷️ 正在精确检出目标版本 [${targetTag}]...`);
+          const checkoutRes = await execPromise(`git checkout tags/${targetTag} 2>&1 || git checkout ${targetTag} 2>&1 || git checkout ${targetVersion} 2>&1`, { cwd: __dirname });
+          logs.push(checkoutRes.stdout || checkoutRes.stderr || `成功切换到版本 ${targetTag}`);
+        } catch (gitErr) {
+          logs.push(`⚠️ 版本检出提示: ${gitErr.message}，正在尝试回退至 main 分支...`);
+          await execPromise('git checkout main 2>&1 && git pull origin main 2>&1', { cwd: __dirname }).catch(() => {});
+        }
+      } else {
+        logs.push('🚀 [1/3] 正在从 GitHub 远端拉取最新代码 (git fetch & reset)...');
+        try {
+          const pullRes = await execPromise('git fetch origin main && git reset --hard origin/main', { cwd: __dirname });
+          logs.push(pullRes.stdout || pullRes.stderr || '代码拉取成功');
+        } catch (gitErr) {
+          logs.push(`⚠️ Git 拉取警告: ${gitErr.message}`);
+        }
       }
 
       logs.push('📦 [2/3] 正在检查并更新运行依赖 (npm install --production)...');
@@ -1800,29 +1912,29 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
         logs.push(`⚠️ 依赖更新提示: ${npmErr.message}`);
       }
 
-      logs.push('🔄 [3/3] 代码与依赖更新完成！正在触发服务热重启...');
+      logs.push(`🔄 [3/3] 版本切换【${isSpecificVersion ? targetTag : '最新稳定版'}】与依赖安装完成！正在触发服务平滑热重启...`);
 
       // Trigger hot restart
       setTimeout(() => {
-        console.log('🔄 系统在线更新完成，正在重启进程...');
+        console.log(`🔄 系统在线版本切换 [${isSpecificVersion ? targetTag : 'latest'}] 完成，正在重启进程...`);
         process.exit(0);
       }, 1500);
 
       return res.json({
         success: true,
-        message: '升级成功！系统正在自动重启，请稍候 3 秒刷新页面...',
+        message: `版本切换成功！已部署至【${isSpecificVersion ? targetTag : '最新稳定版'}】，系统正在自动热重启，请稍候 3 秒刷新页面...`,
         logs: logs.join('\n')
       });
     } else {
       return res.json({
         success: true,
         isDockerManual: true,
-        message: '当前运行在独立容器环境，可直接在宿主机执行一键更新命令完成无缝升级：',
-        command: `bash <(curl -fsSL https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/install.sh) update`
+        message: `当前运行在独立容器环境，可直接在宿主机执行一键指令切换至【${isSpecificVersion ? targetTag : '最新版'}】：`,
+        command: `bash <(curl -fsSL https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/install.sh) update ${isSpecificVersion ? targetTag : ''}`
       });
     }
   } catch (err) {
-    res.status(500).json({ error: `在线更新失败: ${err.message}` });
+    res.status(500).json({ error: `版本切换失败: ${err.message}` });
   }
 });
 

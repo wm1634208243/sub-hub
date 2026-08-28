@@ -2806,115 +2806,154 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
       </footer>
     </div>
 
-    <!-- 版本管理与手动检查更新模态框 (Version & OTA Modal) -->
-    <div v-if="showVersionModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4 relative overflow-hidden">
+    <!-- 多版本归档管理与更新中心模态框 (Multi-Version Release Hub Modal) -->
+    <div v-if="showVersionModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4.5 relative overflow-hidden flex flex-col max-h-[90vh]">
         <!-- 弹窗顶部标题 -->
-        <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+        <div class="flex items-center justify-between pb-3.5 border-b border-slate-800 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-base font-bold shadow-lg shadow-cyan-500/25">
               🚀
             </div>
             <div>
-              <h3 class="text-base font-bold text-white">SubHub 系统版本与更新中心</h3>
-              <p class="text-[11px] text-slate-400">版本管理 · 在线比对 · 一键平滑热升级</p>
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <span>SubHub 多版本归档与发布中心</span>
+                <span class="text-[10px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                  Release Hub
+                </span>
+              </h3>
+              <p class="text-[11px] text-slate-400">历史版本全览 · 详尽中文更新日志 · 支持一键部署/平滑升级/指定版本回退</p>
             </div>
           </div>
           <button @click="showVersionModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
         </div>
 
-        <!-- 本地当前版本状态展示 -->
-        <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-xs text-slate-400 font-medium">当前运行版本</span>
-            <span class="text-xs font-mono font-extrabold text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
-              v{{ versionInfo.currentVersion || '1.0.5' }}
-            </span>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-900">
+        <!-- 本地当前版本状态条与刷新按钮 -->
+        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
+          <div class="flex items-center gap-3">
             <div>
-              <span class="text-[11px] text-slate-500 block">Git 提交版本</span>
-              <span class="text-slate-300 font-mono text-[11px] font-semibold">{{ versionInfo.commitHash ? '#' + versionInfo.commitHash : 'Release 稳定版' }}</span>
+              <span class="text-[11px] text-slate-500 block">当前运行版本</span>
+              <span class="font-mono font-extrabold text-cyan-400 text-xs">
+                v{{ versionInfo.currentVersion || '1.0.5' }}
+              </span>
             </div>
+            <div class="h-6 w-px bg-slate-800"></div>
             <div>
-              <span class="text-[11px] text-slate-500 block">部署运行环境</span>
-              <span class="text-slate-300 text-[11px] font-semibold">
+              <span class="text-[11px] text-slate-500 block">部署模式</span>
+              <span class="text-slate-300 font-semibold text-xs">
                 {{ versionInfo.isDocker ? '🐳 Docker 容器' : (versionInfo.isGit ? '💻 Git 源码 / PM2' : '📦 Node.js 原生') }}
               </span>
             </div>
-          </div>
-        </div>
-
-        <!-- 远端检查状态区域 (需要用户手动触发) -->
-        <div class="space-y-3">
-          <!-- 1. 尚未检查状态 (初始默认) -->
-          <div v-if="!versionInfo.checked && !checkingVersion" class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 text-center space-y-1.5">
-            <div class="text-slate-300 font-medium text-xs">⚪ 尚未检查远端版本</div>
-            <div class="text-[11px] text-slate-500">点击下方「⚡ 手动检查更新」按钮可实时连接 GitHub 官方仓库比对最新版本。</div>
-          </div>
-
-          <!-- 2. 正在检查中 -->
-          <div v-else-if="checkingVersion" class="bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-4 text-center space-y-2 text-xs text-cyan-300 flex flex-col items-center justify-center">
-            <svg class="w-5 h-5 animate-spin text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span>正在连接 GitHub API 获取最新版本...</span>
-          </div>
-
-          <!-- 3. 检查出错 -->
-          <div v-else-if="versionInfo.checkError" class="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-3.5 text-xs text-rose-300 space-y-1">
-            <div class="font-bold flex items-center gap-1.5">
-              <span>⚠️ 检查失败</span>
-            </div>
-            <div class="text-[11px] text-rose-300/80">{{ versionInfo.checkError }}</div>
-          </div>
-
-          <!-- 4. 发现新版本 -->
-          <div v-else-if="versionInfo.hasUpdate" class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-2.5">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2 text-xs font-bold text-amber-300">
-                <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                <span>🚀 发现官方新版本: v{{ versionInfo.latestVersion }}</span>
-              </div>
-              <span class="text-[10px] text-slate-500">{{ versionInfo.publishedAt ? formatDate(versionInfo.publishedAt) : '' }}</span>
-            </div>
-            <div v-if="versionInfo.releaseNotes" class="bg-black/40 p-2.5 rounded-xl text-[11px] text-slate-300 max-h-28 overflow-y-auto custom-scrollbar font-mono whitespace-pre-wrap">
-              {{ versionInfo.releaseNotes }}
+            <div class="h-6 w-px bg-slate-800"></div>
+            <div>
+              <span class="text-[11px] text-slate-500 block">Git 提交</span>
+              <span class="text-slate-400 font-mono text-[11px]">{{ versionInfo.commitHash ? '#' + versionInfo.commitHash : 'Release 稳定版' }}</span>
             </div>
           </div>
 
-          <!-- 5. 当前已是最新版本 -->
-          <div v-else-if="versionInfo.checked" class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 flex items-center justify-between text-xs">
-            <div class="flex items-center gap-2 text-emerald-300 font-bold">
-              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-              <span>🟢 当前已是 GitHub 官方最新版本 (v{{ versionInfo.currentVersion }})</span>
-            </div>
-            <span class="text-[10px] text-slate-500">刚刚检查</span>
-          </div>
-        </div>
-
-        <!-- 主操作按钮 -->
-        <div class="flex items-center gap-2 pt-1">
           <button 
             @click="fetchVersionInfo(false, true)" 
             :disabled="checkingVersion"
-            class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-cyan-400 border border-slate-700 text-xs py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-cyan-300 border border-slate-800 hover:border-cyan-500/40 rounded-xl font-semibold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
           >
-            <svg class="w-3.5 h-3.5" :class="checkingVersion ? 'animate-spin' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span>{{ checkingVersion ? '检查中...' : '⚡ 手动检查更新' }}</span>
-          </button>
-
-          <button 
-            v-if="currentUser.role === 'admin' && versionInfo.hasUpdate"
-            @click="openSystemUpdateConfirm" 
-            :disabled="updatingSystem"
-            class="flex-1 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white text-xs py-2.5 rounded-xl font-semibold flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
-          >
-            <span>🚀 立即在线升级</span>
+            <span v-if="checkingVersion" class="animate-spin text-xs">⏳</span>
+            <span v-else>⚡</span>
+            <span>{{ checkingVersion ? '同步中...' : '刷新版本矩阵' }}</span>
           </button>
         </div>
 
-        <!-- GitHub 快捷入口 -->
-        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-center text-xs">
+        <!-- 历史版本矩阵与更新日志时间线列表 -->
+        <div class="overflow-y-auto custom-scrollbar space-y-3 flex-1 pr-1">
+          <div 
+            v-for="v in (versionInfo.versions || [])" 
+            :key="v.version"
+            class="bg-slate-950/80 rounded-2xl border p-4 transition-all space-y-2.5"
+            :class="v.isCurrent ? 'border-emerald-500/40 bg-emerald-950/10' : (v.isLatest ? 'border-cyan-500/30' : 'border-slate-800/90')"
+          >
+            <!-- 版本卡片头部 -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-mono font-bold text-sm text-white">v{{ v.version }}</span>
+                  <span v-if="v.isCurrent" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold">
+                    🟢 当前运行版本
+                  </span>
+                  <span v-else-if="v.isLatest" class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+                    <span>🚀 官方最新版</span>
+                  </span>
+                  <span v-else class="text-[10px] px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+                    📦 历史归档版
+                  </span>
+                  <span class="text-[11px] text-slate-500">
+                    {{ v.publishedAt ? formatDate(v.publishedAt) : '' }}
+                  </span>
+                </div>
+                <div class="text-xs text-slate-300 font-semibold">{{ v.name }}</div>
+              </div>
+
+              <!-- 操作按钮 -->
+              <div class="shrink-0 flex items-center gap-2">
+                <button 
+                  v-if="v.isCurrent"
+                  type="button"
+                  disabled
+                  class="px-3.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-xl cursor-default flex items-center gap-1"
+                >
+                  <span>🟢 当前运行中</span>
+                </button>
+                <button 
+                  v-else-if="v.actionType === 'upgrade'"
+                  type="button"
+                  @click="openSystemUpdateConfirm(v)"
+                  class="px-3.5 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold rounded-xl shadow-md shadow-cyan-500/20 transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <span>🚀 升级至此版</span>
+                </button>
+                <button 
+                  v-else-if="v.actionType === 'rollback'"
+                  type="button"
+                  @click="openSystemUpdateConfirm(v)"
+                  class="px-3.5 py-1.5 bg-slate-900 hover:bg-amber-950/40 text-amber-300 hover:text-amber-200 border border-slate-800 hover:border-amber-500/40 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <span>🔄 回退至此版</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 特性亮点标签 (Highlights) -->
+            <div v-if="v.highlights && v.highlights.length" class="flex flex-wrap gap-1.5 pt-1">
+              <span 
+                v-for="(h, hIdx) in v.highlights" 
+                :key="hIdx"
+                class="px-2 py-0.5 rounded-md bg-slate-900/90 text-slate-300 border border-slate-800 text-[10px] font-sans"
+              >
+                {{ h }}
+              </span>
+            </div>
+
+            <!-- 详细中文更新日志展开 -->
+            <div class="pt-1">
+              <button 
+                type="button" 
+                @click="toggleVersionDetails(v.version)"
+                class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-medium cursor-pointer transition-colors"
+              >
+                <span>{{ expandedVersions[v.version] ? '🔼 收起详细说明' : '🔽 查看完整中文更新介绍' }}</span>
+              </button>
+
+              <div 
+                v-show="expandedVersions[v.version]" 
+                class="mt-2 p-3 bg-black/70 rounded-xl border border-slate-800/80 text-xs text-slate-300 font-sans leading-relaxed whitespace-pre-wrap select-text"
+              >
+                {{ v.changelogZh }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部快捷操作与 GitHub 入口 -->
+        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-center text-xs shrink-0">
           <a 
             :href="versionInfo.repoUrl || 'https://github.com/wm1634208243/sub-hub'" 
             target="_blank" 
@@ -2934,38 +2973,47 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             target="_blank" 
             class="py-2 px-1 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl text-slate-300 hover:text-emerald-300 transition-colors block text-[11px]"
           >
-            📜 更新日志
+            📜 GitHub Releases
           </a>
         </div>
       </div>
     </div>
 
-    <!-- 在线升级确认与日志弹窗 (Modal) -->
+    <!-- 在线版本切换/升级/回退确认与日志弹窗 (Modal) -->
     <div v-if="showUpdateModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
-              🚀
+              {{ targetUpdateType === 'rollback' ? '🔄' : '🚀' }}
             </div>
             <div>
-              <h3 class="text-sm font-bold text-white">SubHub 系统在线平滑升级</h3>
-              <p class="text-[10px] text-slate-400">拉取 GitHub 远端代码并无缝热重启</p>
+              <h3 class="text-sm font-bold text-white">SubHub 系统版本切换与部署</h3>
+              <p class="text-[10px] text-slate-400">
+                从当前 <span class="font-mono text-cyan-400">v{{ versionInfo.currentVersion }}</span> 
+                {{ targetUpdateType === 'rollback' ? '回退/降级至' : '平滑升级至' }} 
+                <span class="font-mono font-bold text-amber-300">v{{ targetUpdateVersion }}</span>
+              </p>
             </div>
           </div>
           <button v-if="!updatingSystem" @click="showUpdateModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none">&times;</button>
+        </div>
+
+        <div v-if="targetUpdateType === 'rollback'" class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-xs text-amber-300 flex items-center gap-2">
+          <span>⚠️</span>
+          <span>提示：您正在执行版本回退操作。系统将检出历史版本代码并无损热重启。</span>
         </div>
 
         <!-- 升级状态与日志终端 -->
         <div class="space-y-3">
           <div v-if="updatingSystem" class="flex items-center gap-2.5 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl">
             <svg class="w-4 h-4 animate-spin shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            <span>正在执行升级流水线，请勿关闭页面...</span>
+            <span>正在执行版本切换流水线，请勿关闭页面...</span>
           </div>
 
           <!-- 终端黑框日志输出 -->
           <div class="bg-black/90 rounded-xl p-3.5 border border-slate-800 font-mono text-[11px] text-emerald-400 max-h-60 overflow-y-auto custom-scrollbar space-y-1">
-            <div v-if="!updateLogs" class="text-slate-500 italic">准备就绪，点击下方按钮开始升级...</div>
+            <div v-if="!updateLogs" class="text-slate-500 italic">准备就绪，点击下方按钮开始切换至 v{{ targetUpdateVersion }}...</div>
             <pre v-else class="whitespace-pre-wrap leading-relaxed">{{ updateLogs }}</pre>
           </div>
         </div>
@@ -2985,7 +3033,7 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
             @click="executeSystemUpdate" 
             class="px-5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all cursor-pointer flex items-center gap-1.5"
           >
-            <span>立即执行升级</span>
+            <span>{{ targetUpdateType === 'rollback' ? '确认执行版本回退' : '立即执行版本部署' }}</span>
           </button>
         </div>
       </div>
@@ -3957,10 +4005,10 @@ function main(config, profileName) {
         const subtTesting = ref(false);
         const subTestResult = ref(null);
 
-        // 系统版本管理与在线更新状态
+        // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
           currentVersion: '1.0.5',
-          latestVersion: null,
+          latestVersion: '1.0.5',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -3970,16 +4018,28 @@ function main(config, profileName) {
           isGit: true,
           checked: false,
           checkError: null,
-          lastCheckTime: ''
+          lastCheckTime: '',
+          versions: []
         });
         const checkingVersion = ref(false);
         const updatingSystem = ref(false);
         const updateLogs = ref('');
         const showVersionModal = ref(false);
         const showUpdateModal = ref(false);
+        const expandedVersions = ref({});
+        const targetUpdateVersion = ref('');
+        const targetUpdateType = ref('upgrade'); // 'upgrade' | 'rollback'
+        const targetUpdateName = ref('');
+
+        const toggleVersionDetails = (ver) => {
+          expandedVersions.value[ver] = !expandedVersions.value[ver];
+        };
 
         const openVersionModal = () => {
           showVersionModal.value = true;
+          if (!versionInfo.value.checked) {
+            fetchVersionInfo(false, true);
+          }
         };
 
         // 修改密码表单与明密文切换状态
@@ -5628,21 +5688,34 @@ function main(config, profileName) {
           }
         };
 
-        const openSystemUpdateConfirm = () => {
-          updateLogs.value = '准备就绪，点击下方按钮开始执行平滑升级...';
+        const openSystemUpdateConfirm = (targetVerObj = null) => {
+          if (targetVerObj) {
+            targetUpdateVersion.value = targetVerObj.version;
+            targetUpdateName.value = targetVerObj.name || `v${targetVerObj.version}`;
+            targetUpdateType.value = targetVerObj.actionType || (compareVersions(targetVerObj.version, versionInfo.value.currentVersion) > 0 ? 'upgrade' : 'rollback');
+          } else {
+            targetUpdateVersion.value = versionInfo.value.latestVersion || versionInfo.value.currentVersion;
+            targetUpdateName.value = `v${targetUpdateVersion.value}`;
+            targetUpdateType.value = 'upgrade';
+          }
+          updateLogs.value = `准备就绪，点击下方按钮开始切换至 v${targetUpdateVersion.value}...`;
           showUpdateModal.value = true;
         };
 
         const executeSystemUpdate = async () => {
           updatingSystem.value = true;
-          updateLogs.value = '🚀 正在向服务端发起在线平滑升级指令...\n';
+          const targetTag = targetUpdateVersion.value ? `v${targetUpdateVersion.value.replace(/^v/, '')}` : '最新稳定版';
+          updateLogs.value = `🚀 正在向服务端发起【版本切换 -> ${targetTag}】流水线...\n\n`;
           try {
             const res = await fetch('/api/system/update', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token.value}`
-              }
+              },
+              body: JSON.stringify({
+                targetVersion: targetUpdateVersion.value || 'latest'
+              })
             });
             const data = await res.json();
             if (res.ok) {
@@ -5670,13 +5743,13 @@ function main(config, profileName) {
                 }
               }, 1000);
             } else {
-              updateLogs.value += `❌ 升级失败: ${data.error || '未知错误'}\n`;
-              showToast(data.error || '升级失败', 'error');
+              updateLogs.value += `❌ 版本切换失败: ${data.error || '未知错误'}\n`;
+              showToast(data.error || '版本切换失败', 'error');
               updatingSystem.value = false;
             }
           } catch (e) {
             updateLogs.value += `❌ 请求异常: ${e.message}\n`;
-            showToast('升级请求异常', 'error');
+            showToast('版本切换请求异常', 'error');
             updatingSystem.value = false;
           }
         };
@@ -5857,6 +5930,11 @@ function main(config, profileName) {
           fetchVersionInfo,
           openSystemUpdateConfirm,
           executeSystemUpdate,
+          expandedVersions,
+          targetUpdateVersion,
+          targetUpdateType,
+          targetUpdateName,
+          toggleVersionDetails,
           systemSettings,
           domainInput,
           testingDns,

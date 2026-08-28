@@ -327,21 +327,52 @@ COMPOSE
 # 3. 日常运维管理 (自动适配 Systemd 与 Docker)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 一键更新
+# 一键更新与版本切换 (支持升级最新版或切换/回退至指定历史版本)
 update_subhub() {
     check_root
+    local target_ver="$1"
+
     if [ ! -d "$INSTALL_DIR" ]; then
         echo -e "${RED}[错误] 未检测到安装目录 $INSTALL_DIR，请先执行安装！${NC}"
         return
     fi
 
+    if [ -z "$target_ver" ]; then
+        echo -e "\n请选择更新与版本切换模式:"
+        echo -e " ${BOLD}1.${NC} 🚀 升级至 GitHub 官方最新稳定版 (${GREEN}推荐${NC})"
+        echo -e " ${BOLD}2.${NC} 🎯 切换 / 回退至指定历史版本 (${YELLOW}如 v1.0.4, v1.0.3 等${NC})"
+        read -p "请选择 [1-2, 默认: 1]: " up_choice
+        up_choice=${up_choice:-1}
+        if [ "$up_choice" = "2" ]; then
+            read -p "请输入目标版本号 (例如 v1.0.3): " input_ver
+            target_ver="$input_ver"
+        fi
+    fi
+
     local mode
     mode=$(detect_deploy_mode)
-    echo -e "${BLUE}正在更新 SubHub 至最新版本 (检测到运行模式: ${BOLD}${mode}${NC})...${NC}"
+    local is_specific=false
+    local target_tag=""
+    if [ -n "$target_ver" ] && [ "$target_ver" != "latest" ]; then
+        is_specific=true
+        target_tag=$(echo "$target_ver" | sed -e 's/^v//')
+        target_tag="v$target_tag"
+        echo -e "${BLUE}正在将 SubHub 切换至版本 【${BOLD}${target_tag}${NC}】 (运行模式: ${BOLD}${mode}${NC})...${NC}"
+    else
+        echo -e "${BLUE}正在更新 SubHub 至官方最新版本 (运行模式: ${BOLD}${mode}${NC})...${NC}"
+    fi
 
     cd "$INSTALL_DIR"
     if [ -d ".git" ]; then
-        git fetch origin main && git reset --hard origin/main
+        if [ "$is_specific" = true ]; then
+            git fetch origin main --tags
+            git checkout "tags/$target_tag" 2>/dev/null || git checkout "$target_tag" 2>/dev/null || git checkout "$target_ver" 2>/dev/null || {
+                echo -e "${YELLOW}未找到标签 $target_tag，正在拉取最新代码...${NC}"
+                git reset --hard origin/main
+            }
+        else
+            git fetch origin main && git reset --hard origin/main
+        fi
     else
         echo -e "${YELLOW}未检测到 git 仓库，正在重新初始化拉取...${NC}"
         git clone "$REPO_URL" tmp_git
@@ -352,7 +383,7 @@ update_subhub() {
     if [ "$mode" = "systemd" ]; then
         npm install --production
         systemctl restart subhub
-        echo -e "${GREEN}🎉 SubHub (原生模式) 已平滑升级至最新版并已重启！${NC}"
+        echo -e "${GREEN}🎉 SubHub (原生模式) 已成功切换并热重启！${NC}"
     elif [ "$mode" = "docker" ]; then
         if docker compose version &> /dev/null; then
             docker compose down
@@ -361,13 +392,12 @@ update_subhub() {
             docker-compose down
             docker-compose up -d --build
         fi
-        echo -e "${GREEN}🎉 SubHub (Docker 模式) 已完成镜像构建并升级重启！${NC}"
+        echo -e "${GREEN}🎉 SubHub (Docker 模式) 已完成镜像构建并热重启！${NC}"
     else
-        # 未记录模式，优先检查 systemd
         if systemctl is-active --quiet subhub 2>/dev/null; then
             npm install --production
             systemctl restart subhub
-            echo -e "${GREEN}🎉 SubHub 已平滑升级并重启！${NC}"
+            echo -e "${GREEN}🎉 SubHub 已成功切换并重启！${NC}"
         else
             echo -e "${YELLOW}请根据你的运行方式手动重启 SubHub。${NC}"
         fi
@@ -606,7 +636,7 @@ show_menu() {
         echo -e " ${BOLD}2.${NC} 🐳 Docker 容器化一键部署 (${CYAN}隔离免配环境${NC})"
         echo ""
         echo -e " ${BOLD}[日常运维与高级配置]${NC}"
-        echo -e " ${BOLD}3.${NC} 🔄 一键无损更新 SubHub 至最新版"
+        echo -e " ${BOLD}3.${NC} 🔄 一键更新 / 切换至指定版本 (${YELLOW}支持历史版本回退${NC})"
         echo -e " ${BOLD}4.${NC} ▶️  启动 SubHub 服务"
         echo -e " ${BOLD}5.${NC} ⏹️  重启 SubHub 服务"
         echo -e " ${BOLD}6.${NC} ⏸️  停止 SubHub 服务"
@@ -639,7 +669,7 @@ if [ -n "$1" ]; then
     case "$1" in
         install|native) install_native_mode ;;
         docker) install_docker_mode ;;
-        update) update_subhub ;;
+        update) update_subhub "$2" ;;
         start) service_control start ;;
         restart) service_control restart ;;
         stop) service_control stop ;;
