@@ -17,7 +17,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.5';
+const CURRENT_VERSION = '1.0.2';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1306,7 +1306,7 @@ app.get('/api/admin/backup/export', authMiddleware, adminOnly, async (req, res) 
 
     const snapshot = {
       _type: 'SUBHUB_FULL_SYSTEM_SNAPSHOT',
-      version: '1.0.5',
+      version: '1.0.2',
       exportedAt: new Date().toISOString(),
       exportedBy: req.session.username,
       stats: {
@@ -1701,55 +1701,29 @@ async function checkAndRefreshAllSubscriptions() {
 
 const BUILTIN_VERSIONS_ZH = [
   {
-    version: '1.0.5',
-    tag: 'v1.0.5',
-    name: 'SubHub v1.0.5 · 域名与 SSL 排版像素级对称优化',
-    publishedAt: '2026-08-28T09:59:00Z',
-    highlights: ['🎨 抽屉 Header-Bar 像素级对称', '⚡ 自动支持任意后端自定义端口 SSL 申请'],
-    changelogZh: `### 🎨 UI 与排版深度优化
-- **独立 Header-Bar 标题栏**：重构「常见反向代理与 SSL 部署方案指引」为独立对称头部，消除文字上下不对称与靠上问题；
-- **全端口 SSL 动态适配**：当 SubHub 运行在自定义端口时（如 8080/8888），Caddy 与 Nginx 自动获取实际端口完成无缝反代与 Let's Encrypt 证书签发。`
-  },
-  {
-    version: '1.0.4',
-    tag: 'v1.0.4',
-    name: 'SubHub v1.0.4 · 域名配置通栏全宽自适应重构',
-    publishedAt: '2026-08-28T09:53:00Z',
-    highlights: ['🌐 通栏满宽自适应排版', '📋 配置文件一键复制', '💻 宽幅代码高亮终端'],
-    changelogZh: `### 🌐 域名卡片布局重构
-- **通栏全宽布局**：告别狭窄的 2:1 双栏挤压结构，输入框、DNS 诊断与前后对比预览享受 100% 满宽展示；
-- **进阶参考抽屉**：底部集成 Cloudflare 4 步流程卡片，以及 Caddy / Nginx 宽幅语法高亮与一键复制。`
-  },
-  {
-    version: '1.0.3',
-    tag: 'v1.0.3',
-    name: 'SubHub v1.0.3 · Web 一键申请 SSL 证书与自动化反向代理上线',
-    publishedAt: '2026-08-28T09:41:00Z',
-    highlights: ['⚡ Web 端一键申请 SSL 证书', '📜 实时终端控制台日志', '🔒 Let\'s Encrypt 终身自动续签'],
-    changelogZh: `### ⚡ 核心新特性
-- **Web 端一键申请证书**：在 Web 控制台直接点击「⚡ 一键申请 SSL 证书」，全自动安装 Caddy 并向 Let's Encrypt / ZeroSSL 申请免费 TLS 证书；
-- **实时控制台日志流**：弹窗全屏实时展示 DNS 预检、引擎安装、Caddyfile 写入与端口监听执行流水线；
-- **全局 HTTPS 直链自动激活**：证书签发成功后全站直链自适应升级为安全 HTTPS 域名。`
-  },
-  {
     version: '1.0.2',
     tag: 'v1.0.2',
-    name: 'SubHub v1.0.2 · 自定义公开域名绑定与智能 DNS 探测',
+    name: 'SubHub v1.0.2 · 自定义域名绑定、Web 一键申请 SSL 证书与全站直链自适应',
     publishedAt: '2026-08-28T09:30:00Z',
-    highlights: ['🌐 独立域名绑定', '🔍 智能 DNS 解析探测', '🛡️ Docker 与原生部署双重兼容'],
-    changelogZh: `### 🌐 自定义域名系统
+    highlights: ['🌐 自定义公开域名绑定', '⚡ Web 一键申请 SSL 证书', '🔒 Let\'s Encrypt 自动续签', '🎨 满宽自适应排版与对称优化', '🛡️ Docker 与原生部署双重兼容'],
+    changelogZh: `### 🌐 自定义公开域名与全站直链自适应
 - **公开域名绑定**：支持在「⚙️ 设置」中绑定专属域名，全站所有客户端订阅直链、二维码与覆写规则自适应升级为自定义域名；
 - **智能 DNS 解析探测**：后端内置 DNS 查询与公网 IP 对比引擎，自动识别 Cloudflare CDN 加速代理；
-- **UI 输入框优化**：修复输入框重叠问题，采用优雅的 input-group 前缀组件。`
+- **通栏自适应排版**：全面采用通栏全宽自适应排版与独立 Header-Bar 架构，像素级垂直居中与对称对齐。
+
+### ⚡ Web 端一键申请 SSL 证书与自动化反向代理
+- **Web 端一键申请证书**：在 Web 控制台直接点击「⚡ 一键申请 SSL 证书」，全自动安装 Caddy 并向 Let's Encrypt / ZeroSSL 申请免费 TLS 证书；
+- **实时控制台日志流**：弹窗全屏实时展示 DNS 预检、引擎安装、Caddyfile 写入与端口监听执行流水线；
+- **动态端口自适应**：当 SubHub 运行在任意自定义端口时（如 8080/8888），Caddy 与 Nginx 自动适配实际端口完成无缝反代与证书签发。`
   },
   {
     version: '1.0.1',
     tag: 'v1.0.1',
-    name: 'SubHub v1.0.1 · 系统版本中心与 Web 在线平滑热升级',
+    name: 'SubHub v1.0.1 · 系统版本发布中心与 Web 在线平滑热升级',
     publishedAt: '2026-08-28T08:50:00Z',
     highlights: ['🚀 在线一键平滑热升级 (OTA)', '📦 系统全量快照跨机迁移', '⏰ 用户封禁定时自动解禁'],
     changelogZh: `### 🚀 在线升级与系统快照
-- **在线升级中心 (OTA)**：在 Web 端实时比对 GitHub 官方仓库版本，一键触发代码拉取与服务热重载；
+- **多版本归档与发布中心 (Release Hub)**：在 Web 端查看所有历史版本时间线与详尽中文更新说明，支持一键升级、部署或指定历史版本回退；
 - **全量系统快照**：支持一键导出包含所有用户账号、密码哈希与独立订阅规则的 JSON 快照，在新服务器一秒导入还原；
 - **定时解禁系统**：后台每 15 秒自动扫描并解封到期的受限用户。`
   },
@@ -1943,7 +1917,7 @@ app.post('/api/system/update', authMiddleware, adminOnly, async (req, res) => {
 init().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`====================================================`);
-    console.log(`🚀 Clash Sub Hub v1.0.5 已启动`);
+    console.log(`🚀 Clash Sub Hub v1.0.2 已启动`);
     console.log(`🌐 Web 管理端: http://localhost:${PORT}`);
     console.log(`👤 默认账号: admin / admin`);
     console.log(`====================================================`);
