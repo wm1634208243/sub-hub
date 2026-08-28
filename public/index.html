@@ -873,7 +873,7 @@
                   <input 
                     v-model="testSampleServerHost" 
                     type="text" 
-                    placeholder="例如: 64.186.237.84 或 hk-01.proxy.com" 
+                    placeholder="例如: 1.1.1.1 或 hk-01.example.com" 
                     class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
                   />
                 </div>
@@ -3702,8 +3702,8 @@ function main(config, profileName) {
         });
 
         // 节点重命名与国旗注入实时测试器
-        const testSampleNodeName = ref('VIP 专用线路 (1.5x)');
-        const testSampleServerHost = ref('64.186.237.84');
+        const testSampleNodeName = ref('香港 01 专线 (1.5x)');
+        const testSampleServerHost = ref('1.1.1.1');
 
         // 服务端连通性与延迟测速状态
         const healthTesting = ref(false);
