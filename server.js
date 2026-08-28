@@ -1841,13 +1841,53 @@ app.post('/api/admin/system/ssl/provision', authMiddleware, adminOnly, async (re
         logs.push(`⚠️ 写入 /etc/caddy/Caddyfile 失败: ${writeErr.message}`);
       }
 
-      logs.push('🚀 正在启动/重载 Caddy 并自动申请 Let\'s Encrypt / ZeroSSL HTTPS 证书...');
+      logs.push('🚀 [3/4] 正在启动 / 重载 Caddy 自动化反代引擎...');
       try {
-        await execPromise('systemctl enable caddy 2>/dev/null || true');
-        await execPromise('systemctl restart caddy 2>/dev/null || caddy reload --config /etc/caddy/Caddyfile 2>/dev/null || true');
-        logs.push(`✅ Caddy 服务已重载！监听端口: ${externalPort}，正在后台自动向 ACME 申请证书...`);
+        // 1. Validate Caddyfile
+        try {
+          const valRes = await execPromise('caddy validate --config /etc/caddy/Caddyfile 2>&1');
+          logs.push('✅ Caddy 配置文件验证通过');
+        } catch (valErr) {
+          logs.push(`⚠️ Caddyfile 语法检查警告: ${valErr.message}`);
+        }
+
+        // 2. Check for port 80/443 conflicts
+        try {
+          const portCheck = await execPromise("ss -tlpn 2>/dev/null | grep -E ':(80|443) ' || true");
+          if (portCheck.stdout && portCheck.stdout.trim()) {
+            logs.push(`🔍 检测到系统 80/443 端口占用情况:\n${portCheck.stdout.trim()}`);
+          }
+        } catch {}
+
+        // 3. Restart / Reload Caddy with real logs
+        let restartRes = '';
+        try {
+          await execPromise('systemctl enable caddy 2>&1 || true');
+          const r = await execPromise('systemctl restart caddy 2>&1 || caddy reload --config /etc/caddy/Caddyfile 2>&1');
+          restartRes = r.stdout || '';
+        } catch (restartErr) {
+          logs.push(`❌ Caddy 服务启动失败: ${restartErr.message}`);
+        }
+
+        // 4. Check active status
+        try {
+          const statusRes = await execPromise('systemctl is-active caddy 2>&1 || true');
+          const isActive = statusRes.stdout.trim() === 'active';
+          if (isActive) {
+            logs.push(`✅ Caddy 服务运行正常 (Active)！监听端口: ${externalPort}`);
+          } else {
+            logs.push(`⚠️ Caddy 服务状态异常 (${statusRes.stdout.trim()})`);
+            // Fetch recent journal logs
+            try {
+              const journal = await execPromise('journalctl -u caddy -n 10 --no-pager 2>&1 || true');
+              if (journal.stdout) {
+                logs.push(`📋 Caddy 最近系统日志:\n${journal.stdout.trim()}`);
+              }
+            } catch {}
+          }
+        } catch {}
       } catch (reloadErr) {
-        logs.push(`⚠️ 重载 Caddy 提示: ${reloadErr.message}`);
+        logs.push(`⚠️ Caddy 执行异常: ${reloadErr.message}`);
       }
     } else if (engine === 'nginx') {
       const listenPort = externalPort || '80';
