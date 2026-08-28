@@ -4367,11 +4367,11 @@
           </button>
           <a
             v-if="sslProvisionSuccess"
-            :href="'https://' + cleanHostnameInput"
+            :href="targetAccessUrl"
             target="_blank"
-            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/20"
           >
-            <span>🚀 立即访问 HTTPS 站点</span>
+            <span>🚀 立即访问 ({{ targetAccessUrl }})</span>
           </a>
           <button 
             type="button" 
@@ -7060,6 +7060,20 @@ function main(config, profileName) {
           await saveSystemDomainSettings();
         };
 
+                const targetAccessUrl = computed(() => {
+          if (systemSettings.value.customDomain) {
+            return systemSettings.value.customDomain;
+          }
+          const host = cleanHostnameInput.value;
+          const port = sslPort.value || currentAppPort.value;
+          if (sslModalTab.value === 'direct' || sslEngine.value === 'direct') {
+            return (port === '80' || port === '443') ? `http://${host}` : `http://${host}:${port}`;
+          }
+          if (port === '443') return `https://${host}`;
+          if (port === '80') return `http://${host}`;
+          return `https://${host}:${port}`;
+        });
+
         const targetPreviewUrl = computed(() => {
           const host = cleanHostnameInput.value;
           const port = sslPort.value || currentAppPort.value;
@@ -7725,6 +7739,7 @@ function main(config, profileName) {
           generatingSelfSigned,
           submitCustomCert,
           generateSelfSignedCert,
+          targetAccessUrl,
           targetPreviewUrl,
           quickBindCurrentPort,
           provisioningSsl,
