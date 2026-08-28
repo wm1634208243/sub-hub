@@ -8,6 +8,7 @@ yarn-error.log*
 data/users.json
 data/sessions.json
 data/logs.json
+data/system_settings.json
 data/config.json
 data/config.json.migrated
 data/configs/*.json

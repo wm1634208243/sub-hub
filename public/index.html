@@ -2442,6 +2442,200 @@ SubHub = select, policy-path = {{ surgeUrl }}, update-interval = 86400</pre>
 
           </div>
 
+          <!-- ========================================== -->
+          <!-- 实验性功能：自定义公开域名与 HTTPS 反代绑定 -->
+          <!-- ========================================== -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl font-bold">
+                  🌐
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>自定义公开域名与 HTTPS 绑定</span>
+                    <span class="text-[10px] bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-sans font-semibold flex items-center gap-1">
+                      <span>⚡ 实验性功能</span>
+                    </span>
+                  </h3>
+                  <p class="text-xs text-slate-400">绑定专属独立域名 · 智能 DNS 探测 · 全站订阅直链自适应替换为 HTTPS · 隐藏源站 IP</p>
+                </div>
+              </div>
+
+              <!-- 绑定状态徽章 -->
+              <div>
+                <span v-if="systemSettings.customDomain" class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold rounded-full">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>已绑定: {{ systemSettings.customDomain }}</span>
+                </span>
+                <span v-else class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-800 border border-slate-700 text-slate-400 text-xs rounded-full">
+                  <span>默认 IP 直连模式 (未绑定独立域名)</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- 输入表单与 DNS 探测 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              <div class="lg:col-span-2 space-y-4">
+                <div class="space-y-1.5">
+                  <label class="text-xs text-slate-300 font-semibold flex items-center justify-between">
+                    <span>🌍 公开访问域名 (Public Domain / URL Origin)</span>
+                    <span class="text-[11px] text-slate-400">示例: <code class="text-cyan-400 font-mono">sub.yourdomain.com</code> 或 <code class="text-cyan-400 font-mono">https://sub.yourdomain.com</code></span>
+                  </label>
+                  <div class="flex gap-2">
+                    <div class="relative flex-1">
+                      <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 text-xs font-mono font-bold">
+                        https://
+                      </span>
+                      <input 
+                        v-model="domainInput" 
+                        type="text" 
+                        placeholder="sub.yourdomain.com"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-17 pr-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono"
+                        @keyup.enter="testDnsResolution"
+                      />
+                    </div>
+                    <button 
+                      type="button" 
+                      @click="testDnsResolution" 
+                      :disabled="testingDns || !domainInput.trim()"
+                      class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-cyan-300 border border-slate-700 hover:border-cyan-500/40 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <span v-if="testingDns" class="animate-spin text-sm">⏳</span>
+                      <span>{{ testingDns ? '探测中...' : '🔍 测试 DNS 解析' }}</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="saveSystemDomainSettings" 
+                      :disabled="savingDomain"
+                      class="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <span>{{ savingDomain ? '保存中...' : '💾 保存并全局应用' }}</span>
+                    </button>
+                    <button 
+                      v-if="systemSettings.customDomain"
+                      type="button" 
+                      @click="clearSystemDomain" 
+                      class="px-3 py-2.5 bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-500/30 text-xs rounded-xl transition-all cursor-pointer shrink-0"
+                      title="清除自定义域名绑定并回退至默认 IP 直连"
+                    >
+                      解绑
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 实时 DNS 诊断反馈卡片 -->
+                <div v-if="dnsTestResult" class="p-4 rounded-xl border text-xs space-y-2" :class="dnsTestResult.ok ? (dnsTestResult.hasMatch || dnsTestResult.hasCloudflare ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300' : 'bg-amber-950/20 border-amber-500/30 text-amber-300') : 'bg-rose-950/20 border-rose-500/30 text-rose-300'">
+                  <div class="flex items-center justify-between font-bold">
+                    <span class="flex items-center gap-1.5">
+                      <span v-if="dnsTestResult.hasMatch">🟢 精确匹配本机公网 IP</span>
+                      <span v-else-if="dnsTestResult.hasCloudflare">☁️ Cloudflare CDN 加速代理</span>
+                      <span v-else-if="dnsTestResult.ok">🟡 解析成功但 IP 不匹配</span>
+                      <span v-else>🔴 DNS 解析未就绪</span>
+                    </span>
+                    <span class="text-[11px] font-mono opacity-80">目标: {{ dnsTestResult.domain }}</span>
+                  </div>
+                  <p class="text-[11px] leading-relaxed opacity-90">{{ dnsTestResult.message || dnsTestResult.error }}</p>
+                  <div v-if="dnsTestResult.resolvedIps && dnsTestResult.resolvedIps.length" class="text-[11px] font-mono pt-1 border-t border-white/10 flex items-center gap-3">
+                    <span>📡 解析到 IP: <strong>{{ dnsTestResult.resolvedIps.join(', ') }}</strong></span>
+                    <span v-if="dnsTestResult.serverIp">🖥️ 本机公网 IP: <strong>{{ dnsTestResult.serverIp }}</strong></span>
+                  </div>
+                </div>
+
+                <!-- 直链自适应效果前后对比预览 -->
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800/80 space-y-2 text-xs">
+                  <div class="text-slate-400 font-semibold flex items-center justify-between">
+                    <span>⚡ 全局直链自适应效果预览 (Before vs After)</span>
+                    <span class="text-[10px] text-cyan-400">一处绑定 · 全局生效</span>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono pt-1">
+                    <div class="bg-slate-900/90 p-2.5 rounded-lg border border-slate-800 space-y-1">
+                      <span class="text-slate-500 text-[10px] block">默认 IP 直连 (未绑定时)</span>
+                      <span class="text-slate-300 truncate block">http://{{ hostWithoutPort || '38.47.112.79' }}:3000/api/sub?token=...</span>
+                    </div>
+                    <div class="bg-cyan-950/20 p-2.5 rounded-lg border border-cyan-500/30 space-y-1">
+                      <span class="text-cyan-400 text-[10px] block font-semibold">✨ 绑定后全局直链 (安全 HTTPS)</span>
+                      <span class="text-cyan-300 truncate block font-bold">{{ publicOrigin }}/api/sub?token=...</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右侧：反向代理与 HTTPS 配置指南 -->
+              <div class="bg-slate-950 p-4.5 rounded-xl border border-slate-800 space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                  <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>📜 快速配置反代与 SSL</span>
+                  </span>
+                  <!-- 指南切换 Tabs -->
+                  <div class="flex bg-slate-900 p-0.5 rounded-lg text-[10px] border border-slate-800">
+                    <button 
+                      type="button"
+                      @click="domainGuideTab = 'cloudflare'"
+                      :class="domainGuideTab === 'cloudflare' ? 'bg-amber-500/20 text-amber-300 font-bold' : 'text-slate-400 hover:text-white'"
+                      class="px-2 py-1 rounded transition-all cursor-pointer"
+                    >
+                      ☁️ Cloudflare
+                    </button>
+                    <button 
+                      type="button"
+                      @click="domainGuideTab = 'caddy'"
+                      :class="domainGuideTab === 'caddy' ? 'bg-cyan-500/20 text-cyan-300 font-bold' : 'text-slate-400 hover:text-white'"
+                      class="px-2 py-1 rounded transition-all cursor-pointer"
+                    >
+                      ⚡ Caddy
+                    </button>
+                    <button 
+                      type="button"
+                      @click="domainGuideTab = 'nginx'"
+                      :class="domainGuideTab === 'nginx' ? 'bg-emerald-500/20 text-emerald-300 font-bold' : 'text-slate-400 hover:text-white'"
+                      class="px-2 py-1 rounded transition-all cursor-pointer"
+                    >
+                      🛡️ Nginx
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Tab 1: Cloudflare -->
+                <div v-show="domainGuideTab === 'cloudflare'" class="space-y-2 text-[11px] text-slate-300 leading-relaxed">
+                  <div class="text-amber-400 font-semibold">🌟 最简单推荐 · 0 服务器配置直接享 HTTPS</div>
+                  <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                    <li>登录 Cloudflare 将域名 A 记录解析到你的 VPS IP；</li>
+                    <li>开启 <strong class="text-amber-300">Proxy status (小黄云代理)</strong>；</li>
+                    <li>在 Cloudflare SSL/TLS 设置中选择 <strong class="text-cyan-300">Flexible</strong> 或 <strong class="text-cyan-300">Full</strong>；</li>
+                    <li>在上方填入你的域名并保存，即刻大功告成！</li>
+                  </ol>
+                </div>
+
+                <!-- Tab 2: Caddy -->
+                <div v-show="domainGuideTab === 'caddy'" class="space-y-2 text-[11px] text-slate-300 leading-relaxed">
+                  <div class="text-cyan-400 font-semibold">⚡ 全自动申请并续签 Let's Encrypt 证书</div>
+                  <p class="text-slate-400 text-[10px]">在 <code class="text-cyan-300 font-mono">/etc/caddy/Caddyfile</code> 中添加以下 4 行：</p>
+                  <pre class="bg-slate-900 p-2 rounded text-[10px] text-cyan-300 font-mono overflow-x-auto border border-slate-800">{{ domainInput || 'sub.yourdomain.com' }} {
+    reverse_proxy 127.0.0.1:3000
+}</pre>
+                  <p class="text-slate-500 text-[10px]">运行 <code class="text-slate-400 font-mono">systemctl reload caddy</code> 即可自动获取 HTTPS 证书！</p>
+                </div>
+
+                <!-- Tab 3: Nginx -->
+                <div v-show="domainGuideTab === 'nginx'" class="space-y-2 text-[11px] text-slate-300 leading-relaxed">
+                  <div class="text-emerald-400 font-semibold">🛡️ 标准 Nginx 反向代理配置</div>
+                  <pre class="bg-slate-900 p-2 rounded text-[10px] text-emerald-300 font-mono overflow-x-auto border border-slate-800">server {
+    server_name {{ domainInput || 'sub.yourdomain.com' }};
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</pre>
+                  <p class="text-slate-500 text-[10px]">配好后使用 <code class="text-slate-400 font-mono">certbot --nginx</code> 一键申请 SSL 证书。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 系统全局全量快照备份与数据迁移卡片 (Admin System Snapshot Backup & Restore) -->
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -3654,6 +3848,18 @@ function main(config, profileName) {
         const banCustomUntil = ref('');
         const banReason = ref('');
 
+        // 系统全局设置 & 域名绑定状态
+        const systemSettings = ref({
+          customDomain: '',
+          enableHttpsRedirect: false,
+          updatedAt: null
+        });
+        const domainInput = ref('');
+        const testingDns = ref(false);
+        const dnsTestResult = ref(null);
+        const savingDomain = ref(false);
+        const domainGuideTab = ref('cloudflare'); // 'cloudflare' | 'caddy' | 'nginx'
+
         let editorInstance = null;
 
         const config = ref({
@@ -3858,33 +4064,49 @@ function main(config, profileName) {
           setTimeout(() => { toast.value.show = false; }, 3200);
         };
 
+        const hostWithoutPort = computed(() => {
+          return window.location.hostname;
+        });
+
+        const publicOrigin = computed(() => {
+          const custom = systemSettings.value.customDomain;
+          if (custom && custom.trim()) {
+            let clean = custom.trim().replace(/\/+$/, '');
+            if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+              clean = 'https://' + clean;
+            }
+            return clean;
+          }
+          return window.location.origin;
+        });
+
         const smartSubUrl = computed(() => {
-          const origin = window.location.origin;
+          const origin = publicOrigin.value;
           return `${origin}/api/sub?token=${config.value.subscriptionToken}`;
         });
 
         const subscriptionUrl = computed(() => {
-          const origin = window.location.origin;
+          const origin = publicOrigin.value;
           return `${origin}/api/rules.js?token=${config.value.subscriptionToken}`;
         });
 
         const clashYamlUrl = computed(() => {
-          const origin = window.location.origin;
+          const origin = publicOrigin.value;
           return `${origin}/api/clash.yaml?token=${config.value.subscriptionToken}`;
         });
 
         const base64Url = computed(() => {
-          const origin = window.location.origin;
+          const origin = publicOrigin.value;
           return `${origin}/api/base64?token=${config.value.subscriptionToken}`;
         });
 
         const singBoxUrl = computed(() => {
-          const origin = window.location.origin;
+          const origin = publicOrigin.value;
           return `${origin}/api/sing-box.json?token=${config.value.subscriptionToken}`;
         });
 
         const surgeUrl = computed(() => {
-          const origin = window.location.origin;
+          const origin = publicOrigin.value;
           return `${origin}/api/surge.list?token=${config.value.subscriptionToken}`;
         });
 
@@ -4021,7 +4243,7 @@ function main(config, profileName) {
         });
 
         const rulesJsUrl = computed(() => {
-          const origin = window.location.origin;
+          const origin = publicOrigin.value;
           return `${origin}/api/rules.js?token=${config.value.subscriptionToken}`;
         });
 
@@ -4918,6 +5140,90 @@ function main(config, profileName) {
           }
         };
 
+        // 系统全局设置与自定义域名绑定方法
+        const loadSystemSettings = async () => {
+          try {
+            const url = currentUser.value?.role === 'admin' ? '/api/admin/system/settings' : '/api/system/public-settings';
+            const headers = token.value ? { 'Authorization': `Bearer ${token.value}` } : {};
+            const res = await fetch(url, { headers });
+            if (res.ok) {
+              const data = await res.json();
+              systemSettings.value = data;
+              if (data.customDomain) {
+                domainInput.value = data.customDomain.replace(/^https?:\/\//i, '');
+              }
+            }
+          } catch {}
+        };
+
+        const testDnsResolution = async () => {
+          if (!domainInput.value.trim()) {
+            return showToast('请先输入要测试的域名', 'error');
+          }
+          testingDns.value = true;
+          dnsTestResult.value = null;
+          try {
+            const res = await fetch('/api/admin/system/domain/test', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({ domain: domainInput.value.trim() })
+            });
+            const data = await res.json();
+            dnsTestResult.value = data;
+            if (data.ok) {
+              showToast(data.message || 'DNS 解析探测完成！');
+            } else {
+              showToast(data.error || 'DNS 解析失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，DNS 探测失败', 'error');
+          } finally {
+            testingDns.value = false;
+          }
+        };
+
+        const saveSystemDomainSettings = async () => {
+          let raw = domainInput.value.trim();
+          if (raw) {
+            raw = raw.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          }
+          savingDomain.value = true;
+          try {
+            const res = await fetch('/api/admin/system/settings', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                customDomain: raw ? `https://${raw}` : '',
+                enableHttpsRedirect: systemSettings.value.enableHttpsRedirect
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast('🎉 自定义域名已绑定成功！全站直链已全局切换为 HTTPS 域名！');
+            } else {
+              showToast(data.error || '保存域名失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，保存域名失败', 'error');
+          } finally {
+            savingDomain.value = false;
+          }
+        };
+
+        const clearSystemDomain = async () => {
+          if (!confirm('确定要解除域名绑定并回退至默认 IP 直连吗？')) return;
+          domainInput.value = '';
+          dnsTestResult.value = null;
+          await saveSystemDomainSettings();
+        };
+
         // 切换模式
         const switchMode = (mode) => {
           config.value.mode = mode;
@@ -5126,6 +5432,7 @@ function main(config, profileName) {
             loadLogs();
           } else if (newTab === 'users') {
             loadAdminUsers();
+            loadSystemSettings();
           }
         });
 
@@ -5145,6 +5452,7 @@ function main(config, profileName) {
               try { currentUser.value = JSON.parse(savedUserStr); } catch {}
             }
             await loadConfig();
+            loadSystemSettings();
             fetchVersionInfo(true, false); // 仅加载本地版本元信息，不自动发起远端检查
           }
 
@@ -5292,7 +5600,19 @@ function main(config, profileName) {
           showUpdateModal,
           fetchVersionInfo,
           openSystemUpdateConfirm,
-          executeSystemUpdate
+          executeSystemUpdate,
+          systemSettings,
+          domainInput,
+          testingDns,
+          dnsTestResult,
+          savingDomain,
+          domainGuideTab,
+          hostWithoutPort,
+          publicOrigin,
+          testDnsResolution,
+          saveSystemDomainSettings,
+          clearSystemDomain,
+          loadSystemSettings
         };
       }
     });

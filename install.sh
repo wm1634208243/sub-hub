@@ -448,6 +448,98 @@ backup_data() {
     fi
 }
 
+# 域名反向代理与 HTTPS 证书配置助手
+setup_domain_ssl() {
+    print_banner
+    check_root
+    echo -e "${CYAN}${BOLD}=== 🌐 SubHub 域名绑定与 HTTPS 反向代理配置助手 ===${NC}\n"
+    read -p "请输入您已解析到本机的域名 (如 sub.example.com): " custom_domain
+    if [ -z "$custom_domain" ]; then
+        echo -e "${RED}[错误] 域名不能为空！${NC}"
+        return
+    fi
+    custom_domain=$(echo "$custom_domain" | sed -e 's|^https\?://||' -e 's|/.*$||')
+
+    echo -e "\n请选择反向代理与 HTTPS 证书签发引擎:"
+    echo -e " ${BOLD}1.${NC} ⚡ Caddy (${GREEN}推荐 · 极速 4 行配置 · 80/443 全自动申请与续签 Let's Encrypt 证书${NC})"
+    echo -e " ${BOLD}2.${NC} ☁️  Cloudflare CDN 模式 (${CYAN}无需在服务器安装证书，开启小黄云自动 HTTPS${NC})"
+    echo -e " ${BOLD}3.${NC} 🛡️  Nginx + Certbot (${YELLOW}标准反向代理模板${NC})"
+    read -p "请选择 [1-3, 默认: 1]: " ssl_choice
+    ssl_choice=${ssl_choice:-1}
+
+    case "$ssl_choice" in
+        1)
+            echo -e "\n${YELLOW}正在安装并配置 Caddy 自动化反代引擎...${NC}"
+            detect_os
+            if ! command -v caddy &> /dev/null; then
+                case "$OS" in
+                    ubuntu|debian|raspbian)
+                        apt-get update && apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+                        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+                        curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+                        apt-get update && apt-get install -y caddy
+                        ;;
+                    centos|rhel|rocky|almalinux|fedora)
+                        yum install -y yum-plugin-copr
+                        yum copr enable -y @caddy/caddy
+                        yum install -y caddy
+                        ;;
+                    alpine)
+                        apk add caddy
+                        ;;
+                esac
+            fi
+
+            mkdir -p /etc/caddy
+            cat <<CADDY > /etc/caddy/Caddyfile
+$custom_domain {
+    reverse_proxy 127.0.0.1:3000
+}
+CADDY
+            systemctl enable caddy 2>/dev/null || true
+            systemctl restart caddy 2>/dev/null || true
+            echo -e "\n${GREEN}🎉 Caddy 已配置完成！已自动监听 80/443 并向 Let's Encrypt 申请 SSL 证书！${NC}"
+            echo -e "🌐 您现在可直接通过 HTTPS 访问: ${BOLD}https://${custom_domain}${NC}"
+            ;;
+        2)
+            echo -e "\n${CYAN}☁️ Cloudflare CDN 模式配置说明:${NC}"
+            echo -e "1. 在 Cloudflare DNS 面板添加 A 记录: ${BOLD}${custom_domain}${NC} -> 本机公网 IP"
+            echo -e "2. 开启 ${YELLOW}小黄云代理 (Proxied)${NC}"
+            echo -e "3. 在 SSL/TLS 设置中选择 ${GREEN}Flexible${NC} 或 ${GREEN}Full${NC}"
+            echo -e "4. 登录 SubHub Web 端并在「⚙️ 设置」中填入 ${BOLD}https://${custom_domain}${NC} 保存即可！"
+            ;;
+        3)
+            echo -e "\n${GREEN}Nginx 配置文件参考 (建议保存在 /etc/nginx/conf.d/subhub.conf):${NC}"
+            cat <<NGINX
+server {
+    server_name $custom_domain;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+NGINX
+            echo -e "\n使用 ${BOLD}certbot --nginx -d $custom_domain${NC} 即可一键自动申请 SSL 证书！"
+            ;;
+    esac
+
+    # 同步写入 SubHub 系统配置
+    if [ -d "$INSTALL_DIR/data" ]; then
+        node -e "
+        const fs = require('fs');
+        const file = '$INSTALL_DIR/data/system_settings.json';
+        let s = {};
+        try { s = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
+        s.customDomain = 'https://$custom_domain';
+        s.updatedAt = new Date().toISOString();
+        fs.writeFileSync(file, JSON.stringify(s, null, 2));
+        " 2>/dev/null || true
+    fi
+}
+
 # 彻底卸载
 uninstall_subhub() {
     check_root
@@ -501,17 +593,18 @@ show_menu() {
         echo -e " ${BOLD}1.${NC} 🚀 原生 Node.js + Systemd 极速部署 (${GREEN}推荐 · 极低内存 · 开机自启${NC})"
         echo -e " ${BOLD}2.${NC} 🐳 Docker 容器化一键部署 (${CYAN}隔离免配环境${NC})"
         echo ""
-        echo -e " ${BOLD}[日常运维与服务管理]${NC}"
+        echo -e " ${BOLD}[日常运维与高级配置]${NC}"
         echo -e " ${BOLD}3.${NC} 🔄 一键无损更新 SubHub 至最新版"
         echo -e " ${BOLD}4.${NC} ▶️  启动 SubHub 服务"
         echo -e " ${BOLD}5.${NC} ⏹️  重启 SubHub 服务"
         echo -e " ${BOLD}6.${NC} ⏸️  停止 SubHub 服务"
         echo -e " ${BOLD}7.${NC} 📋 查看实时运行日志"
-        echo -e " ${BOLD}8.${NC} 📦 一键全量数据快照备份 (.tar.gz)"
-        echo -e " ${BOLD}9.${NC} 🗑️  彻底卸载 SubHub"
+        echo -e " ${BOLD}8.${NC} 🌐 域名绑定与 HTTPS 证书配置 (${CYAN}Caddy / Cloudflare / Nginx${NC})"
+        echo -e " ${BOLD}9.${NC} 📦 一键全量数据快照备份 (.tar.gz)"
+        echo -e " ${BOLD}10.${NC} 🗑️  彻底卸载 SubHub"
         echo -e " ${BOLD}0.${NC} 退出脚本"
         echo "----------------------------------------------------------------"
-        read -p "请输入选项 [0-9]: " choice
+        read -p "请输入选项 [0-10]: " choice
         case $choice in
             1) install_native_mode; break ;;
             2) install_docker_mode; break ;;
@@ -520,8 +613,9 @@ show_menu() {
             5) service_control restart; break ;;
             6) service_control stop; break ;;
             7) view_logs; break ;;
-            8) backup_data; break ;;
-            9) uninstall_subhub; break ;;
+            8) setup_domain_ssl; break ;;
+            9) backup_data; break ;;
+            10) uninstall_subhub; break ;;
             0) exit 0 ;;
             *) echo -e "${RED}输入无效，请重新选择${NC}"; sleep 1 ;;
         esac
@@ -538,9 +632,10 @@ if [ -n "$1" ]; then
         restart) service_control restart ;;
         stop) service_control stop ;;
         logs) view_logs ;;
+        domain|ssl) setup_domain_ssl ;;
         backup) backup_data ;;
         uninstall) uninstall_subhub ;;
-        *) echo "用法: $0 {install|docker|update|start|restart|stop|logs|backup|uninstall}" ;;
+        *) echo "用法: $0 {install|docker|update|start|restart|stop|logs|domain|backup|uninstall}" ;;
     esac
 else
     show_menu

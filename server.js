@@ -14,6 +14,7 @@ import { formatNodeName, identifyNodeCountry, prewarmDnsForProxies } from './nod
 import { batchProbeProxies, applyLatencyFilterAndSort } from './latency-tester.js';
 import { exec } from 'child_process';
 import util from 'util';
+import dns from 'dns';
 const execPromise = util.promisify(exec);
 
 const CURRENT_VERSION = '1.0.1';
@@ -44,7 +45,58 @@ const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
 const CONFIGS_DIR = path.join(DATA_DIR, 'configs');
 const OLD_CONFIG  = path.join(DATA_DIR, 'config.json');
 const LOGS_FILE   = path.join(DATA_DIR, 'logs.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'system_settings.json');
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days persistent session
+
+const DEFAULT_SYSTEM_SETTINGS = {
+  customDomain: '',
+  enableHttpsRedirect: false,
+  updatedAt: null
+};
+
+let cachedSystemSettings = { ...DEFAULT_SYSTEM_SETTINGS };
+
+function loadSystemSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
+      cachedSystemSettings = { ...DEFAULT_SYSTEM_SETTINGS, ...data };
+    }
+  } catch (e) {
+    cachedSystemSettings = { ...DEFAULT_SYSTEM_SETTINGS };
+  }
+  return cachedSystemSettings;
+}
+
+async function saveSystemSettings(settings) {
+  try {
+    cachedSystemSettings = {
+      ...cachedSystemSettings,
+      ...settings,
+      updatedAt: new Date().toISOString()
+    };
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    await fs.promises.writeFile(SETTINGS_FILE, JSON.stringify(cachedSystemSettings, null, 2), 'utf-8');
+    return cachedSystemSettings;
+  } catch (e) {
+    console.error('保存系统设置失败:', e);
+    throw e;
+  }
+}
+
+function isCloudflareIp(ip) {
+  if (!ip) return false;
+  const cfPrefixes = [
+    '173.245.', '103.21.', '103.22.', '103.31.', '141.101.', '108.162.', '190.93.',
+    '188.114.', '197.234.', '198.41.', '104.16.', '104.17.', '104.18.', '104.19.',
+    '104.20.', '104.21.', '104.22.', '104.23.', '104.24.', '104.25.', '104.26.',
+    '104.27.', '104.28.', '172.64.', '172.65.', '172.66.', '172.67.', '172.68.',
+    '172.69.', '172.70.', '172.71.', '162.158.', '162.159.', '131.0.72.'
+  ];
+  return cfPrefixes.some(p => ip.startsWith(p));
+}
 
 // ── In-memory stores & persistence ────────────────────────────────────────────
 const activeSessions = new Map(); // token → { username, role, expiresAt }
@@ -270,6 +322,7 @@ async function init() {
   fs.mkdirSync(CONFIGS_DIR, { recursive: true });
   loadSessions();
   loadLogs();
+  loadSystemSettings();
   await migrate();
 
   let users = loadUsers();
@@ -1260,6 +1313,7 @@ app.get('/api/admin/backup/export', authMiddleware, adminOnly, async (req, res) 
         userCount: users.length,
         configCount: Object.keys(configs).length
       },
+      systemSettings: loadSystemSettings(),
       users,
       configs
     };
@@ -1315,6 +1369,10 @@ app.post('/api/admin/backup/restore', authMiddleware, adminOnly, async (req, res
       }
     }
 
+    if (snapshot.systemSettings && typeof snapshot.systemSettings === 'object') {
+      await saveSystemSettings(snapshot.systemSettings);
+    }
+
     res.json({
       success: true,
       restoredUsers: finalUsers.length,
@@ -1323,6 +1381,137 @@ app.post('/api/admin/backup/restore', authMiddleware, adminOnly, async (req, res
     });
   } catch (err) {
     res.status(500).json({ error: '还原系统快照失败: ' + err.message });
+  }
+});
+
+// ── Global System Settings & Custom Domain Engine ───────────────────────────
+
+// Public endpoint to retrieve domain config
+app.get('/api/system/public-settings', (req, res) => {
+  const s = loadSystemSettings();
+  res.json({
+    customDomain: s.customDomain || '',
+    enableHttpsRedirect: !!s.enableHttpsRedirect
+  });
+});
+
+// Admin get settings
+app.get('/api/admin/system/settings', authMiddleware, adminOnly, (req, res) => {
+  res.json(loadSystemSettings());
+});
+
+// Admin update settings
+app.post('/api/admin/system/settings', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { customDomain, enableHttpsRedirect } = req.body;
+    let cleanDomain = '';
+    if (customDomain && typeof customDomain === 'string') {
+      cleanDomain = customDomain.trim().replace(/\/+$/, '');
+    }
+    const updated = await saveSystemSettings({
+      customDomain: cleanDomain,
+      enableHttpsRedirect: !!enableHttpsRedirect
+    });
+    res.json({
+      success: true,
+      message: '系统全局设置已成功保存！',
+      settings: updated
+    });
+  } catch (err) {
+    res.status(500).json({ error: '保存系统设置失败: ' + err.message });
+  }
+});
+
+// Admin test domain DNS resolution
+app.post('/api/admin/system/domain/test', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    let { domain } = req.body;
+    if (!domain || typeof domain !== 'string') {
+      return res.status(400).json({ error: '请提供有效的域名' });
+    }
+
+    // Extract hostname without protocol/path/port
+    let hostname = domain.trim().replace(/^https?:\/\//i, '').split('/')[0].split(':')[0].trim();
+    if (!hostname) {
+      return res.status(400).json({ error: '无效的域名格式' });
+    }
+
+    // 1. Resolve DNS records
+    let resolvedIps = [];
+    try {
+      const records = await dns.promises.lookup(hostname, { all: true });
+      resolvedIps = records.map(r => r.address);
+    } catch (dnsErr) {
+      return res.json({
+        ok: false,
+        domain: hostname,
+        resolvedIps: [],
+        error: `DNS 解析失败: 未找到域名 ${hostname} 的 A/AAAA 解析记录 (${dnsErr.code || dnsErr.message})`
+      });
+    }
+
+    // 2. Fetch server's public IP
+    let serverIp = '';
+    try {
+      const ipRes = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3500) });
+      if (ipRes.ok) {
+        const ipData = await ipRes.json();
+        serverIp = ipData.ip || '';
+      }
+    } catch {
+      try {
+        const ipRes2 = await fetch('https://ifconfig.me/ip', { signal: AbortSignal.timeout(3500) });
+        if (ipRes2.ok) serverIp = (await ipRes2.text()).trim();
+      } catch {}
+    }
+
+    // 3. Analyze match & Cloudflare CDN
+    const hasMatch = serverIp && resolvedIps.includes(serverIp);
+    const hasCloudflare = resolvedIps.some(ip => isCloudflareIp(ip));
+
+    let status = 'unknown';
+    let message = '';
+
+    if (hasMatch) {
+      status = 'direct_match';
+      message = `✅ DNS 校验成功！域名 ${hostname} 已直接精确解析至本机公网 IP (${serverIp})`;
+    } else if (hasCloudflare) {
+      status = 'cloudflare_cdn';
+      message = `☁️ 检测到 Cloudflare CDN 边缘网络（小黄云已开启），域名已成功接入 CDN 保护`;
+    } else if (serverIp) {
+      status = 'ip_mismatch';
+      message = `⚠️ 域名解析 IP [${resolvedIps.join(', ')}] 与当前服务器公网 IP [${serverIp}] 不一致，请确认 DNS A 记录`;
+    } else {
+      status = 'resolved';
+      message = `✅ 域名已成功解析至 [${resolvedIps.join(', ')}]`;
+    }
+
+    // 4. Test HTTP / HTTPS connectivity probe
+    let httpOk = false, httpsOk = false;
+    try {
+      const probeRes = await fetch(`http://${hostname}:${PORT}`, { signal: AbortSignal.timeout(2000) });
+      if (probeRes.status < 500) httpOk = true;
+    } catch {}
+
+    try {
+      const probeHttps = await fetch(`https://${hostname}`, { signal: AbortSignal.timeout(2500) });
+      if (probeHttps.status < 500) httpsOk = true;
+    } catch {}
+
+    res.json({
+      ok: true,
+      domain: hostname,
+      resolvedIps,
+      serverIp,
+      status,
+      hasMatch,
+      hasCloudflare,
+      httpOk,
+      httpsOk,
+      message
+    });
+  } catch (err) {
+    res.status(500).json({ error: '域名探测诊断失败: ' + err.message });
   }
 });
 
