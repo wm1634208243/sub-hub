@@ -410,6 +410,17 @@
               <span class="text-[10px] text-cyan-300 bg-cyan-500/10 px-1.5 py-0.2 rounded border border-cyan-500/20 font-medium">🔑 改密</span>
             </button>
 
+            <!-- 放弃修改按钮 (仅在有未保存修改时展示) -->
+            <button 
+              v-if="isDirty"
+              @click="discardUnsavedChanges" 
+              class="text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 font-medium px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
+              title="放弃当前未保存的修改，恢复到上一次保存的设置"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m0 0l-4-4m4 4l4-4M3 10l4-4m-4 4l4 4"/></svg>
+              <span>放弃修改</span>
+            </button>
+
             <!-- 保存并发布按钮 -->
             <button 
               @click="saveConfig()" 
@@ -6666,6 +6677,13 @@ function main(config, profileName) {
           }
         };
 
+        // 放弃未保存修改并还原至上次保存的配置
+        const discardUnsavedChanges = async () => {
+          if (!confirm('确定放弃当前所有未保存的修改，还原至上次保存的设置吗？')) return;
+          await loadConfig();
+          showToast('已成功还原至修改前设置！');
+        };
+
         // 保存配置 (支持本地 LocalStorage 与云端 AES 加密无缝分支)
         const saveConfig = async (silent = false) => {
           saving.value = true;
@@ -7967,6 +7985,7 @@ function main(config, profileName) {
           login,
           register,
           logout,
+          discardUnsavedChanges,
           saveConfig,
           regenerateToken,
           saveTokenExpiry,
