@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.7",
+            "tag": "v2.0.7",
+            "name": "SubHub v2.0.7 · 优化策略组展示顺序置顶主节点选择",
+            "publishedAt": "2026-08-29T19:07:31.501Z",
+            "highlights": [
+                "🚀 将「节点选择」置于策略组列表首位，符合主流客户端展示习惯",
+                "⚡ 优化自动优选与故障转移子组层级排布",
+                "🎯 保持全链路规则无缝稳定"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.7 发布\n- **策略组排序优化**：将主控「节点选择」策略组提升至最顶部首位展示，方便用户在 Clash 客户端直接快速切换节点；\n- **层级结构优化**：自动优选、故障转移与分流组逻辑排布更清晰。"
+        }),
+        serde_json::json!({
             "version": "2.0.6",
             "tag": "v2.0.6",
             "name": "SubHub v2.0.6 · 补全 applications 规则集提供者并实现 100% 规则无缝启动",
