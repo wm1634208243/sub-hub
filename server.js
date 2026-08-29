@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.0';
+const CURRENT_VERSION = '1.1.1';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2038,6 +2038,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.1',
+    tag: 'v1.1.1',
+    name: 'SubHub v1.1.1 · 弹窗视口自适应、吸顶吸底布局与超长节点列表滚动优化',
+    publishedAt: '2026-08-29T15:45:14.527Z',
+    highlights: ['📐 弹窗高度自适应屏幕 max-h-[90vh] 弹性布局', '📌 顶部标题栏固定吸顶、底部操作栏固定吸底', '📜 中间表单与解析结果支持独立平滑纵向滚动', '✨ 彻底解决多节点弹窗溢出屏幕无法点击保存的样式问题'],
+    changelogZh: `### 📐 弹窗视口自适应与超长节点列表滚动优化
+- **弹窗视口弹性自适应**：修复订阅源添加/编辑弹窗在解析出大量节点（如 60+ 节点）时高度撑爆屏幕导致顶部关闭按钮与底部保存按钮被挤出视口的问题；
+- **固定吸顶与吸底布局**：采用 max-h-[90vh] flex flex-col 结构，标题栏与底部操作栏始终锁定在可视区域，中间表单与节点预览支持独立平滑滚动；
+- **操作体验 100% 保证**：无论节点数量多少，用户都能随时点击「测试解析」、「取消」与「保存订阅源」。`
+  },
   {
     version: '1.1.0',
     tag: 'v1.1.0',

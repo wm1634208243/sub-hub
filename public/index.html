@@ -286,7 +286,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.1.0' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.1.1' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -3816,7 +3816,7 @@
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.1.0' }}
+                      v{{ versionInfo.currentVersion || '1.1.1' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -4042,7 +4042,7 @@
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.1.0' }}
+                v{{ versionInfo.currentVersion || '1.1.1' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -4797,15 +4797,16 @@
 
     <!-- 添加/编辑 订阅源模态框 (Modal) -->
     <div v-if="showSubModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
           <h3 class="text-base font-bold text-white flex items-center gap-2">
             <span>{{ subForm.id ? '✏️ 编辑订阅源' : '➕ 添加上游订阅源' }}</span>
           </h3>
-          <button @click="showSubModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none">&times;</button>
+          <button @click="showSubModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
         </div>
 
-        <form @submit.prevent="saveSubForm" class="space-y-3.5">
+        <form @submit.prevent="saveSubForm" class="flex-1 flex flex-col min-h-0 overflow-hidden mt-3">
+          <div class="flex-1 overflow-y-auto custom-scrollbar pr-1.5 space-y-3.5 py-1">
           <div>
             <label class="text-xs text-slate-400 block mb-1 font-semibold">订阅名称 *</label>
             <input 
@@ -5040,7 +5041,9 @@
             </div>
           </div>
 
-          <div class="flex items-center justify-between pt-2 border-t border-slate-800 gap-2">
+          </div>
+
+          <div class="flex items-center justify-between pt-3 border-t border-slate-800 gap-2 shrink-0 mt-3">
             <button 
               type="button" 
               @click="testSubLink" 
@@ -5475,8 +5478,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.1.0',
-          latestVersion: '1.1.0',
+          currentVersion: '1.1.1',
+          latestVersion: '1.1.1',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
