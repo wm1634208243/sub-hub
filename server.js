@@ -8,7 +8,7 @@ import bcrypt from 'bcryptjs';
 import { rateLimit } from 'express-rate-limit';
 import { compileConfigToJs } from './compiler.js';
 import { aggregateClashYaml, fetchAllUserProxies } from './aggregator.js';
-import { fetchSubscription, clearSubCache } from './subscription-fetcher.js';
+import { fetchSubscription, clearSubCache, isAnnouncementNode } from './subscription-fetcher.js';
 import { convertToBase64, convertToSingBoxJson, convertToSurgeList, detectClientTarget } from './format-converter.js';
 import { formatNodeName, identifyNodeCountry, prewarmDnsForProxies } from './node-renamer.js';
 import { batchProbeProxies, applyLatencyFilterAndSort } from './latency-tester.js';
@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.4';
+const CURRENT_VERSION = '1.1.5';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2040,6 +2040,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.5',
+    tag: 'v1.1.5',
+    name: 'SubHub v1.1.5 · 修复节点透视接口模块导入与纯净节点实时秒级呈现',
+    publishedAt: '2026-08-29T15:58:42.141Z',
+    highlights: ['🐛 修复节点透视接口 isAnnouncementNode 导入缺失引起的 500 错误', '⚡ 点击「查看节点 ▼」即可秒级完整呈现纯净真实节点明细', '🧹 彻底剔除机场公告/流量假节点', '✨ 左右卡片严格像素级等高对齐'],
+    changelogZh: `### 🐛 修复节点透视接口与纯净节点实时呈现
+- **修复透视接口 500 异常**：补全 server.js 中 isAnnouncementNode 函数的引入，彻底解决点击「查看节点」抽屉时提示「暂未解析到有效节点或上游订阅响应异常」的 Bug；
+- **纯净节点秒级呈现**：点击「查看节点 ▼」即可即时加载并展开该订阅源的所有有效节点（已自动过滤 TB、套餐等公告伪节点）；
+- **卡片严格等高对齐**：左右订阅卡片未展开时完全像素级等高齐平。`,
+  },
   {
     version: '1.1.4',
     tag: 'v1.1.4',
