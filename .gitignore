@@ -1,21 +1,19 @@
-# Dependencies
+# Rust build artifacts
+target/
+Cargo.lock
+
+# Dependencies (legacy)
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# User Data & Private Credentials (IMPORTANT: Do NOT commit personal configs to GitHub)
-data/users.json
-data/sessions.json
-data/logs.json
-data/system_settings.json
-data/config.json
-data/config.json.migrated
-data/configs/*.json
-
-# Keep directory structure
-!data/.gitkeep
-!data/configs/.gitkeep
+# User Data & Private Credentials
+config/users.json
+config/user_*.json
+config/*.json
+data/
+!config/.gitkeep
 
 # Environment & OS files
 .env
