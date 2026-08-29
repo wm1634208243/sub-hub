@@ -33,6 +33,21 @@ pub async fn get_versions_handler(
 
     let versions = vec![
         serde_json::json!({
+            "version": "2.0.1",
+            "tag": "v2.0.1",
+            "name": "SubHub v2.0.1 · 新增未保存配置一键放弃回退与全接口深度加固",
+            "publishedAt": "2026-08-29T18:11:16.818Z",
+            "highlights": [
+                "🔄 顶部导航栏新增「放弃修改 / 还原设置」快捷回退按钮",
+                "🔍 完整对齐 42 个 RESTful 接口与多版本中心在线热切换",
+                "🦀 修复正则兼容性异常，加固 Rust Axum 高并发引擎稳定性"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.1 发布\n- **未保存一键放弃回退**：表单发生变动时智能浮现「放弃修改」按钮，一秒还原至最后保存的配置；\n- **多版本发布中心在线升级**：全面支持在 Web 端一键平滑热切换至最新稳定版或历史版本；\n- **全链路接口与正则加固**：深度优化节点清洗匹配性能与数据兼容性。",
+            "isLatest": true,
+            "isCurrent": true,
+            "actionType": "current"
+        }),
+        serde_json::json!({
             "version": "2.0.0",
             "tag": "v2.0.0",
             "name": "SubHub v2.0.0 · 纯正 100% Rust 原生单二进制架构里程碑发布",
@@ -45,9 +60,9 @@ pub async fn get_versions_handler(
                 "🔄 现有用户数据、订阅配置与客户端直链 100% 完美无缝平滑兼容"
             ],
             "changelogZh": "### 🦀 SubHub v2.0.0 · 纯正 100% Rust 原生单二进制架构里程碑发布\n- **全架构 100% 纯 Rust 原生重构**：全面使用 Rust (Tokio + Axum) 原生重写所有核心引擎与 RESTful API，编译为单一独立可执行文件，彻底摆脱 Node.js、npm 及庞大 node_modules 依赖；\n- **极致低内存与超高性能**：常驻内存从 ~40MB 骤降至 3MB~5MB，接口延迟压至微秒级；\n- **100% 零感知平滑兼容**：完美兼容原有 config/ 目录下的所有用户密码、订阅源与规则数据，客户端订阅链接零修改；\n- **一键全自动热升级**：用户只需一行命令即可在 2~3 秒内平滑完成向 Rust 架构的热替换。",
-            "isLatest": true,
-            "isCurrent": true,
-            "actionType": "current"
+            "isLatest": false,
+            "isCurrent": false,
+            "actionType": "rollback"
         }),
         serde_json::json!({
             "version": "1.2.1",
