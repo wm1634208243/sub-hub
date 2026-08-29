@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.6';
+const CURRENT_VERSION = '1.1.7';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2042,6 +2042,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.7',
+    tag: 'v1.1.7',
+    name: 'SubHub v1.1.7 · 独立单拎故障转移与自动优选顶层组、修复订阅源内部误走全局优选 Bug',
+    publishedAt: '2026-08-29T16:13:31.814Z',
+    highlights: ['🛡️ 「故障转移」与「自动优选」单拎为独立顶层策略组卡片', '🎯 彻底修复选中特定订阅源后仍跳走全局自动优选的路由 Bug', '🚀 选中订阅源 100% 严格走该源自身的节点与路由', '✨ 策略组层级清晰直观，各场景分流灵活可控'],
+    changelogZh: `### 🛡️ 独立单拎故障转移组与修复订阅源内部路由
+- **独立单拎「故障转移」与「自动优选」**：将「🛡️ 故障转移」和「⚡ 自动优选」独立外显为顶层策略组卡片，告别全部混在节点选择里的杂乱，方便直观监控和独立选择；
+- **彻底修复选中订阅源仍走全局自动优选的 Bug**：修复上游订阅专属组内部默认首项误注入了全局自动优选导致用户在节点选择里明明指定了某个订阅源（如 DMIT）却依然跳到全局其他机场（如新加坡）的错误；
+- **精准专源专线**：现在选中任何一个上游订阅源，将 100% 严格在该订阅源的节点内路由！`
+  },
   {
     version: '1.1.6',
     tag: 'v1.1.6',

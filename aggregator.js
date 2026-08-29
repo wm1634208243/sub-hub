@@ -234,24 +234,22 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     proxies: [...masterSelectorProxies]
   });
 
-  // 2. ⚡ 自动优选 (全部源) - 标记 hidden: true 隐藏独立大卡片，内嵌在节点选择与各场景中生效
+  // 2. ⚡ 自动优选 (全部源) - 独立顶层卡片，实时测速自动切换最低延迟节点
   proxyGroups.push({
     name: '⚡ 自动优选 (全部源)',
     type: 'url-test',
     url: 'http://www.gstatic.com/generate_204',
     interval: 300,
     tolerance: 50,
-    hidden: true,
     proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
   });
 
-  // 3. 🛡️ 故障转移 (全部源) - 标记 hidden: true 隐藏独立大卡片
+  // 3. 🛡️ 故障转移 (全部源) - 独立顶层卡片，主节点断连时自动顺位切换
   proxyGroups.push({
     name: '🛡️ 故障转移 (全部源)',
     type: 'fallback',
     url: 'http://www.gstatic.com/generate_204',
     interval: 300,
-    hidden: true,
     proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
   });
 
@@ -332,13 +330,13 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     });
   }
 
-  // 11. 独立上游订阅专属组 (每个上游源一个独立分组) - 标记 hidden: true
+  // 11. 独立上游订阅专属组 (每个上游源一个独立分组) - 严格仅包含该订阅自身节点
   activeSubGroupMap.forEach(sg => {
     proxyGroups.push({
       name: sg.name,
       type: 'select',
       hidden: true,
-      proxies: ['⚡ 自动优选 (全部源)', ...sg.nodeNames, 'DIRECT']
+      proxies: [...sg.nodeNames, 'DIRECT']
     });
   });
 
