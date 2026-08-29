@@ -190,17 +190,10 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
   // 2. Build Proxy Groups (统一主控架构 · 自动优选整合至节点选择)
   const proxyGroups = [];
 
-  // 节点选择主控内部可选的所有项目 (默认第 1 项为 ⚡ 自动优选，同时提供全部与各地区的自动优选与故障转移)
-  const regionalAutoAndFallback = [];
-  regionGroupMap.forEach(rg => {
-    regionalAutoAndFallback.push(rg.name);
-    regionalAutoAndFallback.push(rg.fallbackName);
-  });
-
+  // 节点选择主控内部可选的所有项目 (仅保留全局自动优选、地区自动优选、订阅源与具体节点，剔除故障转移保证清爽)
   const masterSelectorProxies = [
     '⚡ 自动优选 (全部源)',
-    '🛡️ 故障转移 (全部源)',
-    ...regionalAutoAndFallback,
+    ...regionGroupMap.map(rg => rg.name),
     ...activeSubGroupMap.map(sg => sg.name),
     ...allNodeNames,
     'DIRECT'

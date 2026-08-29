@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.7';
+const CURRENT_VERSION = '1.1.8';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2042,6 +2042,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.8',
+    tag: 'v1.1.8',
+    name: 'SubHub v1.1.8 · 节点选择内部剔除故障转移冗余项、保持主控纯净清爽',
+    publishedAt: '2026-08-29T16:20:07.914Z',
+    highlights: ['🧹 彻底从「节点选择」内部移除「故障转移」冗余选项', '✨ 节点选择仅保留自动优选、地区优选、订阅源与具体节点', '🛡️ 故障转移由顶层独立卡片统一管理，结构清晰清爽', '🎯 各分流场景仍支持一键切换至故障转移'],
+    changelogZh: `### 🧹 节点选择内部结构纯净化
+- **彻底从节点选择内部移除故障转移**：从「🚀 节点选择」内部列表中移除「🛡️ 故障转移（全部源）」以及所有地区的「故障转移」条目，彻底解决列表臃肿混乱的问题；
+- **纯净主控架构**：「🚀 节点选择」仅包含全局自动优选、各地区自动优选、订阅源与具体节点；
+- **顶层独立管理**：「🛡️ 故障转移」作为独立的顶层策略组卡片，职责分明清晰。`
+  },
   {
     version: '1.1.7',
     tag: 'v1.1.7',
