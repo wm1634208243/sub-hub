@@ -1,0 +1,231 @@
+use crate::engine::protocol_parser::parse_node_link;
+use crate::engine::renamer::is_announcement_node;
+use crate::models::ProxyNode;
+use base64::Engine;
+use reqwest::Client;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
+
+#[derive(Debug, Clone)]
+pub struct FetchResult {
+    pub url: String,
+    pub prefix: String,
+    pub nodes: Vec<ProxyNode>,
+    pub user_info: Option<serde_json::Value>,
+    pub source_type: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone)]
+struct CacheEntry {
+    result: FetchResult,
+    cached_at: Instant,
+}
+
+pub struct SubscriptionFetcher {
+    client: Client,
+    cache: Arc<RwLock<HashMap<String, CacheEntry>>>,
+}
+
+impl SubscriptionFetcher {
+    pub fn new() -> Self {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(12))
+            .danger_accept_invalid_certs(true)
+            .user_agent("ClashMeta/v1.18.0 (Clash.Meta; Mihomo; SubHub)")
+            .build()
+            .unwrap_or_default();
+
+        Self {
+            client,
+            cache: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    pub async fn clear_cache(&self, url: Option<&str>) {
+        let mut map = self.cache.write().await;
+        if let Some(u) = url {
+            map.remove(u);
+        } else {
+            map.clear();
+        }
+    }
+
+    pub async fn fetch(&self, sub_url: &str, prefix: &str, force_refresh: bool) -> Result<FetchResult, String> {
+        let url = sub_url.trim();
+        if url.is_empty() {
+            return Err("无效的订阅链接".into());
+        }
+
+        if !force_refresh {
+            let map = self.cache.read().await;
+            if let Some(entry) = map.get(url) {
+                if entry.cached_at.elapsed() < Duration::from_secs(600) {
+                    let mut res = entry.result.clone();
+                    res.prefix = prefix.to_string();
+                    return Ok(res);
+                }
+            }
+        }
+
+        let resp = self.client.get(url).send().await.map_err(|e| format!("连接上游订阅超时或网络错误: {}", e))?;
+        if !resp.status().is_success() {
+            return Err(format!("上游订阅响应错误 (HTTP {})", resp.status()));
+        }
+
+        let headers = resp.headers().clone();
+        let userinfo_header = headers
+            .get("subscription-userinfo")
+            .or_else(|| headers.get("Subscription-Userinfo"))
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default();
+
+        let user_info = parse_user_info(userinfo_header);
+        let body_text = resp.text().await.map_err(|e| format!("读取订阅响应正文失败: {}", e))?;
+        let nodes = parse_subscription_content(&body_text, prefix);
+        let source_type = detect_source_type(url, &body_text, &nodes);
+
+        let result = FetchResult {
+            url: url.to_string(),
+            prefix: prefix.to_string(),
+            nodes,
+            user_info,
+            source_type,
+            updated_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        {
+            let mut map = self.cache.write().await;
+            map.insert(url.to_string(), CacheEntry {
+                result: result.clone(),
+                cached_at: Instant::now(),
+            });
+        }
+
+        Ok(result)
+    }
+}
+
+pub fn parse_user_info(header: &str) -> Option<serde_json::Value> {
+    if header.trim().is_empty() {
+        return None;
+    }
+
+    let mut upload: u64 = 0;
+    let mut download: u64 = 0;
+    let mut total: u64 = 0;
+    let mut expire: Option<u64> = None;
+
+    for part in header.split(';') {
+        if let Some((k, v)) = part.split_once('=') {
+            let key = k.trim().to_lowercase();
+            let val = v.trim();
+            if let Ok(num) = val.parse::<u64>() {
+                match key.as_str() {
+                    "upload" => upload = num,
+                    "download" => download = num,
+                    "total" => total = num,
+                    "expire" => expire = Some(num * 1000),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    let used = upload + download;
+    let remaining = if total > used { total - used } else { 0 };
+    let percent_used = if total > 0 { ((used as f64 / total as f64) * 100.0).round() as u32 } else { 0 };
+
+    Some(serde_json::json!({
+        "upload": upload,
+        "download": download,
+        "total": total,
+        "used": used,
+        "remaining": remaining,
+        "percentUsed": percent_used,
+        "expire": expire
+    }))
+}
+
+pub fn parse_subscription_content(content: &str, prefix: &str) -> Vec<ProxyNode> {
+    let trimmed = content.trim();
+    if trimmed.is_empty() {
+        return vec![];
+    }
+
+    // 1. Try parse as Clash YAML
+    if trimmed.contains("proxies:") || trimmed.starts_with("port:") || trimmed.starts_with("mixed-port:") {
+        if let Ok(val) = serde_yaml::from_str::<serde_yaml::Value>(trimmed) {
+            if let Some(proxies_arr) = val.get("proxies").and_then(|p| p.as_sequence()) {
+                let mut nodes = Vec::new();
+                for item in proxies_arr {
+                    if let Ok(mut node) = serde_yaml::from_value::<ProxyNode>(item.clone()) {
+                        if !is_announcement_node(&node.name, &node.server, node.port) {
+                            if !prefix.is_empty() {
+                                node.name = format!("[{}] {}", prefix, node.name);
+                            }
+                            nodes.push(node);
+                        }
+                    }
+                }
+                if !nodes.is_empty() {
+                    return nodes;
+                }
+            }
+        }
+    }
+
+    // 2. Try Base64 decoding
+    let mut target_text = trimmed.to_string();
+    let clean_b64 = trimmed.replace(&['\r', '\n', ' ', '\t'][..], "");
+    if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&clean_b64) {
+        if let Ok(decoded_str) = String::from_utf8(decoded) {
+            if decoded_str.contains("://") || decoded_str.contains("vmess://") {
+                target_text = decoded_str;
+            }
+        }
+    }
+
+    let mut nodes = Vec::new();
+    for line in target_text.lines() {
+        let l = line.trim();
+        if !l.is_empty() {
+            if let Some(node) = parse_node_link(l, prefix) {
+                if !is_announcement_node(&node.name, &node.server, node.port) {
+                    nodes.push(node);
+                }
+            }
+        }
+    }
+
+    nodes
+}
+
+pub fn detect_source_type(sub_url: &str, body_text: &str, nodes: &[ProxyNode]) -> String {
+    let url = sub_url.to_lowercase();
+    if url.contains(":2096") || url.contains(":2053") || url.contains(":54321") || url.contains("/sub/") || url.contains("/clash/") || url.contains("/xui") || url.contains("3x-ui") {
+        return "3X-UI / X-UI".into();
+    }
+    if url.contains("v2board") || url.contains("/api/v1/client/subscribe") || url.contains("sspanel") || url.contains("mod_sub") {
+        return "商业机场 (V2board/SSPanel)".into();
+    }
+    if url.contains("github.com") || url.contains("raw.githubusercontent.com") || url.contains("gitlab.com") {
+        return "GitHub 托管源".into();
+    }
+    if url.contains("sub?target=") || url.contains("subconverter") {
+        return "Subconverter 转换".into();
+    }
+
+    let trimmed = body_text.trim();
+    if trimmed.starts_with("proxies:") || trimmed.contains("proxy-groups:") || trimmed.starts_with("port:") {
+        return "Clash YAML".into();
+    }
+
+    if let Some(first) = nodes.first() {
+        return format!("{} 节点池", first.node_type.to_uppercase());
+    }
+
+    "标准代理订阅".into()
+}

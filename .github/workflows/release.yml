@@ -1,0 +1,71 @@
+name: Rust Release CI/CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Binary (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            binary_name: subhub-linux-amd64
+            use_cross: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            binary_name: subhub-linux-arm64
+            use_cross: true
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            binary_name: subhub-darwin-arm64
+            use_cross: false
+          - os: macos-13
+            target: x86_64-apple-darwin
+            binary_name: subhub-darwin-amd64
+            use_cross: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl-tools
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build Binary (Standard Cargo)
+        if: matrix.use_cross == false
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/subhub ${{ matrix.binary_name }}
+          chmod +x ${{ matrix.binary_name }}
+
+      - name: Build Binary (Cross)
+        if: matrix.use_cross == true
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+          cross build --release --target ${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/subhub ${{ matrix.binary_name }}
+          chmod +x ${{ matrix.binary_name }}
+
+      - name: Upload Binary to Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ${{ matrix.binary_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
