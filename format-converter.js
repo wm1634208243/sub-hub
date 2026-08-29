@@ -336,11 +336,11 @@ export function convertToSingBoxJson(proxies, userConfig = {}) {
     // 4. 🎬 国际流媒体
     if (userConfig.enableMediaGroup !== false) {
       allOutbounds.push({
-        type: 'selector',
-        tag: '🎬 国际流媒体',
-        outbounds: ['⚡ 自动优选 (全部源)', '🚀 节点选择', ...nodeTags, 'DIRECT'],
-        default: '⚡ 自动优选 (全部源)'
-      });
+      type: 'selector',
+      tag: '🎬 国际流媒体',
+      outbounds: ['🚀 节点选择', '⚡ 自动优选 (全部源)', ...nodeTags, 'DIRECT'],
+      default: '🚀 节点选择'
+    });
     }
 
     // 5. 📲 Telegram 消息

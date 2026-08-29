@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.8';
+const CURRENT_VERSION = '1.0.9';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1997,6 +1997,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.0.9',
+    tag: 'v1.0.9',
+    name: 'SubHub v1.0.9 · 统一主控分流架构、自动优选深度内嵌与地区智能测速组',
+    publishedAt: '2026-08-29T15:30:53.266Z',
+    highlights: ['🎯 统一主控分流架构 (所有场景规则统一默认跟随「节点选择」)', '⚡ 自动优选深度内嵌至「节点选择」中并隐藏冗余独立卡片', '🌍 智能国家/地区自动测速优选组 (香港/日本/美国/新加坡自动)', '✨ 彻底解决策略组割裂与客户端大卡片冗余问题'],
+    changelogZh: `### 🎯 统一主控分流架构与自动优选深度内嵌
+- **统一主控分流架构**：所有分流场景（🤖 AI 专线、🎬 国际流媒体、📲 Telegram、🎮 游戏、🍎 Apple、🐟 漏网之鱼）统一 100% 默认指向「🚀 节点选择」，彻底解决过去部分场景默认硬锁 URLTest 导致用户修改主控节点无法全局跟随的问题；
+- **自动优选深度内嵌**：将 ⚡ 自动优选 (全部源) 与 🛡️ 故障转移 (全部源) 作为默认第 1 项深度整合内嵌进「🚀 节点选择」中，在支持的客户端隐藏冗余顶层独立卡片，主界面清爽高级；
+- **智能国家/地区自动优选组**：自动分析所有节点中的国家地区标记，自动生成 🇭🇰 香港自动、🇯🇵 日本自动、🇺🇸 美国自动、🇸🇬 新加坡自动 地区测速组并一并嵌入「🚀 节点选择」中，支持在主控或单个场景中按国别秒级选速。`
+  },
   {
     version: '1.0.8',
     tag: 'v1.0.8',

@@ -8,7 +8,7 @@
 import YAML from 'yaml';
 import { fetchSubscription } from './subscription-fetcher.js';
 import { PRESET_SCENARIOS } from './presets.js';
-import { formatNodeName, prewarmDnsForProxies } from './node-renamer.js';
+import { formatNodeName, prewarmDnsForProxies, REGION_FLAGS } from './node-renamer.js';
 import { batchProbeProxies, applyLatencyFilterAndSort } from './latency-tester.js';
 
 export async function aggregateClashYaml(userConfig, clientUa = '') {
@@ -158,13 +158,41 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
   const allNodeNames = activeProxies.map(p => p.name);
   const mainProxyGroup = customProxyGroupName || '🚀 节点选择';
 
-  // 2. Build Proxy Groups
+  // 1.6 提取国家/地区优选组 (香港/日本/美国/新加坡等)
+  const regionGroupMap = [];
+  if (Array.isArray(REGION_FLAGS)) {
+    for (const reg of REGION_FLAGS) {
+      const matched = allNodeNames.filter(name => reg.regex.test(name));
+      if (matched.length > 0) {
+        regionGroupMap.push({
+          name: `${reg.flag} ${reg.name}自动`,
+          flag: reg.flag,
+          regionName: reg.name,
+          nodeNames: matched
+        });
+      }
+    }
+  }
+
+  // 2. Build Proxy Groups (统一主控架构 · 自动优选整合至节点选择)
   const proxyGroups = [];
 
-  // Core Selector Options
-  const standardProxies = [
+  // 节点选择主控内部可选的所有项目 (默认第 1 项为 ⚡ 自动优选)
+  const masterSelectorProxies = [
     '⚡ 自动优选 (全部源)',
     '🛡️ 故障转移 (全部源)',
+    ...regionGroupMap.map(rg => rg.name),
+    ...activeSubGroupMap.map(sg => sg.name),
+    ...allNodeNames,
+    'DIRECT'
+  ].filter((v, i, arr) => arr.indexOf(v) === i);
+
+  // 所有分流场景统一默认以 [🚀 节点选择] 为第 1 项，保证全局一呼百应
+  const scenarioProxies = [
+    mainProxyGroup,
+    '⚡ 自动优选 (全部源)',
+    '🛡️ 故障转移 (全部源)',
+    ...regionGroupMap.map(rg => rg.name),
     ...activeSubGroupMap.map(sg => sg.name),
     ...allNodeNames,
     'DIRECT'
@@ -175,73 +203,80 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     mainProxyGroup,
     '⚡ 自动优选 (全部源)',
     '🛡️ 故障转移 (全部源)',
+    ...regionGroupMap.map(rg => rg.name),
     ...activeSubGroupMap.map(sg => sg.name),
     ...allNodeNames
   ].filter((v, i, arr) => arr.indexOf(v) === i);
 
-  const autoFirstProxies = [
-    '⚡ 自动优选 (全部源)',
-    mainProxyGroup,
-    '🛡️ 故障转移 (全部源)',
-    ...subGroupMap.map(sg => sg.name),
-    ...allNodeNames,
-    'DIRECT'
-  ].filter((v, i, arr) => arr.indexOf(v) === i);
-
-  // 1. 🚀 节点选择 (主控总选)
+  // 1. 🚀 节点选择 (主控总选 · 完美整合全局自动优选、地区自动与全部节点)
   proxyGroups.push({
     name: mainProxyGroup,
     type: 'select',
-    proxies: [...standardProxies]
+    proxies: [...masterSelectorProxies]
   });
 
-  // 2. ⚡ 自动优选 (全部源)
+  // 2. ⚡ 自动优选 (全部源) - 标记 hidden: true 隐藏独立大卡片，内嵌在节点选择与各场景中生效
   proxyGroups.push({
     name: '⚡ 自动优选 (全部源)',
     type: 'url-test',
     url: 'http://www.gstatic.com/generate_204',
     interval: 300,
     tolerance: 50,
+    hidden: true,
     proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
   });
 
-  // 3. 🛡️ 故障转移 (全部源)
+  // 3. 🛡️ 故障转移 (全部源) - 标记 hidden: true 隐藏独立大卡片
   proxyGroups.push({
     name: '🛡️ 故障转移 (全部源)',
     type: 'fallback',
     url: 'http://www.gstatic.com/generate_204',
     interval: 300,
+    hidden: true,
     proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
   });
 
-  // 4. 🤖 AI 专线 (ChatGPT / Claude / Gemini)
+  // 4. 国家/地区自动优选组 (香港/日本/美国/新加坡自动优选) - 标记 hidden: true
+  regionGroupMap.forEach(rg => {
+    proxyGroups.push({
+      name: rg.name,
+      type: 'url-test',
+      url: 'http://www.gstatic.com/generate_204',
+      interval: 300,
+      tolerance: 50,
+      hidden: true,
+      proxies: rg.nodeNames
+    });
+  });
+
+  // 5. 🤖 AI 专线 (ChatGPT / Claude / Gemini) -> 统一默认跟随 🚀 节点选择
   if (enableAiGroup !== false) {
     proxyGroups.push({
       name: '🤖 AI 专线',
       type: 'select',
-      proxies: [mainProxyGroup, '⚡ 自动优选 (全部源)', '🛡️ 故障转移 (全部源)', ...activeSubGroupMap.map(sg => sg.name), ...allNodeNames, 'DIRECT'].filter((v, i, arr) => arr.indexOf(v) === i)
+      proxies: [...scenarioProxies]
     });
   }
 
-  // 5. 🎬 国际流媒体 (YouTube / Netflix / Disney+)
+  // 6. 🎬 国际流媒体 (YouTube / Netflix / Disney+) -> 统一默认跟随 🚀 节点选择
   if (enableMediaGroup !== false) {
     proxyGroups.push({
       name: '🎬 国际流媒体',
       type: 'select',
-      proxies: [...autoFirstProxies]
+      proxies: [...scenarioProxies]
     });
   }
 
-  // 6. 📲 Telegram 消息
+  // 7. 📲 Telegram 消息 -> 统一默认跟随 🚀 节点选择
   if (enableTelegramGroup !== false) {
     proxyGroups.push({
       name: '📲 Telegram',
       type: 'select',
-      proxies: [...standardProxies]
+      proxies: [...scenarioProxies]
     });
   }
 
-  // 7. 🎮 游戏平台 (Steam / Epic / PlayStation)
+  // 8. 🎮 游戏平台 -> 默认 DIRECT 或 🚀 节点选择
   if (enableGameGroup !== false) {
     proxyGroups.push({
       name: '🎮 游戏平台',
@@ -250,7 +285,7 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     });
   }
 
-  // 8. 🍎 Apple / 微软服务
+  // 9. 🍎 Apple / 微软服务 -> 默认 DIRECT 或 🚀 节点选择
   if (enableAppleGroup !== false) {
     proxyGroups.push({
       name: '🍎 Apple / 微软',
@@ -259,20 +294,21 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     });
   }
 
-  // 9. 🐟 漏网之鱼 (兜底组)
+  // 10. 🐟 漏网之鱼 (兜底组) -> 默认根据 fallbackRule 设定
   if (enableFinalGroup !== false) {
     proxyGroups.push({
       name: '🐟 漏网之鱼',
       type: 'select',
-      proxies: fallbackRule === 'DIRECT' ? [...directFirstProxies] : [...standardProxies]
+      proxies: fallbackRule === 'DIRECT' ? [...directFirstProxies] : [...scenarioProxies]
     });
   }
 
-  // 10. 独立上游订阅专属组 (每个上游源一个独立分组)
+  // 11. 独立上游订阅专属组 (每个上游源一个独立分组) - 标记 hidden: true
   activeSubGroupMap.forEach(sg => {
     proxyGroups.push({
       name: sg.name,
       type: 'select',
+      hidden: true,
       proxies: ['⚡ 自动优选 (全部源)', ...sg.nodeNames, 'DIRECT']
     });
   });
