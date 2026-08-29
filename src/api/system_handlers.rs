@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.4",
+            "tag": "v2.0.4",
+            "name": "SubHub v2.0.4 · 修复 Clash 策略组格式异常与审计日志全量记录",
+            "publishedAt": "2026-08-29T18:40:29.872Z",
+            "highlights": [
+                "🛡️ 修复 Clash 启动报错 proxy group format error：严格规范叶子策略组拓扑顺序与 RULE-SET 语法",
+                "📋 完整恢复平台访问与审计日志：实时记录客户端订阅拉取、配置发布与安全事件",
+                "✨ 节点名称全局严格去重与订阅映射精准同步"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.4 发布\n- **修复 Clash 策略组格式异常**：优化 Clash YAML 中子策略组（订阅源分组、地区优选组、主选择组）的声明拓扑顺序，确保所有被引用的组预先注册；修复 Loyalsoldier RULE-SET 语法；\n- **全链路访问审计日志持久化**：客户端拉取订阅、Web 规则保存发布、Token 重置等所有关键操作即时记录并持久化保存至 access_logs.json，可在 Web 端「日志」面板随时查看与一键清空。"
+        }),
+        serde_json::json!({
             "version": "2.0.3",
             "tag": "v2.0.3",
             "name": "SubHub v2.0.3 · 单节点订阅源智能精简与策略组冗余消除",

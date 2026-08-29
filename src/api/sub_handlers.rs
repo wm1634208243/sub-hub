@@ -1,5 +1,5 @@
 use crate::api::auth_handlers::AppState;
-use crate::api::config_handlers::load_user_config;
+use crate::api::config_handlers::{load_user_config, record_access_log};
 use crate::engine::aggregator::aggregate_clash_yaml;
 use crate::engine::format_converter::{convert_to_base64, convert_to_singbox_json, convert_to_surge_list, detect_client_target};
 use axum::{
@@ -20,6 +20,13 @@ pub async fn unified_sub_handler(
     headers: HeaderMap,
     Query(query): Query<SubQuery>,
 ) -> Response {
+    let ua = headers.get("user-agent").and_then(|v| v.to_str().ok()).unwrap_or_default();
+    let ip = headers.get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim())
+        .or_else(|| headers.get("x-real-ip").and_then(|v| v.to_str().ok()))
+        .unwrap_or("127.0.0.1");
+
     let token = query.token.or_else(|| {
         headers.get("authorization")
             .and_then(|v| v.to_str().ok())
@@ -29,6 +36,7 @@ pub async fn unified_sub_handler(
     let token = match token {
         Some(t) if !t.is_empty() => t,
         _ => {
+            record_access_log(&state.config_dir, "admin", ip, ua, "🌐 订阅请求", 401, "Token 缺失被拦截").await;
             return (StatusCode::UNAUTHORIZED, "Token 缺失").into_response();
         }
     };
@@ -79,18 +87,21 @@ pub async fn unified_sub_handler(
     let cfg = match matched_cfg {
         Some(c) => c,
         None => {
+            record_access_log(&state.config_dir, "admin", ip, ua, "🌐 订阅请求", 401, "无效 Token 拒绝访问").await;
             return (StatusCode::UNAUTHORIZED, "无效的订阅 Token").into_response();
         }
     };
 
-    if let Some(user) = matched_user {
+    let username = matched_user.as_ref().map(|u| u.username.as_str()).unwrap_or("admin");
+
+    if let Some(user) = &matched_user {
         if user.disabled.unwrap_or(false) {
+            record_access_log(&state.config_dir, username, ip, ua, "🌐 订阅请求", 403, "账号已被禁用，暂停下发").await;
             return (StatusCode::FORBIDDEN, "该账号已被禁用，订阅已暂停下发").into_response();
         }
     }
 
     // Determine target format
-    let ua = headers.get("user-agent").and_then(|v| v.to_str().ok()).unwrap_or_default();
     let target = query.target.as_deref().unwrap_or_else(|| detect_client_target(ua));
 
     match aggregate_clash_yaml(&cfg, &state.fetcher).await {
@@ -145,9 +156,28 @@ pub async fn unified_sub_handler(
                 }
             }
 
+            // Record successful access log
+            let type_label = match target {
+                "singbox" => "📦 Sing-Box 原生 JSON",
+                "surge" => "⚡ Surge 策略列表",
+                "base64" => "🔗 Base64 单节点列表",
+                _ => "🌟 Clash YAML 订阅",
+            };
+
+            record_access_log(
+                &state.config_dir,
+                username,
+                ip,
+                ua,
+                type_label,
+                200,
+                &format!("成功下发 {} 个聚合节点", agg.total_nodes),
+            ).await;
+
             res
         }
         Err(e) => {
+            record_access_log(&state.config_dir, username, ip, ua, "🌐 订阅构建", 500, &format!("生成订阅失败: {}", e)).await;
             (StatusCode::INTERNAL_SERVER_ERROR, format!("生成订阅失败: {}", e)).into_response()
         }
     }

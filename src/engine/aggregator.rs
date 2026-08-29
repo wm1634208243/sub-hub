@@ -23,6 +23,8 @@ pub async fn aggregate_clash_yaml(
     let mut agg_total: u64 = 0;
     let mut min_expire: Option<u64> = None;
 
+    let mut seen_names: HashMap<String, usize> = HashMap::new();
+
     for sub in &config.subscriptions {
         if !sub.enabled || sub.url.is_empty() {
             continue;
@@ -45,7 +47,7 @@ pub async fn aggregate_clash_yaml(
 
                 let mut current_sub_nodes = Vec::new();
                 for mut node in res.nodes {
-                    let formatted = format_node_name(
+                    let mut formatted = format_node_name(
                         &node.name,
                         &node.server,
                         config.enable_auto_flags,
@@ -53,11 +55,21 @@ pub async fn aggregate_clash_yaml(
                         &config.custom_rename_rules,
                         sub.default_region.as_deref(),
                     );
+
+                    // Deduplicate names strictly
+                    if let Some(count) = seen_names.get_mut(&formatted) {
+                        *count += 1;
+                        formatted = format!("{} ({})", formatted, *count);
+                    } else {
+                        seen_names.insert(formatted.clone(), 1);
+                    }
+
                     node.name = formatted.clone();
                     current_sub_nodes.push(formatted);
                     all_proxies.push(node);
                 }
 
+                // Optimization: only create sub-group if sub has more than 1 node
                 if current_sub_nodes.len() > 1 {
                     let sub_group_name = format!("📦 订阅源 · {}", sub.name);
                     sub_group_map.push((sub_group_name, current_sub_nodes));
@@ -69,21 +81,7 @@ pub async fn aggregate_clash_yaml(
         }
     }
 
-    // De-duplicate node names to ensure valid Clash YAML
-    let mut seen_names = HashSet::new();
-    let mut active_proxies = Vec::new();
-    for mut p in all_proxies {
-        let mut unique_name = p.name.clone();
-        let mut counter = 2;
-        while seen_names.contains(&unique_name) {
-            unique_name = format!("{} ({})", p.name, counter);
-            counter += 1;
-        }
-        seen_names.insert(unique_name.clone());
-        p.name = unique_name;
-        active_proxies.push(p);
-    }
-
+    let active_proxies = all_proxies;
     let all_node_names: Vec<String> = active_proxies.iter().map(|p| p.name.clone()).collect();
     let main_proxy_group = config.custom_proxy_group_name.as_deref().unwrap_or("🚀 节点选择");
 
@@ -148,53 +146,22 @@ pub async fn aggregate_clash_yaml(
         vec!["DIRECT".into()]
     };
 
-    // 3. Construct Proxy Groups
+    // 3. Construct Proxy Groups in topological order (Leaf groups defined first!)
     let mut proxy_groups: Vec<serde_json::Value> = Vec::new();
 
-    // masterSelectorProxies for 🚀 节点选择
-    let mut master_selector_proxies = Vec::new();
-    master_selector_proxies.push("⚡ 自动优选 (全部源)".to_string());
-    for (auto_name, _, _) in &region_groups {
-        master_selector_proxies.push(auto_name.clone());
+    // 3.1 Sub-specific source groups (defined first so they are available in parent groups)
+    for (sg_name, node_names) in &sub_group_map {
+        let mut sub_nodes = node_names.clone();
+        sub_nodes.push("DIRECT".to_string());
+        proxy_groups.push(serde_json::json!({
+            "name": sg_name,
+            "type": "select",
+            "hidden": true,
+            "proxies": sub_nodes
+        }));
     }
-    for (sg_name, _) in &sub_group_map {
-        master_selector_proxies.push(sg_name.clone());
-    }
-    for name in &all_node_names {
-        master_selector_proxies.push(name.clone());
-    }
-    master_selector_proxies.push("DIRECT".to_string());
-    master_selector_proxies.dedup();
 
-    // 1. 🚀 节点选择
-    proxy_groups.push(serde_json::json!({
-        "name": main_proxy_group,
-        "type": "select",
-        "proxies": master_selector_proxies
-    }));
-
-    // 2. ⚡ 自动优选 (全部源)
-    proxy_groups.push(serde_json::json!({
-        "name": "⚡ 自动优选 (全部源)",
-        "type": "url-test",
-        "url": "http://www.gstatic.com/generate_204",
-        "interval": 300,
-        "tolerance": 50,
-        "lazy": true,
-        "proxies": final_auto_test_proxies
-    }));
-
-    // 3. 🛡️ 故障转移 (全部源)
-    proxy_groups.push(serde_json::json!({
-        "name": "🛡️ 故障转移 (全部源)",
-        "type": "fallback",
-        "url": "http://www.gstatic.com/generate_204",
-        "interval": 300,
-        "lazy": true,
-        "proxies": final_auto_test_proxies
-    }));
-
-    // 4. Regional URLTest & Fallback groups
+    // 3.2 Regional URLTest & Fallback groups (defined before master selector)
     for (auto_name, fallback_name, node_names) in &region_groups {
         proxy_groups.push(serde_json::json!({
             "name": auto_name,
@@ -217,7 +184,48 @@ pub async fn aggregate_clash_yaml(
         }));
     }
 
-    // Common scenario proxies list
+    // 3.3 ⚡ 自动优选 (全部源) & 🛡️ 故障转移 (全部源)
+    proxy_groups.push(serde_json::json!({
+        "name": "⚡ 自动优选 (全部源)",
+        "type": "url-test",
+        "url": "http://www.gstatic.com/generate_204",
+        "interval": 300,
+        "tolerance": 50,
+        "lazy": true,
+        "proxies": final_auto_test_proxies
+    }));
+
+    proxy_groups.push(serde_json::json!({
+        "name": "🛡️ 故障转移 (全部源)",
+        "type": "fallback",
+        "url": "http://www.gstatic.com/generate_204",
+        "interval": 300,
+        "lazy": true,
+        "proxies": final_auto_test_proxies
+    }));
+
+    // 3.4 🚀 节点选择 (Master Selector)
+    let mut master_selector_proxies = Vec::new();
+    master_selector_proxies.push("⚡ 自动优选 (全部源)".to_string());
+    for (auto_name, _, _) in &region_groups {
+        master_selector_proxies.push(auto_name.clone());
+    }
+    for (sg_name, _) in &sub_group_map {
+        master_selector_proxies.push(sg_name.clone());
+    }
+    for name in &all_node_names {
+        master_selector_proxies.push(name.clone());
+    }
+    master_selector_proxies.push("DIRECT".to_string());
+    master_selector_proxies.dedup();
+
+    proxy_groups.push(serde_json::json!({
+        "name": main_proxy_group,
+        "type": "select",
+        "proxies": master_selector_proxies
+    }));
+
+    // 3.5 Scenario Groups Proxies List
     let mut scenario_proxies = Vec::new();
     scenario_proxies.push(main_proxy_group.to_string());
     scenario_proxies.push("⚡ 自动优选 (全部源)".to_string());
@@ -242,12 +250,15 @@ pub async fn aggregate_clash_yaml(
     for (auto_name, _, _) in &region_groups {
         direct_first_proxies.push(auto_name.clone());
     }
+    for (sg_name, _) in &sub_group_map {
+        direct_first_proxies.push(sg_name.clone());
+    }
     for name in &all_node_names {
         direct_first_proxies.push(name.clone());
     }
     direct_first_proxies.dedup();
 
-    // 5. Scenario groups
+    // 3.6 Scenario groups
     if config.enable_ai_group {
         proxy_groups.push(serde_json::json!({ "name": "🤖 AI 专线", "type": "select", "proxies": scenario_proxies }));
     }
@@ -266,18 +277,6 @@ pub async fn aggregate_clash_yaml(
     if config.enable_final_group {
         let p_list = if config.fallback_rule == "DIRECT" { &direct_first_proxies } else { &scenario_proxies };
         proxy_groups.push(serde_json::json!({ "name": "🐟 漏网之鱼", "type": "select", "proxies": p_list }));
-    }
-
-    // 6. Sub-specific source groups (strictly only this sub's nodes)
-    for (sg_name, node_names) in &sub_group_map {
-        let mut sub_nodes = node_names.clone();
-        sub_nodes.push("DIRECT".to_string());
-        proxy_groups.push(serde_json::json!({
-            "name": sg_name,
-            "type": "select",
-            "hidden": true,
-            "proxies": sub_nodes
-        }));
     }
 
     // 4. Build Rules List
@@ -349,11 +348,11 @@ pub async fn aggregate_clash_yaml(
         rules.push(format!("RULE-SET,gfw,{}", main_proxy_group));
         rules.push(format!("RULE-SET,tld-not-cn,{}", main_proxy_group));
         if config.enable_telegram_group {
-            rules.push(format!("RULE-SET,telegramcidr,📲 Telegram{}", no_resolve));
+            rules.push("RULE-SET,telegramcidr,📲 Telegram".into());
         }
         rules.push("RULE-SET,direct,DIRECT".into());
-        rules.push(format!("RULE-SET,lancidr,DIRECT{}", no_resolve));
-        rules.push(format!("RULE-SET,cncidr,DIRECT{}", no_resolve));
+        rules.push("RULE-SET,lancidr,DIRECT".into());
+        rules.push("RULE-SET,cncidr,DIRECT".into());
     }
 
     rules.push("GEOSITE,private,DIRECT".into());
@@ -368,37 +367,45 @@ pub async fn aggregate_clash_yaml(
     let final_group = if config.enable_final_group { "🐟 漏网之鱼" } else if config.fallback_rule == "DIRECT" { "DIRECT" } else { main_proxy_group };
     rules.push(format!("MATCH,{}", final_group));
 
-    // 5. Construct Complete Clash Object
     let mut clash_map = serde_json::Map::new();
     clash_map.insert("mixed-port".into(), serde_json::json!(7890));
     clash_map.insert("allow-lan".into(), serde_json::json!(true));
     clash_map.insert("mode".into(), serde_json::json!("rule"));
     clash_map.insert("log-level".into(), serde_json::json!("info"));
     clash_map.insert("ipv6".into(), serde_json::json!(false));
-    clash_map.insert("tcp-concurrent".into(), serde_json::json!(config.enable_tcp_concurrent));
-    clash_map.insert("unified-delay".into(), serde_json::json!(config.enable_unified_delay));
-    clash_map.insert("find-process-mode".into(), serde_json::json!(if config.enable_process_strict { "strict" } else { "always" }));
 
-    // DNS config
-    let dns_cfg = serde_json::json!({
-        "enable": true,
-        "ipv6": false,
-        "enhanced-mode": "fake-ip",
-        "fake-ip-range": "198.18.0.1/16",
-        "default-nameserver": ["223.5.5.5", "119.29.29.29", "1.1.1.1"],
-        "fake-ip-filter": if config.fake_ip_filter.is_empty() { vec!["*.lan".into(), "*.local".into()] } else { config.fake_ip_filter.clone() },
-        "nameserver": config.nameservers,
-        "fallback": config.fallback_dns,
-        "fallback-filter": {
-            "geoip": true,
-            "geoip-code": "CN",
-            "ipcidr": ["240.0.0.0/4"]
-        },
-        "nameserver-policy": {
-            "geosite:cn,private": config.nameservers.clone()
-        }
-    });
-    clash_map.insert("dns".into(), dns_cfg);
+    if config.enable_tcp_concurrent {
+        clash_map.insert("tcp-concurrent".into(), serde_json::json!(true));
+    }
+    if config.enable_unified_delay {
+        clash_map.insert("unified-delay".into(), serde_json::json!(true));
+    }
+    if config.enable_process_strict {
+        clash_map.insert("find-process-mode".into(), serde_json::json!("strict"));
+    }
+
+    let mut dns_cfg = serde_json::Map::new();
+    dns_cfg.insert("enable".into(), serde_json::json!(true));
+    dns_cfg.insert("ipv6".into(), serde_json::json!(false));
+    dns_cfg.insert("enhanced-mode".into(), serde_json::json!("fake-ip"));
+    dns_cfg.insert("fake-ip-range".into(), serde_json::json!("198.18.0.1/16"));
+    dns_cfg.insert("default-nameserver".into(), serde_json::json!(["223.5.5.5", "119.29.29.29", "1.1.1.1"]));
+    dns_cfg.insert("nameserver".into(), serde_json::to_value(&config.nameservers).unwrap_or_default());
+    dns_cfg.insert("fallback".into(), serde_json::to_value(&config.fallback_dns).unwrap_or_default());
+    dns_cfg.insert("fake-ip-filter".into(), serde_json::to_value(if config.fake_ip_filter.is_empty() {
+        vec!["*.lan".to_string(), "*.local".to_string()]
+    } else {
+        config.fake_ip_filter.clone()
+    }).unwrap_or_default());
+    dns_cfg.insert("fallback-filter".into(), serde_json::json!({
+        "geoip": true,
+        "geoip-code": "CN",
+        "ipcidr": ["240.0.0.0/4"]
+    }));
+    dns_cfg.insert("nameserver-policy".into(), serde_json::json!({
+        "geosite:cn,private": serde_json::to_value(&config.nameservers).unwrap_or_default()
+    }));
+    clash_map.insert("dns".into(), serde_json::Value::Object(dns_cfg));
 
     if config.enable_sniffer {
         clash_map.insert("sniffer".into(), serde_json::json!({

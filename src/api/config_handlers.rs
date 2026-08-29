@@ -8,7 +8,7 @@ use axum::{
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path as FilePath;
 
 // ── Auth helper ──────────────────────────────────────────────────────────────
@@ -54,6 +54,15 @@ pub async fn save_config_handler(
 
     save_user_config_to_disk(&state.config_dir, &uname, &payload).await;
 
+    let ua = headers.get("user-agent").and_then(|v| v.to_str().ok()).unwrap_or_default();
+    let ip = headers.get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim())
+        .or_else(|| headers.get("x-real-ip").and_then(|v| v.to_str().ok()))
+        .unwrap_or("127.0.0.1");
+
+    record_access_log(&state.config_dir, &uname, ip, ua, "⚙️ 配置保存发布", 200, "保存并即刻热重载分流规则").await;
+
     // Clear fetcher cache for any modified sub URLs
     for sub in &payload.subscriptions {
         state.fetcher.clear_cache(Some(&sub.url)).await;
@@ -92,6 +101,15 @@ pub async fn regenerate_token_handler(
     cfg.subscription_token = new_token.clone();
 
     save_user_config_to_disk(&state.config_dir, &uname, &cfg).await;
+
+    let ua = headers.get("user-agent").and_then(|v| v.to_str().ok()).unwrap_or_default();
+    let ip = headers.get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim())
+        .or_else(|| headers.get("x-real-ip").and_then(|v| v.to_str().ok()))
+        .unwrap_or("127.0.0.1");
+
+    record_access_log(&state.config_dir, &uname, ip, ua, "🔄 重置直链 Token", 200, "重新生成专属订阅 Token").await;
 
     Ok(Json(serde_json::json!({ "success": true, "token": new_token })))
 }
@@ -326,19 +344,91 @@ pub async fn nodes_health_handler(
 
 // ── Access Logs ──────────────────────────────────────────────────────────────
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccessLogEntry {
+    pub id: String,
+    pub time: String,
+    pub ip: String,
+    pub ua: String,
+    #[serde(rename = "type")]
+    pub log_type: String,
+    pub status: u16,
+    pub detail: String,
+}
+
+pub async fn record_access_log(
+    config_dir: &str,
+    username: &str,
+    ip: &str,
+    ua: &str,
+    log_type: &str,
+    status: u16,
+    detail: &str,
+) {
+    let file = std::path::Path::new(config_dir).join("access_logs.json");
+    let mut all_logs: std::collections::HashMap<String, Vec<AccessLogEntry>> = if file.exists() {
+        tokio::fs::read_to_string(&file).await
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    let user_list = all_logs.entry(username.to_string()).or_default();
+    let entry = AccessLogEntry {
+        id: format!("log_{}_{:x}", chrono::Utc::now().timestamp_millis(), rand::random::<u32>()),
+        time: chrono::Utc::now().to_rfc3339(),
+        ip: if ip.is_empty() { "127.0.0.1".to_string() } else { ip.to_string() },
+        ua: if ua.is_empty() { "Direct / Unknown UA".to_string() } else { ua.to_string() },
+        log_type: log_type.to_string(),
+        status,
+        detail: detail.to_string(),
+    };
+    user_list.insert(0, entry);
+    if user_list.len() > 100 {
+        user_list.truncate(100);
+    }
+
+    if let Ok(json) = serde_json::to_string_pretty(&all_logs) {
+        let _ = tokio::fs::write(&file, json).await;
+    }
+}
+
 pub async fn get_access_logs_handler(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&_state, &headers).await?;
-    Ok(Json(vec![]))
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, _) = get_authenticated_user(&state, &headers).await?;
+    let file = FilePath::new(&state.config_dir).join("access_logs.json");
+    if file.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&file).await {
+            if let Ok(all_logs) = serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&content) {
+                if let Some(list) = all_logs.get(&uname) {
+                    return Ok(Json(list.clone()));
+                }
+            }
+        }
+    }
+    Ok(Json(serde_json::json!([])))
 }
 
 pub async fn clear_access_logs_handler(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&_state, &headers).await?;
+    let (uname, _) = get_authenticated_user(&state, &headers).await?;
+    let file = FilePath::new(&state.config_dir).join("access_logs.json");
+    if file.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&file).await {
+            if let Ok(mut all_logs) = serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&content) {
+                all_logs.insert(uname, serde_json::json!([]));
+                if let Ok(json) = serde_json::to_string_pretty(&all_logs) {
+                    let _ = tokio::fs::write(&file, json).await;
+                }
+            }
+        }
+    }
     Ok(Json(serde_json::json!({ "success": true, "message": "日志已清空" })))
 }
 
