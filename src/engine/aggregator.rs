@@ -448,3 +448,27 @@ pub async fn aggregate_clash_yaml(
         proxies: active_proxies,
     })
 }
+
+pub async fn batch_test_proxies_health(proxies: &[ProxyNode], timeout_ms: u64) -> Vec<serde_json::Value> {
+    use tokio::net::TcpStream;
+    use tokio::time::{timeout, Duration, Instant};
+
+    let mut results = Vec::new();
+    for p in proxies {
+        let addr = format!("{}:{}", p.server, p.port);
+        let start = Instant::now();
+        let is_alive = match timeout(Duration::from_millis(timeout_ms), TcpStream::connect(&addr)).await {
+            Ok(Ok(_)) => true,
+            _ => false,
+        };
+        let latency = if is_alive { start.elapsed().as_millis() as u64 } else { 9999 };
+        results.push(serde_json::json!({
+            "name": p.name,
+            "server": p.server,
+            "port": p.port,
+            "alive": is_alive,
+            "latency": latency
+        }));
+    }
+    results
+}

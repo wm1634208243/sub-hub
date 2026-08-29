@@ -17,7 +17,7 @@ pub const REGION_FLAGS: &[RegionInfo] = &[
     RegionInfo { code: "SG", name: "新加坡", flag: "🇸🇬", pattern: r"(?i)(新加坡|狮城|Singapore|SG|SIN|SGP)" },
     RegionInfo { code: "US", name: "美国", flag: "🇺🇸", pattern: r"(?i)(美国|美國|洛杉矶|硅谷|西雅图|达拉斯|芝加哥|纽约|波特兰|United States|USA|US|LA|LAX|SJC|SEA|DFW|ORD|JFK|EWR|SFO|PHX)" },
     RegionInfo { code: "KR", name: "韩国", flag: "🇰🇷", pattern: r"(?i)(韩国|首尔|Korea|KR|KOR|Seoul|ICN)" },
-    RegionInfo { code: "GB", name: "英国", flag: "🇬🇧", pattern: r"(?i)(英国|伦敦|United Kingdom|UK|London|LHR|(?<![0-9.])\bgb\b(?![0-9]))" },
+    RegionInfo { code: "GB", name: "英国", flag: "🇬🇧", pattern: r"(?i)(英国|伦敦|United Kingdom|\bUK\b|London|LHR|\bGB\b)" },
     RegionInfo { code: "DE", name: "德国", flag: "🇩🇪", pattern: r"(?i)(德国|法兰克福|Germany|DE|Frankfurt|FRA)" },
     RegionInfo { code: "FR", name: "法国", flag: "🇫🇷", pattern: r"(?i)(法国|巴黎|France|FR|Paris|CDG)" },
     RegionInfo { code: "CA", name: "加拿大", flag: "🇨🇦", pattern: r"(?i)(加拿大|温哥华|多伦多|Canada|CA|Vancouver|Toronto|YVR|YYZ)" },

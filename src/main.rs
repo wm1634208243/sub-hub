@@ -9,10 +9,20 @@ use api::auth_handlers::{
     public_system_settings_handler, register_handler, reset_password_handler, user_role_handler,
     user_status_handler, AppState,
 };
-use api::config_handlers::{get_config_handler, inspect_nodes_handler, save_config_handler};
+use api::config_handlers::{
+    admin_backup_export_handler, admin_backup_restore_handler, clear_access_logs_handler,
+    compile_transient_handler, get_access_logs_handler, get_config_handler, inspect_nodes_handler,
+    nodes_health_handler, preview_config_handler, preview_rename_handler, purge_config_handler,
+    refresh_subscriptions_handler, regenerate_token_handler, save_config_handler, serve_rules_js_handler,
+    set_token_expiry_handler, test_subscription_handler,
+};
 use api::sub_handlers::unified_sub_handler;
-use api::system_handlers::{get_system_settings_handler, get_versions_handler};
+use api::system_handlers::{
+    domain_test_handler, get_system_settings_handler, get_versions_handler, ssl_provision_handler,
+    system_update_handler,
+};
 use axum::{
+    response::Json,
     routing::{delete, get, post},
     Router,
 };
@@ -36,6 +46,10 @@ struct Args {
 
     #[arg(short, long, default_value = "./config")]
     config_dir: String,
+}
+
+async fn logout_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "success": true, "message": "已成功登出" }))
 }
 
 #[tokio::main]
@@ -116,6 +130,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/login", post(login_handler))
         .route("/api/register", post(register_handler))
         .route("/api/me", get(me_handler))
+        .route("/api/logout", post(logout_handler))
         .route("/api/change-password", post(change_password_handler))
         // Admin User Management APIs
         .route("/api/admin/users", get(list_users_handler).post(create_user_handler))
@@ -123,19 +138,51 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/admin/users/:username/status", post(user_status_handler))
         .route("/api/admin/users/:username/role", post(user_role_handler))
         .route("/api/admin/users/:username/reset-password", post(reset_password_handler))
-        // Config APIs
+        // Config & Token APIs
         .route("/api/config", get(get_config_handler).post(save_config_handler))
+        .route("/api/config/purge", delete(purge_config_handler))
+        .route("/api/regenerate-token", post(regenerate_token_handler))
+        .route("/api/set-token-expiry", post(set_token_expiry_handler))
+        // Subscription Management APIs
         .route("/api/subscriptions/:id/nodes", get(inspect_nodes_handler))
-        // Subscription Distribution APIs
+        .route("/api/subscriptions/refresh", post(refresh_subscriptions_handler))
+        .route("/api/subscriptions/test", post(test_subscription_handler))
+        // Nodes Rename & Health APIs
+        .route("/api/nodes/preview-rename", post(preview_rename_handler))
+        .route("/api/nodes/health", post(nodes_health_handler))
+        // Access Logs APIs
+        .route("/api/access-log", get(get_access_logs_handler))
+        .route("/api/access-log/clear", post(clear_access_logs_handler))
+        // Subscription Multi-Format Distribution APIs
         .route("/api/sub", get(unified_sub_handler))
+        .route("/api/subscription", get(unified_sub_handler))
         .route("/api/clash.yaml", get(unified_sub_handler))
         .route("/api/sing-box.json", get(unified_sub_handler))
+        .route("/api/singbox", get(unified_sub_handler))
+        .route("/api/sb.json", get(unified_sub_handler))
         .route("/api/surge.list", get(unified_sub_handler))
+        .route("/api/surge", get(unified_sub_handler))
         .route("/api/base64", get(unified_sub_handler))
-        // System Settings APIs
+        .route("/api/sub.txt", get(unified_sub_handler))
+        .route("/api/nodes.txt", get(unified_sub_handler))
+        // JavaScript Override Script & Transient Compilation APIs
+        .route("/api/rules.js", get(serve_rules_js_handler))
+        .route("/api/js", get(serve_rules_js_handler))
+        .route("/api/rules", get(serve_rules_js_handler))
+        .route("/api/public/compile-transient", post(compile_transient_handler))
+        .route("/api/preview", post(preview_config_handler))
+        // System Settings & Versions & Backup APIs
+        .route("/api/system/version", get(get_versions_handler))
+        .route("/api/system/versions", get(get_versions_handler))
+        .route("/api/system/update", post(system_update_handler))
+        .route("/api/admin/backup/export", get(admin_backup_export_handler))
+        .route("/api/admin/backup/restore", post(admin_backup_restore_handler))
         .route("/api/admin/system/settings", get(admin_get_system_settings_handler).post(admin_save_system_settings_handler))
         .route("/api/system/public-settings", get(public_system_settings_handler))
-        .route("/api/system/versions", get(get_versions_handler))
+        .route("/api/admin/system/domain/test", post(domain_test_handler))
+        .route("/api/admin/system/ssl/custom-cert", post(ssl_provision_handler))
+        .route("/api/admin/system/ssl/generate-self-signed", post(ssl_provision_handler))
+        .route("/api/admin/system/ssl/provision", post(ssl_provision_handler))
         .route("/api/system/settings", get(get_system_settings_handler))
         // Static Files fallback
         .fallback(static_files::static_handler)

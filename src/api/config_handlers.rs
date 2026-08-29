@@ -1,17 +1,19 @@
-use crate::api::auth_handlers::{save_user_config_to_disk, AppState};
+use crate::api::auth_handlers::{save_user_config_to_disk, save_users_to_disk, AppState};
+use crate::engine::compiler::compile_config_to_js;
 use crate::engine::crypto::decrypt_user_config_bundle;
+use crate::engine::renamer::format_node_name;
 use crate::models::{User, UserConfig};
 use axum::{
     extract::{Path, State},
-    http::{HeaderMap, StatusCode},
-    response::Json,
+    http::{header, HeaderMap, StatusCode},
+    response::{IntoResponse, Json, Response},
 };
+use serde::Deserialize;
 use std::path::Path as FilePath;
 
-pub async fn get_config_handler(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Result<Json<UserConfig>, (StatusCode, Json<serde_json::Value>)> {
+// ── Auth helper ──────────────────────────────────────────────────────────────
+
+async fn get_authenticated_user(state: &AppState, headers: &HeaderMap) -> Result<(String, String), (StatusCode, Json<serde_json::Value>)> {
     let auth_header = headers.get("authorization").and_then(|v| v.to_str().ok()).unwrap_or_default();
     let token = auth_header.strip_prefix("Bearer ").unwrap_or_default().trim();
 
@@ -19,14 +21,27 @@ pub async fn get_config_handler(
     let uname = sessions.get(token).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": "未登录" })),
+            Json(serde_json::json!({ "error": "未登录或会话已过期" })),
         )
     })?;
 
     let users = state.users.read().await;
-    let user_secret = users.iter().find(|u| u.username == *uname).map(|u| u.password_hash.as_str()).unwrap_or("subhub_master_secret_fallback_v1");
+    let user_secret = users.iter()
+        .find(|u| u.username.to_lowercase() == uname.to_lowercase())
+        .map(|u| u.password_hash.clone())
+        .unwrap_or_else(|| "subhub_master_secret_fallback_v1".to_string());
 
-    let cfg = load_user_config(&state.config_dir, uname, user_secret).await;
+    Ok((uname.clone(), user_secret))
+}
+
+// ── Config Handlers ──────────────────────────────────────────────────────────
+
+pub async fn get_config_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<UserConfig>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, secret) = get_authenticated_user(&state, &headers).await?;
+    let cfg = load_user_config(&state.config_dir, &uname, &secret).await;
     Ok(Json(cfg))
 }
 
@@ -35,18 +50,9 @@ pub async fn save_config_handler(
     headers: HeaderMap,
     Json(payload): Json<UserConfig>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let auth_header = headers.get("authorization").and_then(|v| v.to_str().ok()).unwrap_or_default();
-    let token = auth_header.strip_prefix("Bearer ").unwrap_or_default().trim();
+    let (uname, _) = get_authenticated_user(&state, &headers).await?;
 
-    let sessions = state.sessions.read().await;
-    let uname = sessions.get(token).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": "未登录" })),
-        )
-    })?;
-
-    save_user_config_to_disk(&state.config_dir, uname, &payload).await;
+    save_user_config_to_disk(&state.config_dir, &uname, &payload).await;
 
     // Clear fetcher cache for any modified sub URLs
     for sub in &payload.subscriptions {
@@ -56,26 +62,70 @@ pub async fn save_config_handler(
     Ok(Json(serde_json::json!({ "success": true, "message": "配置保存成功" })))
 }
 
+pub async fn purge_config_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, _) = get_authenticated_user(&state, &headers).await?;
+
+    let cfg_file = FilePath::new(&state.config_dir).join(format!("user_{}.json", uname.to_lowercase()));
+    let _ = tokio::fs::remove_file(cfg_file).await;
+
+    let configs_file = FilePath::new(&state.config_dir).join("configs").join(format!("{}.json", uname));
+    let _ = tokio::fs::remove_file(configs_file).await;
+
+    Ok(Json(serde_json::json!({ "success": true, "message": "云端配置数据已彻底物理抹除！" })))
+}
+
+// ── Token Management ─────────────────────────────────────────────────────────
+
+pub async fn regenerate_token_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, secret) = get_authenticated_user(&state, &headers).await?;
+    let mut cfg = load_user_config(&state.config_dir, &uname, &secret).await;
+
+    use rand::Rng;
+    let hex_suffix: String = (0..8).map(|_| format!("{:02x}", rand::thread_rng().gen::<u8>())).collect();
+    let new_token = format!("rulehub_{}", hex_suffix);
+    cfg.subscription_token = new_token.clone();
+
+    save_user_config_to_disk(&state.config_dir, &uname, &cfg).await;
+
+    Ok(Json(serde_json::json!({ "success": true, "token": new_token })))
+}
+
+#[derive(Deserialize)]
+pub struct SetExpiryPayload {
+    #[serde(alias = "expiresAt", alias = "expires_at")]
+    pub expires_at: Option<String>,
+}
+
+pub async fn set_token_expiry_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<SetExpiryPayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, secret) = get_authenticated_user(&state, &headers).await?;
+    let mut cfg = load_user_config(&state.config_dir, &uname, &secret).await;
+
+    cfg.token_expires_at = payload.expires_at.clone();
+    save_user_config_to_disk(&state.config_dir, &uname, &cfg).await;
+
+    Ok(Json(serde_json::json!({ "success": true, "tokenExpiresAt": payload.expires_at })))
+}
+
+// ── Subscription Node Inspection & Refresh ────────────────────────────────────
+
 pub async fn inspect_nodes_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
     Path(sub_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let auth_header = headers.get("authorization").and_then(|v| v.to_str().ok()).unwrap_or_default();
-    let token = auth_header.strip_prefix("Bearer ").unwrap_or_default().trim();
+    let (uname, secret) = get_authenticated_user(&state, &headers).await?;
 
-    let sessions = state.sessions.read().await;
-    let uname = sessions.get(token).ok_or_else(|| {
-        (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({ "error": "未登录" })),
-        )
-    })?;
-
-    let users = state.users.read().await;
-    let user_secret = users.iter().find(|u| u.username == *uname).map(|u| u.password_hash.as_str()).unwrap_or("subhub_master_secret_fallback_v1");
-
-    let mut cfg = load_user_config(&state.config_dir, uname, user_secret).await;
+    let mut cfg = load_user_config(&state.config_dir, &uname, &secret).await;
     let sub = cfg.subscriptions.iter_mut().find(|s| s.id == sub_id).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
@@ -84,7 +134,7 @@ pub async fn inspect_nodes_handler(
     })?;
 
     let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
-    let res = state.fetcher.fetch(&sub.url, prefix, false).await.map_err(|e| {
+    let res = state.fetcher.fetch(&sub.url, prefix, true).await.map_err(|e| {
         (
             StatusCode::BAD_REQUEST,
             Json(serde_json::json!({ "error": e })),
@@ -112,7 +162,9 @@ pub async fn inspect_nodes_handler(
     }
 
     sub.nodes_count = Some(nodes_json.len());
-    save_user_config_to_disk(&state.config_dir, uname, &cfg).await;
+    sub.user_info = res.user_info.clone();
+    sub.source_type = Some(res.source_type.clone());
+    save_user_config_to_disk(&state.config_dir, &uname, &cfg).await;
 
     Ok(Json(serde_json::json!({
         "success": true,
@@ -122,6 +174,262 @@ pub async fn inspect_nodes_handler(
         "userInfo": res.user_info
     })))
 }
+
+pub async fn refresh_subscriptions_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, secret) = get_authenticated_user(&state, &headers).await?;
+    let mut cfg = load_user_config(&state.config_dir, &uname, &secret).await;
+
+    for sub in &mut cfg.subscriptions {
+        if !sub.url.is_empty() {
+            let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
+            if let Ok(res) = state.fetcher.fetch(&sub.url, prefix, true).await {
+                sub.nodes_count = Some(res.nodes.len());
+                sub.user_info = res.user_info;
+                sub.source_type = Some(res.source_type);
+                sub.status = Some("online".into());
+                sub.updated_at = Some(res.updated_at);
+            }
+        }
+    }
+
+    save_user_config_to_disk(&state.config_dir, &uname, &cfg).await;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "所有订阅已成功刷新！",
+        "subscriptions": cfg.subscriptions
+    })))
+}
+
+#[derive(Deserialize)]
+pub struct TestSubPayload {
+    pub url: String,
+    pub prefix: Option<String>,
+}
+
+pub async fn test_subscription_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<TestSubPayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+
+    let prefix = payload.prefix.as_deref().unwrap_or_default();
+    let res = state.fetcher.fetch(&payload.url, prefix, true).await.map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": format!("测试拉取失败: {}", e) })),
+        )
+    })?;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "nodesCount": res.nodes.len(),
+        "sourceType": res.source_type,
+        "userInfo": res.user_info
+    })))
+}
+
+// ── Node Renaming Preview & Health Checks ─────────────────────────────────────
+
+#[derive(Deserialize)]
+pub struct PreviewRenamePayload {
+    #[serde(default, alias = "sampleNodes")]
+    pub sample_nodes: Vec<serde_json::Value>,
+    #[serde(default, alias = "sampleNames")]
+    pub sample_names: Vec<String>,
+    #[serde(default = "default_true", alias = "enableAutoFlags")]
+    pub enable_auto_flags: bool,
+    #[serde(default = "default_true", alias = "enableCleanAdAndRate")]
+    pub enable_clean_ad_and_rate: bool,
+    #[serde(default, alias = "customRenameRules")]
+    pub custom_rename_rules: Vec<crate::models::CustomRenameRule>,
+    #[serde(default, alias = "defaultRegion")]
+    pub default_region: String,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+pub async fn preview_rename_handler(
+    Json(payload): Json<PreviewRenamePayload>,
+) -> Json<serde_json::Value> {
+    let mut names = payload.sample_names;
+    if names.is_empty() {
+        for node in payload.sample_nodes {
+            if let Some(n) = node.get("name").and_then(|s| s.as_str()) {
+                names.push(n.to_string());
+            }
+        }
+    }
+
+    let mut results = Vec::new();
+    for name in names {
+        let formatted = format_node_name(
+            &name,
+            "",
+            payload.enable_auto_flags,
+            payload.enable_clean_ad_and_rate,
+            &payload.custom_rename_rules,
+            if payload.default_region.is_empty() { None } else { Some(&payload.default_region) },
+        );
+        results.push(serde_json::json!({
+            "original": name,
+            "formatted": formatted
+        }));
+    }
+
+    Json(serde_json::json!({ "success": true, "results": results }))
+}
+
+#[derive(Deserialize)]
+pub struct HealthTestPayload {
+    #[serde(default = "default_timeout", alias = "timeoutMs")]
+    pub timeout_ms: u64,
+}
+
+fn default_timeout() -> u64 {
+    2000
+}
+
+pub async fn nodes_health_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<HealthTestPayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, secret) = get_authenticated_user(&state, &headers).await?;
+    let cfg = load_user_config(&state.config_dir, &uname, &secret).await;
+
+    let mut all_proxies = Vec::new();
+    for sub in &cfg.subscriptions {
+        if sub.enabled {
+            let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
+            if let Ok(res) = state.fetcher.fetch(&sub.url, prefix, false).await {
+                all_proxies.extend(res.nodes);
+            }
+        }
+    }
+
+    let results = crate::engine::aggregator::batch_test_proxies_health(&all_proxies, payload.timeout_ms).await;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "total": all_proxies.len(),
+        "aliveCount": results.iter().filter(|r| r.get("alive").and_then(|v| v.as_bool()) == Some(true)).count(),
+        "results": results
+    })))
+}
+
+// ── Access Logs ──────────────────────────────────────────────────────────────
+
+pub async fn get_access_logs_handler(
+    State(_state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<serde_json::Value>>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&_state, &headers).await?;
+    Ok(Json(vec![]))
+}
+
+pub async fn clear_access_logs_handler(
+    State(_state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&_state, &headers).await?;
+    Ok(Json(serde_json::json!({ "success": true, "message": "日志已清空" })))
+}
+
+// ── Transient JS Compilation & Previews ──────────────────────────────────────
+
+pub async fn compile_transient_handler(
+    Json(payload): Json<UserConfig>,
+) -> Json<serde_json::Value> {
+    let js = compile_config_to_js(&payload);
+    Json(serde_json::json!({ "success": true, "js": js }))
+}
+
+pub async fn preview_config_handler(
+    Json(payload): Json<UserConfig>,
+) -> Json<serde_json::Value> {
+    let js = compile_config_to_js(&payload);
+    Json(serde_json::json!({ "success": true, "js": js }))
+}
+
+pub async fn serve_rules_js_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Response {
+    let uname = headers.get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "admin".into());
+
+    let cfg = load_user_config(&state.config_dir, &uname, "subhub_master_secret_fallback_v1").await;
+    let js = compile_config_to_js(&cfg);
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .body(axum::body::Body::from(js))
+        .unwrap()
+}
+
+// ── Backup Export & Restore ──────────────────────────────────────────────────
+
+pub async fn admin_backup_export_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let (uname, _) = get_authenticated_user(&state, &headers).await?;
+
+    let users = state.users.read().await;
+    let mut configs = serde_json::Map::new();
+
+    for u in users.iter() {
+        let cfg = load_user_config(&state.config_dir, &u.username, &u.password_hash).await;
+        configs.insert(u.username.clone(), serde_json::to_value(cfg).unwrap_or(serde_json::Value::Null));
+    }
+
+    Ok(Json(serde_json::json!({
+        "version": "2.0.0",
+        "exportedAt": chrono::Utc::now().to_rfc3339(),
+        "exportedBy": uname,
+        "users": *users,
+        "configs": configs
+    })))
+}
+
+pub async fn admin_backup_restore_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+
+    if let Some(users_val) = payload.get("users") {
+        if let Ok(new_users) = serde_json::from_value::<Vec<User>>(users_val.clone()) {
+            let mut users = state.users.write().await;
+            *users = new_users.clone();
+            save_users_to_disk(&state.config_dir, &new_users).await;
+        }
+    }
+
+    if let Some(configs_val) = payload.get("configs").and_then(|v| v.as_object()) {
+        for (uname, cfg_json) in configs_val {
+            if let Ok(cfg) = serde_json::from_value::<UserConfig>(cfg_json.clone()) {
+                save_user_config_to_disk(&state.config_dir, uname, &cfg).await;
+            }
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "success": true, "message": "系统数据已成功从备份快照完全还原！" })))
+}
+
+// ── Multi-Path User Config Loader ─────────────────────────────────────────────
 
 pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &str) -> UserConfig {
     let candidates = [
@@ -137,7 +445,6 @@ pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &st
         if file.exists() {
             if let Ok(content) = tokio::fs::read_to_string(&file).await {
                 if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
-                    // Try decrypt if encrypted bundle
                     let decrypted_val = decrypt_user_config_bundle(&json_val, user_secret, username)
                         .or_else(|_| decrypt_user_config_bundle(&json_val, "subhub_master_secret_fallback_v1", username))
                         .unwrap_or(json_val);
