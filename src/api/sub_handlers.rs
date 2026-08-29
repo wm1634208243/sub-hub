@@ -46,15 +46,47 @@ pub async fn unified_sub_handler(
         }
     }
 
-    let (user, cfg) = match (matched_user, matched_cfg) {
-        (Some(u), Some(c)) => (u, c),
-        _ => {
+    // If not matched in memory users, search through all json files in config and data directory!
+    if matched_cfg.is_none() {
+        let dirs_to_check = [
+            format!("{}/configs", state.config_dir),
+            state.config_dir.clone(),
+            "data/configs".to_string(),
+            "data".to_string(),
+        ];
+
+        for d in dirs_to_check {
+            if let Ok(mut entries) = tokio::fs::read_dir(&d).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    let path = entry.path();
+                    if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                        let fname = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+                        let uname = fname.strip_prefix("user_").unwrap_or(fname);
+                        let cfg = load_user_config(&state.config_dir, uname, "subhub_master_secret_fallback_v1").await;
+                        if cfg.subscription_token == token {
+                            matched_cfg = Some(cfg);
+                            break;
+                        }
+                    }
+                }
+            }
+            if matched_cfg.is_some() {
+                break;
+            }
+        }
+    }
+
+    let cfg = match matched_cfg {
+        Some(c) => c,
+        None => {
             return (StatusCode::UNAUTHORIZED, "无效的订阅 Token").into_response();
         }
     };
 
-    if user.disabled.unwrap_or(false) {
-        return (StatusCode::FORBIDDEN, "该账号已被禁用，订阅已暂停下发").into_response();
+    if let Some(user) = matched_user {
+        if user.disabled.unwrap_or(false) {
+            return (StatusCode::FORBIDDEN, "该账号已被禁用，订阅已暂停下发").into_response();
+        }
     }
 
     // Determine target format
@@ -69,6 +101,8 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"sing-box.json\"")
+                        .header("profile-update-interval", "24")
                         .body(axum::body::Body::from(json_str))
                         .unwrap()
                 }
@@ -77,6 +111,8 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"surge.list\"")
+                        .header("profile-update-interval", "24")
                         .body(axum::body::Body::from(list_str))
                         .unwrap()
                 }
@@ -85,6 +121,8 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"nodes.txt\"")
+                        .header("profile-update-interval", "24")
                         .body(axum::body::Body::from(b64_str))
                         .unwrap()
                 }
@@ -93,6 +131,9 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "text/yaml; charset=utf-8")
+                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"config.yaml\"")
+                        .header("profile-update-interval", "24")
+                        .header("profile-web-page-url", "https://github.com/wm1634208243/sub-hub")
                         .body(axum::body::Body::from(agg.yaml))
                         .unwrap()
                 }
