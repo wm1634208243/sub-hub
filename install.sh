@@ -94,11 +94,11 @@ detect_deploy_mode() {
     fi
 }
 
-# 迁移旧版本 Node.js 数据文件至 Rust config/ 目录
+# 迁移旧版本 Node.js 历史数据（仅在初次迁移时执行一次）
 migrate_legacy_data() {
     mkdir -p "$INSTALL_DIR/config/configs"
-    if [ -d "$INSTALL_DIR/data" ]; then
-        echo -e "${BLUE}🔍 正在无损迁移并承接原 Node.js 历史数据与配置...${NC}"
+    if [ -d "$INSTALL_DIR/data" ] && [ ! -f "$INSTALL_DIR/config/.migrated" ]; then
+        echo -e "${BLUE}🔍 检测到历史数据，正在自动无损同步至配置中心...${NC}"
         if [ -f "$INSTALL_DIR/data/users.json" ]; then
             cp -f "$INSTALL_DIR/data/users.json" "$INSTALL_DIR/config/users.json"
         fi
@@ -109,7 +109,8 @@ migrate_legacy_data() {
         if [ -f "$INSTALL_DIR/data/config.json" ]; then
             cp -f "$INSTALL_DIR/data/config.json" "$INSTALL_DIR/config/config.json"
         fi
-        echo -e "${GREEN}✅ 原有用户数据与订阅配置已 100% 成功承接迁移！${NC}"
+        touch "$INSTALL_DIR/config/.migrated"
+        echo -e "${GREEN}✅ 历史用户数据与订阅配置已成功无损承接！${NC}"
     fi
 }
 
@@ -134,7 +135,7 @@ download_rust_binary() {
     local target_ver="$1"
     detect_os
 
-    echo -e "${BLUE}[1/3] 正在拉取 SubHub Rust 原生高性能单文件二进制 (${BIN_ARCH})...${NC}"
+    echo -e "${BLUE}[1/3] 正在拉取 SubHub 单文件独立二进制 (${BIN_ARCH})...${NC}"
     mkdir -p "$INSTALL_DIR/config" /usr/local/bin
 
     local download_url="https://github.com/wm1634208243/sub-hub/releases/latest/download/subhub-${BIN_ARCH}"
@@ -151,7 +152,7 @@ download_rust_binary() {
     fi
 
     if [ "$download_success" -eq 0 ]; then
-        echo -e "${YELLOW}正在通过 Rust 工具链本地极速构建 (耗时 ~30s)...${NC}"
+        echo -e "${YELLOW}正在通过 Rust 工具链本地极速构建 (预计耗时 ~30s)...${NC}"
         ensure_build_tools
         sync_subhub_source
 
@@ -173,12 +174,11 @@ download_rust_binary() {
         fi
     fi
 
-    echo -e "${GREEN}SubHub 核心二进制安装就绪！${NC}"
+    echo -e "${GREEN}SubHub 核心程序已就绪！${NC}"
 }
 
 # 同步 SubHub 源码与公共资源
 sync_subhub_source() {
-    echo -e "${YELLOW}正在同步 SubHub 静态资源与配置目录...${NC}"
     mkdir -p "$INSTALL_DIR/config"
     if [ -d "$INSTALL_DIR/.git" ]; then
         cd "$INSTALL_DIR"
@@ -203,7 +203,7 @@ install_native_mode() {
     read -p "请输入 SubHub 外部访问端口 (默认: 3000): " custom_port
     PORT=${custom_port:-$DEFAULT_PORT}
 
-    echo -e "\n${BLUE}[3/4] 下载并安装 SubHub Rust 单二进制...${NC}"
+    echo -e "\n${BLUE}[3/4] 下载并安装 SubHub 单二进制...${NC}"
     download_rust_binary "latest"
     migrate_legacy_data
 
@@ -243,7 +243,7 @@ EOF
     IP=$(get_public_ip)
 
     echo -e "\n${GREEN}================================================================${NC}"
-    echo -e "${GREEN}🎉 SubHub Rust 原生架构已成功部署并已开机自启！${NC}"
+    echo -e "${GREEN}🎉 SubHub 已成功部署并已开机自启！${NC}"
     echo -e "🚀 运行方式: ${BOLD}Rust 原生单文件进程${NC} (常驻内存仅 ~5MB，微秒级极速响应)"
     echo -e "🌐 Web 管理端: ${BOLD}http://${IP}:${PORT}${NC}"
     echo -e "👤 默认初始账号: ${BOLD}admin${NC}"
@@ -259,16 +259,16 @@ update_subhub() {
     local target_ver="$1"
 
     echo -e "\n${YELLOW}================================================================${NC}"
-    echo -e "${YELLOW}🚀 正在执行 SubHub 全自动热升级流水线...${NC}"
+    echo -e "${YELLOW}🚀 正在执行 SubHub 全自动热更新流水线...${NC}"
     echo -e "${YELLOW}================================================================${NC}"
 
     # 1. 下载新版本二进制
     download_rust_binary "$target_ver"
 
-    # 2. 检查并迁移原有的数据与订阅配置
+    # 2. 检查是否有未迁移的历史数据
     migrate_legacy_data
 
-    # 3. 更新 systemd 服务文件指向 Rust 二进制
+    # 3. 确保 systemd 服务文件指向当前配置
     cat <<EOF > "$SERVICE_FILE"
 [Unit]
 Description=SubHub High-Performance Subscription Aggregator (Rust Native)
@@ -289,16 +289,17 @@ WantedBy=multi-user.target
 EOF
 
     # 4. 重启 Systemd 服务
+    echo -e "${BLUE}[2/3] 正在平滑热重启 Systemd 守护服务...${NC}"
     if command -v systemctl &> /dev/null; then
         systemctl daemon-reload
         systemctl restart subhub
-        echo -e "${GREEN}Systemd 服务已平滑重启并切换至 Rust 引擎！${NC}"
+        echo -e "${GREEN}Systemd 守护进程已成功热重启！${NC}"
     fi
 
     # 5. 清理旧 node_modules 释放磁盘
     rm -rf "$INSTALL_DIR/node_modules" 2>/dev/null || true
 
-    echo -e "\n${GREEN}🎉 SubHub 已成功完成一键平滑升级至 Rust 原生架构！所有数据与配置 100% 完美保留！${NC}"
+    echo -e "\n${GREEN}🎉 SubHub 已成功完成平滑热升级！所有数据与配置 100% 完整保留！${NC}"
 }
 
 # 彻底卸载
@@ -327,7 +328,7 @@ show_menu() {
 
         if [ -f "$SERVICE_FILE" ]; then
             if systemctl is-active --quiet subhub 2>/dev/null; then
-                status_text="${GREEN}Rust 引擎运行中 (Systemd · ~5MB 内存)${NC}"
+                status_text="${GREEN}运行中 (Rust 原生进程 · ~5MB 内存)${NC}"
             else
                 status_text="${YELLOW}服务已停止 (Systemd)${NC}"
             fi
@@ -336,7 +337,7 @@ show_menu() {
         echo -e "当前运行状态: $status_text"
         echo -e "----------------------------------------------------------------"
         echo -e " ${BOLD}1.${NC} 🚀 安装 / 部署 SubHub (${GREEN}Rust 原生极速架构 · 免环境依赖${NC})"
-        echo -e " ${BOLD}2.${NC} ⚡ 一键平滑热更新 (${YELLOW}升级至最新 Rust 版本 / 保留全部数据${NC})"
+        echo -e " ${BOLD}2.${NC} ⚡ 一键平滑热更新 (${YELLOW}升级至最新版本 / 保留全部数据${NC})"
         echo -e " ${BOLD}3.${NC} 🔄 重启 SubHub 服务"
         echo -e " ${BOLD}4.${NC} 🛑 停止 SubHub 服务"
         echo -e " ${BOLD}5.${NC} ▶️  启动 SubHub 服务"
