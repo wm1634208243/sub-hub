@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.2",
+            "tag": "v2.0.2",
+            "name": "SubHub v2.0.2 · 完整恢复 Clash/Mihomo 高级 JS 规则编译引擎",
+            "publishedAt": "2026-08-29T18:20:31.511Z",
+            "highlights": [
+                "📜 完整对齐 Clash / Mihomo 预处理 JS 脚本生成引擎 (含场景策略组、Loyalsoldier 规则集、Fake-IP 调优与 Sniffer 嗅探)",
+                "🎯 修复 JS 脚本预览与代码导出的完整结构",
+                "🌐 增强实时版本检测与动态在线平滑升级流水线"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.2 发布\n- **完整恢复高级 JS 规则编译引擎**：生成具备场景策略组（AI专线、流媒体、Telegram、游戏、Apple、漏网之鱼）、Loyalsoldier 规则集镜像、DNS/Fake-IP 调优、域名嗅探器与 MATCH 兜底的完整 Clash/Mihomo `main(config, profileName)` 脚本；\n- **修复 JS 脚本标签页代码预览**：在 GUI 模式下实时呈现全量编译后的高阶预处理脚本，支持一键复制与智能反向解析为 GUI 配置。"
+        }),
+        serde_json::json!({
             "version": "2.0.1",
             "tag": "v2.0.1",
             "name": "SubHub v2.0.1 · 新增未保存配置一键放弃回退与全接口深度加固",

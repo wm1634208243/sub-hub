@@ -345,16 +345,20 @@ pub async fn clear_access_logs_handler(
 // ── Transient JS Compilation & Previews ──────────────────────────────────────
 
 pub async fn compile_transient_handler(
+    headers: HeaderMap,
     Json(payload): Json<UserConfig>,
 ) -> Json<serde_json::Value> {
-    let js = compile_config_to_js(&payload);
+    let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let js = compile_config_to_js(&payload, ua);
     Json(serde_json::json!({ "success": true, "js": js }))
 }
 
 pub async fn preview_config_handler(
+    headers: HeaderMap,
     Json(payload): Json<UserConfig>,
 ) -> Json<serde_json::Value> {
-    let js = compile_config_to_js(&payload);
+    let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("");
+    let js = compile_config_to_js(&payload, ua);
     Json(serde_json::json!({ "success": true, "js": js }))
 }
 
@@ -368,8 +372,9 @@ pub async fn serve_rules_js_handler(
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "admin".into());
 
+    let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("");
     let cfg = load_user_config(&state.config_dir, &uname, "subhub_master_secret_fallback_v1").await;
-    let js = compile_config_to_js(&cfg);
+    let js = compile_config_to_js(&cfg, ua);
 
     Response::builder()
         .status(StatusCode::OK)
