@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.5",
+            "tag": "v2.0.5",
+            "name": "SubHub v2.0.5 · 修复空策略组名称导致 Clash 闪退与订阅解析异常",
+            "publishedAt": "2026-08-29T18:50:31.759Z",
+            "highlights": [
+                "🛡️ 彻底修复 Clash / Clash Mi 启动报错 LibclashStart failed: proxy group format error",
+                "✨ 修复 customProxyGroupName 为空字符串时引发的策略组名称丢失问题",
+                "🧹 严格过滤策略组内所有空引用，保证 100% 格式合规"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.5 发布\n- **彻底修复 Clash 启动报错 (proxy group format error)**：修复当主代理组名称未自定义（为空字符串）时降级回退机制失效导致生成空策略组引用的缺陷，彻底解决 Clash Mi / Clash Verge / ClashX 启动闪退问题；\n- **严格清理无效代理引用**：自动过滤策略组与规则列表中的所有空白代理项。"
+        }),
+        serde_json::json!({
             "version": "2.0.4",
             "tag": "v2.0.4",
             "name": "SubHub v2.0.4 · 修复 Clash 策略组格式异常与审计日志全量记录",

@@ -83,7 +83,11 @@ pub async fn aggregate_clash_yaml(
 
     let active_proxies = all_proxies;
     let all_node_names: Vec<String> = active_proxies.iter().map(|p| p.name.clone()).collect();
-    let main_proxy_group = config.custom_proxy_group_name.as_deref().unwrap_or("🚀 节点选择");
+    let main_proxy_group = config.custom_proxy_group_name
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("🚀 节点选择");
 
     // 1. Regional node grouping
     let mut node_region_map: HashMap<String, String> = HashMap::new(); // nodeName -> regionCode
@@ -217,6 +221,7 @@ pub async fn aggregate_clash_yaml(
         master_selector_proxies.push(name.clone());
     }
     master_selector_proxies.push("DIRECT".to_string());
+    master_selector_proxies.retain(|s| !s.trim().is_empty());
     master_selector_proxies.dedup();
 
     proxy_groups.push(serde_json::json!({
@@ -240,6 +245,7 @@ pub async fn aggregate_clash_yaml(
         scenario_proxies.push(name.clone());
     }
     scenario_proxies.push("DIRECT".to_string());
+    scenario_proxies.retain(|s| !s.trim().is_empty());
     scenario_proxies.dedup();
 
     let mut direct_first_proxies = Vec::new();
@@ -256,6 +262,7 @@ pub async fn aggregate_clash_yaml(
     for name in &all_node_names {
         direct_first_proxies.push(name.clone());
     }
+    direct_first_proxies.retain(|s| !s.trim().is_empty());
     direct_first_proxies.dedup();
 
     // 3.6 Scenario groups
