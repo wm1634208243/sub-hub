@@ -227,43 +227,47 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     proxies: [...masterSelectorProxies]
   });
 
-  // 2. ⚡ 自动优选 (全部源) - 独立顶层卡片，实时测速自动切换最低延迟节点
+  // 2. ⚡ 自动优选 (全部源) - 独立顶层卡片，开启 lazy: true 避免后台重复测速卡顿
   proxyGroups.push({
     name: '⚡ 自动优选 (全部源)',
     type: 'url-test',
     url: 'http://www.gstatic.com/generate_204',
     interval: 300,
     tolerance: 50,
+    lazy: true,
     proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
   });
 
-  // 3. 🛡️ 故障转移 (全部源) - 独立顶层卡片，主节点断连时自动顺位切换
+  // 3. 🛡️ 故障转移 (全部源) - 独立顶层卡片，开启 lazy: true
   proxyGroups.push({
     name: '🛡️ 故障转移 (全部源)',
     type: 'fallback',
     url: 'http://www.gstatic.com/generate_204',
     interval: 300,
+    lazy: true,
     proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
   });
 
   // 4. 国家/地区自动优选与故障转移组 (香港/日本/美国/新加坡自动优选与故障转移) - 标记 hidden: true
   regionGroupMap.forEach(rg => {
-    // 地区自动优选 (URLTest)
+    // 地区自动优选 (URLTest) - 开启 lazy: true 仅在激活时测速
     proxyGroups.push({
       name: rg.name,
       type: 'url-test',
       url: 'http://www.gstatic.com/generate_204',
       interval: 300,
       tolerance: 50,
+      lazy: true,
       hidden: true,
       proxies: rg.nodeNames
     });
-    // 地区故障转移 (Fallback)
+    // 地区故障转移 (Fallback) - 开启 lazy: true
     proxyGroups.push({
       name: rg.fallbackName,
       type: 'fallback',
       url: 'http://www.gstatic.com/generate_204',
       interval: 300,
+      lazy: true,
       hidden: true,
       proxies: rg.nodeNames
     });

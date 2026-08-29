@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.8';
+const CURRENT_VERSION = '1.1.9';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2042,6 +2042,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.9',
+    tag: 'v1.1.9',
+    name: 'SubHub v1.1.9 · 测速性能暴增与惰性健康检查 (Lazy Health-Check) 优化',
+    publishedAt: '2026-08-29T16:28:45.969Z',
+    highlights: ['⚡ 全面启用 lazy: true 惰性健康检查，彻底消除重复并发测速', '🚀 解决多个地区/策略组对同一节点重复发起 4~6 次测速的卡顿问题', '📶 大幅降低客户端后台资源消耗与本地网络连接拥堵', '🎯 测速响应速度与切换流畅度全面提升'],
+    changelogZh: `### ⚡ 测速性能暴增与惰性健康检查优化
+- **彻底消除重复并发测速**：为自动优选、故障转移及各地区分组全面启用 lazy: true 惰性健康检查，解决客户端批量测速时对同一个节点在 5+ 个不同组中并发重复测速导致的带宽挤占与缓慢问题；
+- **按需测速降低负载**：未激活使用的策略组不再无脑在后台发起探测，大幅降低客户端流量与 CPU 消耗；
+- **极速响应体验**：客户端一键测速与节点切换响应速度显著提升。`,
+  },
   {
     version: '1.1.8',
     tag: 'v1.1.8',
