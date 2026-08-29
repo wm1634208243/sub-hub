@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.3",
+            "tag": "v2.0.3",
+            "name": "SubHub v2.0.3 · 单节点订阅源智能精简与策略组冗余消除",
+            "publishedAt": "2026-08-29T18:29:35.428Z",
+            "highlights": [
+                "🧹 智能精简策略组：单节点订阅源（如独立 VPS）不再生成冗余的「📦 订阅源」选择组",
+                "✨ 多节点订阅源（如机场）继续保留「📦 订阅源」分组，节点选择列表大幅清爽",
+                "🚀 客户端策略组展示更加直观整洁"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.3 发布\n- **单节点订阅源智能精简**：对于仅包含 1 个节点的订阅源（如自建单节点 VPS），不再生成冗余的 📦 订阅源 · <名称> 策略组，节点直接呈现在主选择组与地区测速组中；\n- **多节点机场继续保留**：包含 2 个及以上节点的机场订阅源继续享有独立的订阅源策略组；\n- **客户端界面清爽度大幅提升**：彻底解决一个节点既在订阅组又在外部重复出现的视觉冗余问题。"
+        }),
+        serde_json::json!({
             "version": "2.0.2",
             "tag": "v2.0.2",
             "name": "SubHub v2.0.2 · 完整恢复 Clash/Mihomo 高级 JS 规则编译引擎",

@@ -58,7 +58,7 @@ pub async fn aggregate_clash_yaml(
                     all_proxies.push(node);
                 }
 
-                if !current_sub_nodes.is_empty() {
+                if current_sub_nodes.len() > 1 {
                     let sub_group_name = format!("📦 订阅源 · {}", sub.name);
                     sub_group_map.push((sub_group_name, current_sub_nodes));
                 }
