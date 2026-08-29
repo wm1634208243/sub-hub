@@ -286,7 +286,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.2.0' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.2.1' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -895,7 +895,7 @@
                 <div v-if="activeInspectSubId === sub.id" class="pt-3 border-t border-slate-800 space-y-2">
                   <div class="flex items-center justify-between text-[11px] text-slate-400 flex-wrap gap-2">
                     <div class="flex items-center gap-2">
-                      <span class="font-semibold text-slate-300">📋 节点明细 ({{ inspectNodesList.length }} 个)</span>
+                      <span class="font-semibold text-slate-300">📋 包含节点明细 ({{ inspectNodesList.length }} 个)</span>
                       <span class="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
                         <span>⚡ 优选池: {{ countAutoTestInSub(inspectNodesList) }} / {{ inspectNodesList.length }}</span>
                       </span>
@@ -949,7 +949,7 @@
             </div>
           </div>
 
-          
+
           <!-- ⚡ 全局自动优选 (URLTest) 候选池深度定制卡片 -->
           <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
             <div class="flex items-center justify-between pb-4 border-b border-slate-800">
@@ -1015,9 +1015,9 @@
                 <div class="flex items-center justify-between text-xs">
                   <span class="font-semibold text-slate-300">勾选参与自动优选的国家/地区：</span>
                   <div class="flex items-center gap-2 text-[10px]">
-                    <button type="button" @click="selectCommonRegions" class="text-amber-400 hover:text-amber-300 font-medium">常用四国 (港日新美)</button>
+                    <button type="button" @click="selectCommonRegions" class="text-amber-400 hover:text-amber-300 font-medium cursor-pointer">常用四国 (港日新美)</button>
                     <span class="text-slate-600">|</span>
-                    <button type="button" @click="selectAllRegions" class="text-cyan-400 hover:text-cyan-300">全选</button>
+                    <button type="button" @click="selectAllRegions" class="text-cyan-400 hover:text-cyan-300 cursor-pointer">全选</button>
                   </div>
                 </div>
                 <div class="flex flex-wrap gap-2 pt-1">
@@ -3938,7 +3938,7 @@
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.2.0' }}
+                      v{{ versionInfo.currentVersion || '1.2.1' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -4164,7 +4164,7 @@
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.2.0' }}
+                v{{ versionInfo.currentVersion || '1.2.1' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -5359,7 +5359,197 @@ function main(config, profileName) {
       const enableFinalGroup = /🐟 漏网之鱼/i.test(code);
       const enableLoyalsoldier = /Loyalsoldier/i.test(code) || /RULE-SET\s*,\s*proxy/i.test(code);
 
-      
+      return {
+        mode: 'gui',
+        fallbackRule,
+        enableGeoSiteCn,
+        enableGeoIpCn,
+        enableSniffer,
+        enableTcpConcurrent,
+        enableNoResolve,
+        enableUnifiedDelay,
+        enableProcessStrict,
+        customProxyGroupName,
+        enableAiGroup,
+        enableMediaGroup,
+        enableTelegramGroup,
+        enableGameGroup,
+        enableAppleGroup,
+        enableAdBlock,
+        enableFinalGroup,
+        enableLoyalsoldier,
+        targetPlatforms,
+        enableAutoPlatformDetect,
+        nameservers,
+        fallbackDns,
+        proxyIps: Array.from(proxyIps),
+        proxyProcesses: Array.from(proxyProcesses),
+        proxyKeywords: Array.from(proxyKeywords),
+        proxyDomains: Array.from(proxyDomains),
+        directIps: Array.from(directIps),
+        directProcesses: Array.from(directProcesses),
+        directKeywords: Array.from(directKeywords),
+        directDomains: Array.from(directDomains),
+        fakeIpFilter
+      };
+    }
+
+    // 可重用的规则卡片组件（支持搜索过滤、批量粘贴、格式校验）
+    const RuleSectionCard = {
+      props: ['title', 'placeholder', 'items', 'badgeColor', 'ruleType'],
+      emits: ['change'],
+      template: `
+        <div class="mb-3 last:mb-0">
+          <div v-if="title" class="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+            <span>{{ title }}</span>
+            <span class="text-[11px] font-mono text-slate-500">{{ items ? items.length : 0 }} 个已添加</span>
+          </div>
+
+          <!-- 输入框 + 搜索框 -->
+          <div class="space-y-1.5 mb-2.5">
+            <div class="flex gap-2">
+              <input 
+                v-model="inputVal" 
+                @keydown.enter.prevent="addItems" 
+                :placeholder="placeholder"
+                class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+              />
+              <button 
+                @click="addItems" 
+                class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-4 py-2 rounded-xl border border-slate-700 transition-all cursor-pointer font-semibold shrink-0"
+              >
+                添加
+              </button>
+            </div>
+
+            <!-- 规则超过5条时提供过滤搜索 -->
+            <div v-if="items && items.length >= 5" class="relative">
+              <input 
+                v-model="searchQuery" 
+                placeholder="🔍 搜索过滤已添加的项目..." 
+                class="w-full bg-slate-950/80 border border-slate-800/80 rounded-lg px-2.5 py-1 text-[11px] text-slate-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+          </div>
+
+          <!-- 标签网格 (滚动高度合理，不会挤压页面) -->
+          <div class="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto custom-scrollbar p-1.5 bg-slate-950/40 rounded-xl border border-slate-850">
+            <span 
+              v-for="item in filteredItems" 
+              :key="item"
+              :class="badgeColor"
+              class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border font-mono transition-all group"
+            >
+              <span>{{ item }}</span>
+              <button 
+                @click="removeItem(item)" 
+                class="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer text-sm leading-none pl-0.5"
+                title="删除"
+              >
+                &times;
+              </button>
+            </span>
+            <span v-if="!items || items.length === 0" class="text-xs text-slate-500 italic py-1 px-1">暂无项目，可在上方输入框添加</span>
+            <span v-else-if="filteredItems.length === 0" class="text-xs text-slate-500 italic py-1 px-1">无匹配搜索项</span>
+          </div>
+        </div>
+      `,
+      setup(props, { emit }) {
+        const inputVal = ref('');
+        const searchQuery = ref('');
+
+        const filteredItems = computed(() => {
+          if (!props.items) return [];
+          if (!searchQuery.value.trim()) return props.items;
+          const q = searchQuery.value.toLowerCase().trim();
+          return props.items.filter(i => i.toLowerCase().includes(q));
+        });
+
+        const validateItem = (val) => {
+          if (!val) return false;
+          if (props.ruleType === 'domain') {
+            return /^[a-zA-Z0-9_\u4e00-\u9fa5\.\-]+$/.test(val);
+          }
+          if (props.ruleType === 'ip') {
+            return /^[0-9\.\:\/]+$/.test(val);
+          }
+          return true;
+        };
+
+        const addItems = () => {
+          const raw = inputVal.value;
+          if (!raw || !props.items) return;
+          
+          const tokens = raw.split(/[\r\n, ]+/).map(s => s.trim()).filter(Boolean);
+          let addedCount = 0;
+
+          tokens.forEach(tok => {
+            if (validateItem(tok) && !props.items.includes(tok)) {
+              props.items.unshift(tok);
+              addedCount++;
+            }
+          });
+
+          if (addedCount > 0) {
+            inputVal.value = '';
+            emit('change');
+          }
+        };
+
+        const removeItem = (item) => {
+          const idx = props.items.indexOf(item);
+          if (idx !== -1) {
+            props.items.splice(idx, 1);
+            emit('change');
+          }
+        };
+
+        return { inputVal, searchQuery, filteredItems, addItems, removeItem };
+      }
+    };
+
+    const app = createApp({
+      components: { RuleSectionCard },
+      setup() {
+        const savedToken = localStorage.getItem('rule_hub_token') || '';
+        const savedIsGuest = localStorage.getItem('subhub_is_guest') === 'true';
+        let savedUser = { username: '', role: 'user', isGuest: false };
+        if (savedIsGuest) {
+          savedUser = { username: '本地离线访客', role: 'guest', isGuest: true };
+        } else {
+          try {
+            const uStr = localStorage.getItem('rule_hub_user');
+            if (uStr) savedUser = JSON.parse(uStr);
+          } catch {}
+        }
+
+        const isLoggedIn = ref(!!savedToken || savedIsGuest);
+        const token = ref(savedToken);
+        const currentUser = ref(savedUser);
+        const storageMode = ref(localStorage.getItem('subhub_storage_mode') || (savedIsGuest ? 'local' : 'cloud'));
+        const isGuest = ref(savedIsGuest);
+        const purgingCloud = ref(false);
+        const showPromoteModal = ref(false);
+        const showBoundaryModal = ref(false);
+        const promoteForm = ref({ username: '', password: '', confirmPassword: '' });
+        const compilingLocalTarget = ref('');
+        const authMode = ref('login'); // 'login' | 'register'
+        const usernameInput = ref('');
+        const passwordInput = ref('');
+        const registerPasswordConfirm = ref('');
+        const loading = ref(false);
+        const saving = ref(false);
+        const activeTab = ref('subs'); // Default to Subs tab
+        const proxyTab = ref('domain');  // 'domain' | 'keyword' | 'ip' | 'process'
+        const directTab = ref('domain'); // 'domain' | 'keyword' | 'ip' | 'process'
+        const showDnsConfig = ref(false);
+        const showCoreConfig = ref(false);
+        const showExtraSubFormats = ref(false);
+        const clientCategory = ref('rules'); // 'rules' | 'subs' | 'faq'
+        const clientRulesSubTab = ref('verge'); // 'verge' | 'mihomo_party' | 'stash'
+        const clientSubsSubTab = ref('clash'); // 'clash' | 'shadowrocket' | 'singbox' | 'surge'
+        const isDirty = ref(false);
+
         const availableAutoTestRegions = [
           { code: 'HK', name: '香港', flag: '🇭🇰' },
           { code: 'JP', name: '日本', flag: '🇯🇵' },
@@ -5375,7 +5565,7 @@ function main(config, profileName) {
         ];
 
         const isRegionSelectedForAutoTest = (code) => {
-          if (!config.value.autoTestRegions) config.value.autoTestRegions = ['HK', 'JP', 'SG', 'US'];
+          if (!config.value || !config.value.autoTestRegions) return ['HK', 'JP', 'SG', 'US'].includes(code);
           return config.value.autoTestRegions.includes(code);
         };
 
@@ -5401,7 +5591,7 @@ function main(config, profileName) {
         };
 
         const isNodeInAutoTest = (node) => {
-          if (!node) return true;
+          if (!node || !config.value) return true;
           const excluded = config.value.excludedAutoTestNodes || [];
           return !excluded.includes(node.name) && !excluded.includes(node.rawName);
         };
@@ -5442,19 +5632,2367 @@ function main(config, profileName) {
           markDirty();
         };
 
+        // 订阅管理状态
+        const refreshingSubs = ref(false);
+        const showSubModal = ref(false);
+        const subForm = ref({ id: '', name: '', url: '', prefix: '', defaultRegion: '', customExpire: '', enabled: true, autoRefreshInterval: 60 });
+        const activeInspectSubId = ref(null);
+        const inspectLoading = ref(false);
+        const inspectNodesList = ref([]);
 
-      return {
-        availableAutoTestRegions,
-        isRegionSelectedForAutoTest,
-        toggleRegionInAutoTest,
-        selectCommonRegions,
-        selectAllRegions,
-        isNodeInAutoTest,
-        toggleNodeAutoTest,
-        bulkSetAutoTest,
-        countAutoTestInSub,
-        resetAllExcludedNodes,
-        activeInspectSubId,
+        const toggleInspectNodes = async (sub) => {
+          if (activeInspectSubId.value === sub.id) {
+            activeInspectSubId.value = null;
+            inspectNodesList.value = [];
+            return;
+          }
+          activeInspectSubId.value = sub.id;
+          inspectLoading.value = true;
+          inspectNodesList.value = [];
+          try {
+            const res = await fetch(`/api/subscriptions/${sub.id}/nodes`, {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.nodes) {
+              inspectNodesList.value = data.nodes;
+              if (data.nodesCount !== undefined) {
+                sub.nodesCount = data.nodesCount;
+              }
+            } else {
+              showToast(data.error || '获取节点列表失败', 'error');
+            }
+          } catch (err) {
+            showToast('请求节点信息异常', 'error');
+          } finally {
+            inspectLoading.value = false;
+          }
+        };
+        const subtTesting = ref(false);
+        const subTestResult = ref(null);
+
+        // 系统版本管理与多版本发布中心状态
+        const versionInfo = ref({
+          currentVersion: '1.2.1',
+          latestVersion: '1.2.1',
+          hasUpdate: false,
+          releaseNotes: '',
+          publishedAt: '',
+          commitHash: '',
+          repoUrl: 'https://github.com/wm1634208243/sub-hub',
+          isDocker: false,
+          isGit: true,
+          checked: false,
+          checkError: null,
+          lastCheckTime: '',
+          versions: []
+        });
+        const checkingVersion = ref(false);
+        const updatingSystem = ref(false);
+        const updateLogs = ref('');
+        const showVersionModal = ref(false);
+        const showUpdateModal = ref(false);
+        const expandedVersions = ref({});
+        const targetUpdateVersion = ref('');
+        const targetUpdateType = ref('upgrade'); // 'upgrade' | 'rollback'
+        const targetUpdateName = ref('');
+
+        const toggleVersionDetails = (ver) => {
+          expandedVersions.value[ver] = !expandedVersions.value[ver];
+        };
+
+        const openVersionModal = () => {
+          showVersionModal.value = true;
+          if (!versionInfo.value.checked) {
+            fetchVersionInfo(false, true);
+          }
+        };
+
+        // 修改密码表单与明密文切换状态
+        const pwdForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' });
+        const showLoginPassword = ref(false);
+        const showRegisterPassword = ref(false);
+        const showRegisterConfirmPassword = ref(false);
+        const showOldPassword = ref(false);
+        const showNewPassword = ref(false);
+        const showConfirmPassword = ref(false);
+
+        // 有效期输入 (YYYY-MM-DD)
+        const tokenExpiryInput = ref('');
+
+        // 访问日志
+        const logs = ref([]);
+
+        // Admin 用户管理
+        const adminUsers = ref([]);
+        const loadingUsers = ref(false);
+        const newUser = ref({ username: '', password: '', role: 'user' });
+
+        // 管理员重置用户密码状态
+        const showAdminResetPwdModal = ref(false);
+        const resetTargetUsername = ref('');
+        const resetPwdForm = ref({ password: '', confirmPassword: '' });
+        const showResetPassword = ref(false);
+        const showResetConfirmPassword = ref(false);
+        const submittingResetPwd = ref(false);
+
+        // 封禁管理状态
+        const showBanModal = ref(false);
+        const banTargetUser = ref(null);
+        const banDurationType = ref('1h'); // '10m', '1h', '24h', '7d', '30d', 'permanent', 'custom'
+        const banCustomUntil = ref('');
+        const banReason = ref('');
+
+        // 系统全局设置 & 域名绑定状态
+        const systemSettings = ref({
+          customDomain: '',
+          enableHttpsRedirect: false,
+          updatedAt: null
+        });
+        const domainInput = ref('');
+        const testingDns = ref(false);
+        const dnsTestResult = ref(null);
+        const savingDomain = ref(false);
+        const domainGuideTab = ref('cloudflare'); // 'cloudflare' | 'caddy' | 'nginx'
+
+        // 一键 SSL 证书与自动化反向代理状态
+        const showSslModal = ref(false);
+        const sslEngine = ref('caddy'); // 'caddy' | 'nginx' | 'direct'
+        const sslPort = ref('443');
+        const sslModalTab = ref('caddy'); // 'caddy' | 'cloudflare' | 'custom' | 'direct'
+        const customCertPem = ref('');
+        const customKeyPem = ref('');
+        const savingCustomCert = ref(false);
+        const generatingSelfSigned = ref(false);
+        const provisioningSsl = ref(false);
+        const sslProvisionLogs = ref('');
+        const sslProvisionSuccess = ref(false);
+
+        let editorInstance = null;
+
+        const config = ref({
+          mode: 'gui',
+          subscriptionToken: '',
+          tokenExpiresAt: null,
+          fallbackRule: 'DIRECT',
+          enableGeoSiteCn: true,
+          enableGeoIpCn: true,
+          enableSniffer: true,
+          enableTcpConcurrent: true,
+          enableNoResolve: true,
+          enableUnifiedDelay: true,
+          enableProcessStrict: true,
+          customProxyGroupName: '',
+          enableAiGroup: true,
+          enableMediaGroup: true,
+          enableTelegramGroup: true,
+          enableGameGroup: true,
+          enableAppleGroup: true,
+          enableAdBlock: true,
+          enableFinalGroup: true,
+          enableLoyalsoldier: true,
+          targetPlatforms: ['macos', 'windows', 'ios', 'android'],
+          enableAutoPlatformDetect: true,
+          subscriptions: [],
+          enableAutoFlags: true,
+          enableCleanAdAndRate: true,
+          enableGeoIpLookup: true,
+          enableDeadNodeFilter: false,
+          enableLatencySort: false,
+          latencyTimeoutMs: 2000,
+          customRenameRules: [],
+          nameservers: ['223.5.5.5', '119.29.29.29'],
+          fallbackDns: ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query'],
+          proxyIps: [],
+          proxyProcesses: [],
+          proxyKeywords: [],
+          proxyDomains: [],
+          directIps: [],
+          directProcesses: [],
+          directKeywords: [],
+          directDomains: [],
+          fakeIpFilter: [],
+          customScript: ''
+        });
+
+        // 节点重命名与国旗注入实时测试器
+        const testSampleNodeName = ref('香港 01 专线 (1.5x)');
+        const testSampleServerHost = ref('1.1.1.1');
+
+        // 服务端连通性与延迟测速状态
+        const healthTesting = ref(false);
+        const healthResults = ref(null);
+
+        const runNodeHealthCheck = async () => {
+          healthTesting.value = true;
+          try {
+            const res = await fetch('/api/nodes/health', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                timeoutMs: config.value.latencyTimeoutMs || 2000,
+                forceRefresh: true
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              healthResults.value = data;
+              showToast(`⚡ 测速完成！存活: ${data.aliveCount} / 离线: ${data.deadCount} (均延迟 ${data.avgLatency}ms)`);
+            } else {
+              showToast(data.error || '测速失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，测速失败', 'error');
+          } finally {
+            healthTesting.value = false;
+          }
+        };
+
+        const addRenameRule = () => {
+          if (!config.value.customRenameRules) config.value.customRenameRules = [];
+          config.value.customRenameRules.push({ search: '', replace: '', isRegex: false, enabled: true });
+          markDirty();
+        };
+
+        const removeRenameRule = (idx) => {
+          if (config.value.customRenameRules) {
+            config.value.customRenameRules.splice(idx, 1);
+            markDirty();
+          }
+        };
+
+        const REGION_FLAGS_DICT = [
+          { flag: '🇭🇰', regex: /(香港|hong\s*kong|hkg|🇭🇰|\b(hk|hkg)\b)/i },
+          { flag: '🇹🇼', regex: /(台湾|taiwan|tpe|hsinchu|🇹🇼|\b(tw|twn)\b)/i },
+          { flag: '🇯🇵', regex: /(日本|japan|tokyo|osaka|nrt|hnd|kix|东京|大阪|🇯🇵|\b(jp|jpn)\b)/i },
+          { flag: '🇸🇬', regex: /(新加坡|singapore|sin|狮城|🇸🇬|\b(sg|sgp)\b)/i },
+          { flag: '🇺🇸', regex: /(美国|united\s*states|usa|lax|sfo|nyc|sjc|iad|ord|sea|pdx|dfw|atl|ewr|洛杉矶|圣何塞|西雅图|纽约|芝加哥|硅谷|波特兰|达拉斯|亚特兰大|🇺🇸|\b(us|usa)\b)/i },
+          { flag: '🇰🇷', regex: /(韩国|korea|sel|seoul|icn|首尔|仁川|🇰🇷|\b(kr|kor)\b)/i },
+          { flag: '🇬🇧', regex: /(英国|united\s*kingdom|uk|gb|london|lhr|伦敦|🇬🇧|\b(uk|gb|gbr)\b)/i },
+          { flag: '🇩🇪', regex: /(德国|germany|fra|frankfurt|法兰克福|柏林|🇩🇪|\b(de|deu)\b)/i },
+          { flag: '🇫🇷', regex: /(法国|france|paris|cdg|巴黎|🇫🇷|\b(fr|fra)\b)/i },
+          { flag: '🇨🇦', regex: /(加拿大|canada|toronto|vancouver|yyz|yvr|多伦多|温哥华|🇨🇦|\b(ca|can)\b)/i },
+          { flag: '🇦🇺', regex: /(澳大利亚|澳洲|australia|sydney|melbourne|syd|mel|悉尼|墨尔本|🇦🇺|\b(au|aus)\b)/i },
+          { flag: '🇷🇺', regex: /(俄罗斯|russia|moscow|svo|莫斯科|圣彼得堡|🇷🇺)/i },
+          { flag: '🇮🇳', regex: /(印度|india|delhi|mumbai|孟买|德里|🇮🇳|\b(ind)\b)/i },
+          { flag: '🇹🇭', regex: /(泰国|thailand|bangkok|bkk|曼谷|🇹🇭|\b(th|tha)\b)/i },
+          { flag: '🇻🇳', regex: /(越南|vietnam|hanoi|sgn|河内|胡志明|🇻🇳|\b(vn|vnm)\b)/i },
+          { flag: '🇲🇾', regex: /(马来西亚|malaysia|kuala|kul|吉隆坡|大马|🇲🇾|\b(mys)\b)/i },
+          { flag: '🇵🇭', regex: /(菲律宾|philippines|manila|马尼拉|🇵🇭|\b(phl)\b)/i },
+          { flag: '🇹🇷', regex: /(土耳其|turkey|istanbul|ist|伊斯坦布尔|🇹🇷|\b(tur)\b)/i },
+          { flag: '🇦🇷', regex: /(阿根廷|argentina|🇦🇷|\b(arg)\b)/i },
+          { flag: '🇧🇷', regex: /(巴西|brazil|sao\s*paulo|sao|圣保罗|🇧🇷|\b(bra)\b)/i },
+          { flag: '🇳🇱', regex: /(荷兰|netherlands|amsterdam|ams|阿姆斯特丹|🇳🇱|\b(nld)\b)/i },
+          { flag: '🇨🇭', regex: /(瑞士|switzerland|zurich|苏黎世|🇨🇭|\b(che)\b)/i },
+          { flag: '🇸🇪', regex: /(瑞典|sweden|stockholm|斯德哥尔摩|🇸🇪|\b(swe)\b)/i },
+          { flag: '🇮🇹', regex: /(意大利|italy|milan|rome|米兰|罗马|🇮🇹|\b(ita)\b)/i },
+          { flag: '🇪🇸', regex: /(西班牙|spain|madrid|barcelona|马德里|巴塞罗那|🇪🇸|\b(esp)\b)/i },
+          { flag: '🇦🇪', regex: /(阿联酋|迪拜|uae|dubai|dxb|🇦🇪|\b(are)\b)/i }
+        ];
+
+        const FLAG_EMOJI_REGEX = /^[\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF]/;
+        const ANY_FLAG_EMOJI_REGEX = /[\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF]/g;
+
+        const previewRenamedResult = computed(() => {
+          let name = (testSampleNodeName.value || '').trim();
+          let server = (testSampleServerHost.value || '').trim();
+          if (!name) return '';
+
+          if (config.value.enableCleanAdAndRate !== false) {
+            name = name.replace(/[(（\[【\s]*(?:[xX*×]\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:倍率?|[xX*×]))[)）\]】\s]*/g, ' ');
+            name = name.replace(/[(（\[【\s]*(?:剩余流量|已用流量|到期时间|剩余|到期)[\s:：]*[^\s,|)）\]】]+[)）\]】\s]*/gi, ' ');
+            name = name.replace(/[(（\[【\s]*(?:官网地址|官方网站|最新地址|官网|发布页)[\s:：]*[a-zA-Z0-9_\-\.\:\/]+[)）\]】\s]*/gi, ' ');
+            name = name.replace(/[(（\[【]\s*[)）\]】]/g, ' ');
+            name = name.replace(/\s+/g, ' ').trim();
+          }
+
+          if (Array.isArray(config.value.customRenameRules)) {
+            for (const rule of config.value.customRenameRules) {
+              if (!rule || rule.enabled === false || !rule.search) continue;
+              try {
+                if (rule.isRegex) {
+                  const re = new RegExp(rule.search, rule.flags || 'g');
+                  name = name.replace(re, rule.replace || '');
+                } else {
+                  name = name.replaceAll(rule.search, rule.replace || '');
+                }
+              } catch {}
+            }
+            name = name.replace(/\s+/g, ' ').trim();
+          }
+
+          if (config.value.enableAutoFlags !== false) {
+            if (!FLAG_EMOJI_REGEX.test(name)) {
+              let matchedFlag = null;
+
+              // 1. Name keywords
+              for (const reg of REGION_FLAGS_DICT) {
+                if (reg.regex.test(name)) {
+                  matchedFlag = reg.flag;
+                  break;
+                }
+              }
+
+              // 2. Server domain keywords
+              if (!matchedFlag && server) {
+                for (const reg of REGION_FLAGS_DICT) {
+                  if (reg.regex.test(server)) {
+                    matchedFlag = reg.flag;
+                    break;
+                  }
+                }
+              }
+
+              // 3. Fallback heuristic for live preview
+              if (!matchedFlag && config.value.enableGeoIpLookup !== false && server) {
+                if (/^(64\.|104\.|172\.|198\.|199\.|208\.|152\.)/.test(server)) matchedFlag = '🇺🇸';
+                else if (/^(45\.76\.|45\.32\.|139\.180\.)/.test(server)) matchedFlag = '🇯🇵';
+                else if (/^(47\.52\.|47\.90\.|149\.129\.)/.test(server)) matchedFlag = '🇭🇰';
+                else matchedFlag = '🌐';
+              }
+
+              if (matchedFlag) {
+                name = name.replace(ANY_FLAG_EMOJI_REGEX, '').trim();
+                name = `${matchedFlag} ${name}`;
+              }
+            }
+          }
+
+          return name;
+        });
+
+        const markDirty = () => { isDirty.value = true; };
+
+        const toast = ref({ show: false, message: '', type: 'success' });
+        const showToast = (message, type = 'success') => {
+          toast.value = { show: true, message, type };
+          setTimeout(() => { toast.value.show = false; }, 3200);
+        };
+
+        const hostWithoutPort = computed(() => {
+          return window.location.hostname;
+        });
+
+        const publicOrigin = computed(() => {
+          const custom = systemSettings.value.customDomain;
+          if (custom && custom.trim()) {
+            let clean = custom.trim().replace(/\/+$/, '');
+            if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+              clean = 'https://' + clean;
+            }
+            return clean;
+          }
+          return window.location.origin;
+        });
+
+        const smartSubUrl = computed(() => {
+          const origin = publicOrigin.value;
+          return `${origin}/api/sub?token=${config.value.subscriptionToken}`;
+        });
+
+        const subscriptionUrl = computed(() => {
+          const origin = publicOrigin.value;
+          return `${origin}/api/rules.js?token=${config.value.subscriptionToken}`;
+        });
+
+        const clashYamlUrl = computed(() => {
+          const origin = publicOrigin.value;
+          return `${origin}/api/clash.yaml?token=${config.value.subscriptionToken}`;
+        });
+
+        const base64Url = computed(() => {
+          const origin = publicOrigin.value;
+          return `${origin}/api/base64?token=${config.value.subscriptionToken}`;
+        });
+
+        const singBoxUrl = computed(() => {
+          const origin = publicOrigin.value;
+          return `${origin}/api/sing-box.json?token=${config.value.subscriptionToken}`;
+        });
+
+        const surgeUrl = computed(() => {
+          const origin = publicOrigin.value;
+          return `${origin}/api/surge.list?token=${config.value.subscriptionToken}`;
+        });
+
+        const isTokenExpired = computed(() => {
+          if (!config.value.tokenExpiresAt) return false;
+          return Date.now() > new Date(config.value.tokenExpiresAt).getTime();
+        });
+
+        // 汇总流量统计
+        const totalTrafficStats = computed(() => {
+          let upload = 0, download = 0, total = 0, earliestExpire = null, totalNodes = 0;
+          const subs = config.value.subscriptions || [];
+
+          subs.forEach(s => {
+            if (s.enabled !== false) {
+              totalNodes += (s.nodesCount || 0);
+              if (s.userInfo) {
+                upload += (s.userInfo.upload || 0);
+                download += (s.userInfo.download || 0);
+                total += (s.userInfo.total || 0);
+              }
+              let expMs = null;
+              if (s.customExpire) {
+                expMs = new Date(s.customExpire + 'T23:59:59').getTime();
+              } else if (s.userInfo && s.userInfo.expire && s.userInfo.expire > 0) {
+                expMs = s.userInfo.expire;
+              }
+              if (expMs && expMs > 0) {
+                if (!earliestExpire || expMs < earliestExpire) {
+                  earliestExpire = expMs;
+                }
+              }
+            }
+          });
+
+          const used = upload + download;
+          const remaining = total > 0 ? Math.max(0, total - used) : 0;
+          const percentUsed = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+
+          return { upload, download, used, total, remaining, percentUsed, earliestExpire, totalNodes };
+        });
+
+        const getSubExpireInfo = (sub) => {
+          if (sub.customExpire) {
+            const expMs = new Date(sub.customExpire + 'T23:59:59').getTime();
+            return {
+              text: calcDaysLeft(expMs),
+              date: sub.customExpire + ' (自定义)',
+              isPermanent: false
+            };
+          }
+          if (sub.userInfo && sub.userInfo.expire && sub.userInfo.expire > 0) {
+            const expMs = sub.userInfo.expire;
+            return {
+              text: calcDaysLeft(expMs),
+              date: formatDate(new Date(expMs).toISOString()),
+              isPermanent: false
+            };
+          }
+          return {
+            text: '永久有效',
+            date: '无到期限制',
+            isPermanent: true
+          };
+        };
+
+        const formatBytes = (bytes) => {
+          if (!bytes || bytes === 0) return '0 B';
+          const k = 1024;
+          const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        };
+
+        const formatDate = (isoStr) => {
+          if (!isoStr) return '';
+          try {
+            const d = new Date(isoStr);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          } catch { return isoStr; }
+        };
+
+        const formatFullTime = (isoStr) => {
+          if (!isoStr) return '';
+          try {
+            return new Date(isoStr).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+          } catch { return isoStr; }
+        };
+
+        const calcDaysLeft = (timestamp) => {
+          if (!timestamp) return '';
+          const diff = timestamp - Date.now();
+          if (diff <= 0) return '⚠️ 已过期';
+          const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+          return `剩余 ${days} 天`;
+        };
+
+        const formatBanCountdown = (isoStr) => {
+          if (!isoStr) return '永久禁用';
+          try {
+            const target = new Date(isoStr).getTime();
+            const now = Date.now();
+            const diff = target - now;
+            if (diff <= 0) return '即将自动解禁';
+            const minutes = Math.floor(diff / 60000);
+            if (minutes < 60) return `剩 ${minutes} 分钟`;
+            const hours = Math.floor(minutes / 60);
+            const remMinutes = minutes % 60;
+            if (hours < 24) return `剩 ${hours}时${remMinutes}分`;
+            const days = Math.floor(hours / 24);
+            const remHours = hours % 24;
+            return `剩 ${days}天${remHours}时`;
+          } catch { return '禁用中'; }
+        };
+
+        const calculatedBanUntilPreview = computed(() => {
+          if (banDurationType.value === 'permanent') return '永久禁用 (直到管理员手动解禁)';
+          if (banDurationType.value === 'custom') {
+            if (!banCustomUntil.value) return '请在下方选择具体解禁时间';
+            const d = new Date(banCustomUntil.value);
+            if (isNaN(d.getTime())) return '无效时间格式';
+            return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+          }
+          const minutesMap = {
+            '10m': 10,
+            '1h': 60,
+            '24h': 1440,
+            '7d': 10080,
+            '30d': 43200
+          };
+          const mins = minutesMap[banDurationType.value] || 60;
+          const target = new Date(Date.now() + mins * 60 * 1000);
+          return target.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        });
+
+        const rulesJsUrl = computed(() => {
+          const origin = publicOrigin.value;
+          return `${origin}/api/rules.js?token=${config.value.subscriptionToken}`;
+        });
+
+        const copyTextToClipboard = (text, successMsg) => {
+          if (!text) {
+            return showToast('复制内容为空', 'error');
+          }
+          if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(() => {
+              showToast(successMsg || '复制成功！');
+            }).catch(() => {
+              fallbackCopy(text, successMsg);
+            });
+          } else {
+            fallbackCopy(text, successMsg);
+          }
+        };
+
+        const fallbackCopy = (text, successMsg) => {
+          try {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '-9999px';
+            textArea.style.left = '-9999px';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (successful) {
+              showToast(successMsg || '复制成功！');
+            } else {
+              prompt('您的浏览器限制了自动复制，请手动复制以下完整链接：', text);
+            }
+          } catch (err) {
+            prompt('您的浏览器限制了自动复制，请手动复制以下完整链接：', text);
+          }
+        };
+
+        const copyRulesJsUrl = () => {
+          copyTextToClipboard(rulesJsUrl.value, '⚡ 纯规则分流 / JS 覆写脚本直链已复制！');
+        };
+
+        const copySmartSubUrl = () => {
+          copyTextToClipboard(smartSubUrl.value, '🤖 智能自适应直链已复制！(全客户端通用)');
+        };
+
+        const copyUrl = () => {
+          copyTextToClipboard(subscriptionUrl.value, '⚡ JS 预处理覆写直链已复制！');
+        };
+
+        const copyClashUrl = () => {
+          copyTextToClipboard(clashYamlUrl.value, '🌟 完整 Clash YAML 聚合直链已复制！');
+        };
+
+        const copyBase64Url = () => {
+          copyTextToClipboard(base64Url.value, '🔗 Base64 单节点订阅链接已复制 (小火箭 / V2Ray 通用)！');
+        };
+
+        const copySingBoxUrl = () => {
+          copyTextToClipboard(singBoxUrl.value, '📦 Sing-Box JSON 订阅直链已复制！');
+        };
+
+        const copySurgeUrl = () => {
+          copyTextToClipboard(surgeUrl.value, '⚡ Surge 代理列表直链已复制！');
+        };
+
+        const copyCode = (code) => {
+          const target = (typeof code === 'string' && code) ? code : (editorInstance ? editorInstance.getValue() : '');
+          copyTextToClipboard(target, '源码/配置已复制到剪贴板！');
+        };
+
+        // 订阅源管理
+        const openAddSubModal = () => {
+          subForm.value = {
+            id: '',
+            name: '',
+            url: '',
+            prefix: '',
+            defaultRegion: '',
+            customExpire: '',
+            enabled: true,
+            autoRefreshInterval: 60
+          };
+          subTestResult.value = null;
+          showSubModal.value = true;
+        };
+
+        const openEditSubModal = (sub) => {
+          subForm.value = {
+            ...sub,
+            defaultRegion: sub.defaultRegion || '',
+            customExpire: sub.customExpire || '',
+            autoRefreshInterval: sub.autoRefreshInterval !== undefined ? sub.autoRefreshInterval : 60
+          };
+          subTestResult.value = null;
+          showSubModal.value = true;
+        };
+
+        const setExpirePreset = (months) => {
+          const d = new Date();
+          d.setMonth(d.getMonth() + months);
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          subForm.value.customExpire = `${yyyy}-${mm}-${dd}`;
+        };
+
+        const testSubLink = async () => {
+          if (!subForm.value.url) return showToast('请输入订阅 URL', 'error');
+          subtTesting.value = true;
+          subTestResult.value = null;
+          try {
+            const res = await fetch('/api/subscriptions/test', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                url: subForm.value.url,
+                prefix: subForm.value.prefix,
+                defaultRegion: subForm.value.defaultRegion
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              subTestResult.value = data;
+              
+              // 自动识别到期时间：若上游返回了有效 expire，自动填入日期选择框
+              if (data.userInfo && data.userInfo.expire) {
+                const expDate = new Date(data.userInfo.expire);
+                if (!isNaN(expDate.getTime()) && expDate.getFullYear() > 2020) {
+                  const yyyy = expDate.getFullYear();
+                  const mm = String(expDate.getMonth() + 1).padStart(2, '0');
+                  const dd = String(expDate.getDate()).padStart(2, '0');
+                  subForm.value.customExpire = `${yyyy}-${mm}-${dd}`;
+                  showToast(`🎉 成功解析 ${data.nodesCount} 个节点，已自动识别到期时间：${yyyy}-${mm}-${dd}`);
+                } else {
+                  showToast(`成功解析出 ${data.nodesCount} 个节点！`);
+                }
+              } else {
+                showToast(`成功解析出 ${data.nodesCount} 个节点！${data.userInfo ? '（上游无过期限制，默认永久）' : ''}`);
+              }
+
+              // 自动识别订阅名称
+              if (!subForm.value.name) {
+                if (data.sourceType && data.sourceType !== '未知源') {
+                  subForm.value.name = data.sourceType;
+                } else if (data.sampleNodes && data.sampleNodes.length > 0) {
+                  const first = data.sampleNodes[0].original || data.sampleNodes[0].formatted || '';
+                  subForm.value.name = first.split(/[\s_.-]/)[0] || '我的节点订阅';
+                }
+              }
+            } else {
+              showToast(data.error || '测试失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，测试失败', 'error');
+          } finally {
+            subtTesting.value = false;
+          }
+        };
+
+        const testSingleSub = async (sub) => {
+          showToast(`正在刷新【${sub.name}】...`);
+          try {
+            const res = await fetch('/api/subscriptions/refresh', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+              config.value.subscriptions = data.subscriptions;
+              const target = (data.subscriptions || []).find(s => s.id === sub.id || s.url === sub.url);
+              if (target && target.status === 'error') {
+                showToast(`【${sub.name}】同步失败: ${target.error || '上游响应异常'}`, 'error');
+              } else {
+                showToast(`【${sub.name}】同步成功，获取到 ${target?.nodesCount || 0} 个节点！`);
+              }
+            }
+          } catch {
+            showToast('刷新失败', 'error');
+          }
+        };
+
+        const saveSubForm = async () => {
+          if (!config.value.subscriptions) config.value.subscriptions = [];
+
+          if (subForm.value.id) {
+            // Update
+            const idx = config.value.subscriptions.findIndex(s => s.id === subForm.value.id);
+            if (idx !== -1) {
+              config.value.subscriptions[idx] = {
+                ...config.value.subscriptions[idx],
+                name: subForm.value.name,
+                url: subForm.value.url,
+                prefix: subForm.value.prefix,
+                defaultRegion: subForm.value.defaultRegion || '',
+                customExpire: subForm.value.customExpire || '',
+                enabled: subForm.value.enabled,
+                autoRefreshInterval: subForm.value.autoRefreshInterval !== undefined ? subForm.value.autoRefreshInterval : 60,
+                sourceType: subTestResult.value?.sourceType || config.value.subscriptions[idx].sourceType || '',
+                status: subTestResult.value ? (subTestResult.value.nodesCount > 0 ? 'online' : 'error') : config.value.subscriptions[idx].status,
+                error: subTestResult.value?.error || null
+              };
+              if (subTestResult.value?.nodesCount !== undefined) {
+                config.value.subscriptions[idx].nodesCount = subTestResult.value.nodesCount;
+              }
+              if (subTestResult.value?.userInfo) {
+                config.value.subscriptions[idx].userInfo = subTestResult.value.userInfo;
+              }
+            }
+          } else {
+            // Create
+            const newSub = {
+              id: 'sub_' + Date.now().toString(36),
+              name: subForm.value.name,
+              url: subForm.value.url,
+              prefix: subForm.value.prefix,
+              defaultRegion: subForm.value.defaultRegion || '',
+              customExpire: subForm.value.customExpire || '',
+              enabled: subForm.value.enabled !== false,
+              autoRefreshInterval: subForm.value.autoRefreshInterval !== undefined ? subForm.value.autoRefreshInterval : 60,
+              nodesCount: subTestResult.value?.nodesCount || 0,
+              userInfo: subTestResult.value?.userInfo || null,
+              sourceType: subTestResult.value?.sourceType || '',
+              updatedAt: new Date().toISOString(),
+              status: subTestResult.value ? (subTestResult.value.nodesCount > 0 ? 'online' : 'error') : 'online',
+              error: subTestResult.value?.error || null
+            };
+            config.value.subscriptions.push(newSub);
+          }
+
+          showSubModal.value = false;
+          // 立即持久化保存到后端服务器，避免刷新页面丢失
+          const ok = await saveConfig(true);
+          if (ok) {
+            showToast('✅ 订阅源已成功保存并持久化生效！');
+          }
+        };
+
+        const deleteSub = async (id) => {
+          if (!confirm('确定删除此订阅源吗？')) return;
+          config.value.subscriptions = config.value.subscriptions.filter(s => s.id !== id);
+          const ok = await saveConfig(true);
+          if (ok) {
+            showToast('✅ 订阅源已删除并同步保存！');
+          }
+        };
+
+        const toggleSubEnabled = async (sub) => {
+          const ok = await saveConfig(true);
+          if (ok) {
+            showToast(`已${sub.enabled ? '启用' : '停用'}订阅【${sub.name}】并保存`);
+          }
+        };
+
+        const refreshAllSubs = async () => {
+          refreshingSubs.value = true;
+          try {
+            const res = await fetch('/api/subscriptions/refresh', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+              config.value.subscriptions = data.subscriptions;
+              const errors = (data.subscriptions || []).filter(s => s.status === 'error');
+              if (errors.length > 0) {
+                showToast(`刷新完成：${data.subscriptions.length - errors.length} 个成功，${errors.length} 个失败`, 'warning');
+              } else {
+                showToast('全部上游订阅已成功同步！');
+              }
+            } else {
+              showToast(data.error || '同步失败', 'error');
+            }
+          } catch {
+            showToast('网络错误，同步失败', 'error');
+          } finally {
+            refreshingSubs.value = false;
+          }
+        };
+
+        const getLocalStorageKey = () => {
+          if (currentUser.value.isGuest) return 'subhub_guest_local_config';
+          return `subhub_local_config_${currentUser.value.username || 'default'}`;
+        };
+
+        // 免登录进入纯本地离线工作台
+        const enterGuestOfflineMode = async () => {
+          isGuest.value = true;
+          storageMode.value = 'local';
+          localStorage.setItem('subhub_is_guest', 'true');
+          localStorage.setItem('subhub_storage_mode', 'local');
+          currentUser.value = { username: '本地离线访客', role: 'guest', isGuest: true };
+          isLoggedIn.value = true;
+          showToast('🛡️ 已进入纯本地离线工作台！所有数据仅存本浏览器，云端 0 存储。');
+          await loadConfig();
+        };
+
+        // 登录
+        const login = async () => {
+          loading.value = true;
+          try {
+            const res = await fetch('/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                username: usernameInput.value.trim(), 
+                password: passwordInput.value 
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              token.value = data.token;
+              currentUser.value = { username: data.username, role: data.role, isGuest: false };
+              isGuest.value = false;
+              localStorage.removeItem('subhub_is_guest');
+              localStorage.setItem('rule_hub_token', data.token);
+              localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
+              isLoggedIn.value = true;
+              passwordInput.value = '';
+              showToast(`欢迎回来，${data.username}！`);
+              await loadConfig();
+              if (data.role === 'admin') {
+                loadAdminUsers();
+                loadSystemSettings();
+              }
+            } else {
+              showToast(data.error || '登录失败', 'error');
+            }
+          } catch (e) {
+            showToast('登录网络请求失败', 'error');
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        // 用户自主注册
+        const register = async () => {
+          if (!usernameInput.value || !passwordInput.value) {
+            return showToast('请输入用户名和密码', 'error');
+          }
+          if (passwordInput.value.length < 4) {
+            return showToast('密码长度至少 4 位', 'error');
+          }
+          if (passwordInput.value !== registerPasswordConfirm.value) {
+            return showToast('两次输入的密码不一致', 'error');
+          }
+          loading.value = true;
+          try {
+            const res = await fetch('/api/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                username: usernameInput.value.trim(), 
+                password: passwordInput.value 
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              token.value = data.token;
+              currentUser.value = { username: data.username, role: data.role, isGuest: false };
+              isGuest.value = false;
+              localStorage.removeItem('subhub_is_guest');
+              localStorage.setItem('rule_hub_token', data.token);
+              localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
+              isLoggedIn.value = true;
+              passwordInput.value = '';
+              registerPasswordConfirm.value = '';
+              showToast('🎉 注册成功！已为您分配专属独立空间！');
+              await loadConfig();
+            } else {
+              showToast(data.error || '注册失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，注册请求失败', 'error');
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        // 登出 / 退出离线工作台
+        const logout = async () => {
+          if (!currentUser.value.isGuest && token.value) {
+            try {
+              await fetch('/api/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token.value}` }
+              });
+            } catch {}
+          }
+          token.value = '';
+          localStorage.removeItem('rule_hub_token');
+          localStorage.removeItem('rule_hub_user');
+          localStorage.removeItem('subhub_is_guest');
+          isGuest.value = false;
+          currentUser.value = { username: '', role: 'user', isGuest: false };
+          isLoggedIn.value = false;
+          isDirty.value = false;
+        };
+
+        const switchAuthMode = (mode) => {
+          authMode.value = mode;
+          usernameInput.value = '';
+          passwordInput.value = '';
+          registerPasswordConfirm.value = '';
+        };
+
+        // 读取配置 (支持本地 LocalStorage 与云端 AES 加密无缝分支)
+        const loadConfig = async () => {
+          if (currentUser.value.isGuest || storageMode.value === 'local') {
+            const key = getLocalStorageKey();
+            const localRaw = localStorage.getItem(key);
+            let parsed = {};
+            if (localRaw) {
+              try { parsed = JSON.parse(localRaw); } catch {}
+            }
+            config.value = {
+              mode: 'gui',
+              subscriptionToken: 'local_offline_token',
+              tokenExpiresAt: null,
+              fallbackRule: 'DIRECT',
+              enableGeoSiteCn: true,
+              enableGeoIpCn: true,
+              enableSniffer: true,
+              enableTcpConcurrent: true,
+              enableNoResolve: true,
+              enableUnifiedDelay: true,
+              enableProcessStrict: true,
+              customProxyGroupName: '',
+              subscriptions: [],
+              nameservers: ['223.5.5.5', '119.29.29.29'],
+              fallbackDns: ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query'],
+              proxyIps: [],
+              proxyProcesses: [],
+              proxyKeywords: [],
+              proxyDomains: [],
+              directIps: [],
+              directProcesses: [],
+              directKeywords: [],
+              directDomains: [],
+              fakeIpFilter: [],
+              customScript: '',
+              targetPlatforms: ['macos', 'windows', 'ios', 'android'],
+              enableAutoPlatformDetect: true,
+              ...parsed,
+              subscriptions: parsed.subscriptions || [],
+              targetPlatforms: parsed.targetPlatforms || ['macos', 'windows', 'ios', 'android']
+            };
+            isLoggedIn.value = true;
+            isDirty.value = false;
+            await updateEditorContent();
+            return;
+          }
+
+          // 云端托管模式
+          try {
+            const res = await fetch('/api/config', {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              config.value = {
+                mode: 'gui',
+                subscriptionToken: '',
+                tokenExpiresAt: null,
+                fallbackRule: 'DIRECT',
+                enableGeoSiteCn: true,
+                enableGeoIpCn: true,
+                enableSniffer: true,
+                enableTcpConcurrent: true,
+                enableNoResolve: true,
+                enableUnifiedDelay: true,
+                enableProcessStrict: true,
+                customProxyGroupName: '',
+                subscriptions: [],
+                nameservers: ['223.5.5.5', '119.29.29.29'],
+                fallbackDns: ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query'],
+                proxyIps: [],
+                proxyProcesses: [],
+                proxyKeywords: [],
+                proxyDomains: [],
+                directIps: [],
+                directProcesses: [],
+                directKeywords: [],
+                directDomains: [],
+                fakeIpFilter: [],
+                customScript: '',
+                targetPlatforms: ['macos', 'windows', 'ios', 'android'],
+                enableAutoPlatformDetect: true,
+                ...data,
+                subscriptions: data.subscriptions || [],
+                targetPlatforms: data.targetPlatforms || ['macos', 'windows', 'ios', 'android']
+              };
+              isLoggedIn.value = true;
+              isDirty.value = false;
+              if (config.value.tokenExpiresAt) {
+                tokenExpiryInput.value = formatDate(config.value.tokenExpiresAt);
+              } else {
+                tokenExpiryInput.value = '';
+              }
+              await updateEditorContent();
+            } else if (res.status === 401 || res.status === 403) {
+              logout();
+            }
+          } catch (e) {
+            console.warn('loadConfig network/abort note:', e);
+          }
+        };
+
+        // 保存配置 (支持本地 LocalStorage 与云端 AES 加密无缝分支)
+        const saveConfig = async (silent = false) => {
+          saving.value = true;
+          try {
+            if (config.value.mode === 'custom' && editorInstance) {
+              config.value.customScript = editorInstance.getValue();
+            }
+
+            if (currentUser.value.isGuest || storageMode.value === 'local') {
+              const key = getLocalStorageKey();
+              localStorage.setItem(key, JSON.stringify(config.value));
+              isDirty.value = false;
+              if (!silent) {
+                showToast('🛡️ 本地配置已保存至浏览器 LocalStorage (云端 0 存储)！');
+              }
+              await updateEditorContent();
+              return true;
+            }
+
+            const res = await fetch('/api/config', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify(config.value)
+            });
+            const data = await res.json();
+            if (res.ok) {
+              isDirty.value = false;
+              if (!silent) {
+                showToast('配置已发布！订阅直链即刻生效');
+              }
+              await updateEditorContent();
+              return true;
+            } else {
+              showToast(data.error || '保存失败', 'error');
+              return false;
+            }
+          } catch (e) {
+            showToast('网络错误，保存失败', 'error');
+            return false;
+          } finally {
+            saving.value = false;
+          }
+        };
+
+        // 纯本地离线单机模式：即时编译并下载客户端配置文件
+        const downloadLocalCompiled = async (target) => {
+          compilingLocalTarget.value = target;
+          try {
+            const res = await fetch('/api/public/compile-transient', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                config: config.value,
+                target,
+                clientUa: navigator.userAgent
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              const blob = new Blob([data.content], { type: 'text/plain;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = data.filename || `subhub_${target}_config.txt`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              showToast(`🎉 成功编译并下载 ${data.filename} (聚合 ${data.nodesCount || 0} 个节点)！`);
+            } else {
+              showToast(data.error || '编译下载失败', 'error');
+            }
+          } catch (err) {
+            showToast('编译下载失败: ' + err.message, 'error');
+          } finally {
+            compilingLocalTarget.value = '';
+          }
+        };
+
+        // 一键彻底抹除云端历史数据 (切换至纯本地离线时使用)
+        const purgeCloudData = async () => {
+          if (!confirm('⚠️ 确认彻底抹除服务器上的云端配置数据？\n\n此操作将物理删除云端持久化加密文件。若您已保存在本地浏览器中，本地数据不会受影响。')) return;
+          purgingCloud.value = true;
+          try {
+            const res = await fetch('/api/config/purge', {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast('🗑️ 云端配置数据已彻底物理抹除！');
+            } else {
+              showToast(data.error || '抹除失败', 'error');
+            }
+          } catch (e) {
+            showToast('抹除失败: ' + e.message, 'error');
+          } finally {
+            purgingCloud.value = false;
+          }
+        };
+
+        // 访客一键升级为云端同步账号 (无缝继承本地配置)
+        const promoteGuestToCloud = async () => {
+          if (!promoteForm.value.username || !promoteForm.value.password) {
+            return showToast('请填写新用户名和密码', 'error');
+          }
+          if (promoteForm.value.password.length < 4) {
+            return showToast('密码长度至少 4 位', 'error');
+          }
+          if (promoteForm.value.password !== promoteForm.value.confirmPassword) {
+            return showToast('两次输入的密码不一致', 'error');
+          }
+          loading.value = true;
+          try {
+            const res = await fetch('/api/register', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                username: promoteForm.value.username.trim(),
+                password: promoteForm.value.password,
+                initialConfig: config.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              token.value = data.token;
+              currentUser.value = { username: data.username, role: data.role, isGuest: false };
+              storageMode.value = 'cloud';
+              localStorage.setItem('rule_hub_token', data.token);
+              localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
+              localStorage.setItem('subhub_storage_mode', 'cloud');
+              localStorage.removeItem('subhub_is_guest');
+              isGuest.value = false;
+              showPromoteModal.value = false;
+              showToast('🎉 账号注册成功！当前本地配置已无缝同步至云端！');
+              await loadConfig();
+            } else {
+              showToast(data.error || '升级云端账号失败', 'error');
+            }
+          } catch (err) {
+            showToast('网络错误: ' + err.message, 'error');
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        // 重新生成 Token
+        const regenerateToken = async () => {
+          if (!confirm('重新生成 Token 后，所有旧订阅直链将立即失效，需更新客户端订阅，确认重置吗？')) return;
+          try {
+            const res = await fetch('/api/regenerate-token', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+              config.value.subscriptionToken = data.token;
+              showToast('新 Token 已生成！');
+            }
+          } catch (e) {
+            showToast('Token 生成失败', 'error');
+          }
+        };
+
+        // 保存订阅有效期
+        const saveTokenExpiry = async () => {
+          if (!tokenExpiryInput.value) {
+            return showToast('请先选择有效日期，或点击设为永久有效', 'error');
+          }
+          const iso = new Date(`${tokenExpiryInput.value}T23:59:59+08:00`).toISOString();
+          try {
+            const res = await fetch('/api/set-token-expiry', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}` 
+              },
+              body: JSON.stringify({ expiresAt: iso })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              config.value.tokenExpiresAt = data.tokenExpiresAt;
+              showToast('订阅有效期设置成功！');
+            }
+          } catch (e) {
+            showToast('设置有效期失败', 'error');
+          }
+        };
+
+        // 清除订阅有效期（永久有效）
+        const clearTokenExpiry = async () => {
+          try {
+            const res = await fetch('/api/set-token-expiry', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}` 
+              },
+              body: JSON.stringify({ expiresAt: null })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              config.value.tokenExpiresAt = null;
+              tokenExpiryInput.value = '';
+              showToast('已设为永久有效！');
+            }
+          } catch (e) {
+            showToast('操作失败', 'error');
+          }
+        };
+
+        // 修改自身密码
+        const showPwdModal = ref(false);
+        const openPwdModal = () => {
+          pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
+          showOldPassword.value = false;
+          showNewPassword.value = false;
+          showConfirmPassword.value = false;
+          showPwdModal.value = true;
+        };
+
+        const changePassword = async () => {
+          if (!pwdForm.value.oldPassword) {
+            showToast('请输入当前原密码', 'error');
+            return false;
+          }
+          if (!pwdForm.value.newPassword || pwdForm.value.newPassword.length < 4) {
+            showToast('新密码长度至少需要 4 位', 'error');
+            return false;
+          }
+          if (pwdForm.value.newPassword !== pwdForm.value.confirmPassword) {
+            showToast('两次输入的新密码不一致，请重新检查！', 'error');
+            return false;
+          }
+
+          try {
+            const res = await fetch('/api/change-password', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                oldPassword: pwdForm.value.oldPassword,
+                newPassword: pwdForm.value.newPassword
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast('密码修改成功！1.2 秒后强制退出，请使用新密码重新登录');
+              pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
+              showPwdModal.value = false;
+
+              // 强制注销并跳转登录页面
+              setTimeout(() => {
+                logout();
+              }, 1200);
+              return true;
+            } else {
+              showToast(data.error || '修改密码失败', 'error');
+              return false;
+            }
+          } catch (e) {
+            showToast('请求失败', 'error');
+            return false;
+          }
+        };
+
+        const submitChangePassword = async () => {
+          await changePassword();
+        };
+
+        // 导出个人配置 JSON
+        const exportConfigJson = () => {
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config.value, null, 2));
+          const dlAnchorElem = document.createElement('a');
+          dlAnchorElem.setAttribute("href", dataStr);
+          dlAnchorElem.setAttribute("download", `subhub-config-${currentUser.value.username}-${new Date().toISOString().slice(0,10)}.json`);
+          dlAnchorElem.click();
+          showToast('个人配置备份已导出！');
+        };
+
+        // 导入个人配置 JSON
+        const importConfigJson = (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            try {
+              let imported = JSON.parse(e.target.result);
+              // Smart detect if user uploaded a full system snapshot file by mistake
+              if (imported && imported._type === 'SUBHUB_FULL_SYSTEM_SNAPSHOT') {
+                const userCfg = imported.configs?.[currentUser.value.username] || imported.configs?.['admin'];
+                if (userCfg) {
+                  imported = userCfg;
+                  showToast('检测到全站系统快照，已为您自动提取该账号的配置！', 'success');
+                } else {
+                  return showToast('快照中未找到该账号配置，请前往【用户管理】使用系统快照还原', 'error');
+                }
+              }
+              const oldToken = config.value.subscriptionToken;
+              config.value = { ...config.value, ...imported, subscriptionToken: oldToken };
+              markDirty();
+              showToast('配置已导入，请检查后点击【保存发布】生效！');
+            } catch (err) {
+              showToast('JSON 解析失败，请确认文件格式正确: ' + err.message, 'error');
+            }
+          };
+          reader.readAsText(file);
+          event.target.value = '';
+        };
+
+        // ── Admin: 全站系统全量快照备份与还原 ──────────────────────────────────────────
+        const systemBackingUp = ref(false);
+
+        const exportSystemSnapshot = async () => {
+          systemBackingUp.value = true;
+          try {
+            const res = await fetch('/api/admin/backup/export', {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (!res.ok) {
+              const err = await res.json();
+              return showToast(err.error || '导出失败', 'error');
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `subhub-system-snapshot-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast('🎉 全站系统快照已成功导出！');
+          } catch (e) {
+            showToast('导出系统快照失败: ' + e.message, 'error');
+          } finally {
+            systemBackingUp.value = false;
+          }
+        };
+
+        const handleSystemSnapshotImport = (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = async (e) => {
+            try {
+              const snapshot = JSON.parse(e.target.result);
+              if (!snapshot || snapshot._type !== 'SUBHUB_FULL_SYSTEM_SNAPSHOT') {
+                return showToast('该文件不是有效的 SubHub 全量系统快照备份', 'error');
+              }
+
+              const userCount = snapshot.stats?.userCount || snapshot.users?.length || 0;
+              const configCount = snapshot.stats?.configCount || Object.keys(snapshot.configs || {}).length || 0;
+
+              if (!confirm(`⚠️ 确认还原系统全量快照？\n\n快照详情：\n- 包含注册用户：${userCount} 个\n- 包含独立配置：${configCount} 份\n- 导出时间：${snapshot.exportedAt || '未知'}\n\n点击【确定】将合并还原数据并立即生效。`)) {
+                return;
+              }
+
+              const res = await fetch('/api/admin/backup/restore', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token.value}`
+                },
+                body: JSON.stringify({ snapshot, mode: 'merge' })
+              });
+
+              const data = await res.json();
+              if (res.ok) {
+                showToast(data.message || '系统快照还原成功！');
+                await loadAdminUsers();
+                await loadConfig();
+              } else {
+                showToast(data.error || '还原失败', 'error');
+              }
+            } catch (err) {
+              showToast('JSON 解析失败，请确认文件格式正确: ' + err.message, 'error');
+            }
+          };
+          reader.readAsText(file);
+          event.target.value = '';
+        };
+
+        // 访问与审计日志
+        const loadLogs = async () => {
+          try {
+            const res = await fetch('/api/access-log', {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (res.ok) {
+              logs.value = await res.json();
+            }
+          } catch {}
+        };
+
+        const clearLogs = async () => {
+          if (!confirm('确定要清空所有日志记录吗？')) return;
+          try {
+            const res = await fetch('/api/access-log/clear', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (res.ok) {
+              logs.value = [];
+              showToast('日志已清空！');
+            }
+          } catch (e) {
+            showToast('清空失败: ' + e.message, 'error');
+          }
+        };
+
+        // Admin: 用户管理
+        const loadAdminUsers = async () => {
+          if (currentUser.value.role !== 'admin') return;
+          loadingUsers.value = true;
+          try {
+            const res = await fetch('/api/admin/users', {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (res.ok) {
+              adminUsers.value = await res.json();
+            } else {
+              const err = await res.json().catch(() => ({}));
+              showToast(err.error || '获取用户列表失败', 'error');
+            }
+          } catch (e) {
+            console.error('Failed to load admin users:', e);
+          } finally {
+            loadingUsers.value = false;
+          }
+        };
+
+        const createUser = async () => {
+          try {
+            const res = await fetch('/api/admin/users', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify(newUser.value)
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast(`用户 ${newUser.value.username} 创建成功！`);
+              newUser.value = { username: '', password: '', role: 'user' };
+              await loadAdminUsers();
+            } else {
+              showToast(data.error || '创建失败', 'error');
+            }
+          } catch (e) {
+            showToast('请求失败', 'error');
+          }
+        };
+
+        const deleteUser = async (uName) => {
+          if (!confirm(`确定删除用户【${uName}】及其所有专属配置吗？此操作无法恢复！`)) return;
+          try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(uName)}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast(`用户 ${uName} 已删除`);
+              await loadAdminUsers();
+            } else {
+              showToast(data.error || '删除失败', 'error');
+            }
+          } catch (e) {
+            showToast('请求失败', 'error');
+          }
+        };
+
+        const openAdminResetPwdModal = (uName) => {
+          resetTargetUsername.value = uName;
+          resetPwdForm.value = { password: '', confirmPassword: '' };
+          showResetPassword.value = false;
+          showResetConfirmPassword.value = false;
+          showAdminResetPwdModal.value = true;
+        };
+
+        const generateRandomPasswordForReset = () => {
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+          let pwd = '';
+          for (let i = 0; i < 12; i++) {
+            pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          resetPwdForm.value.password = pwd;
+          resetPwdForm.value.confirmPassword = pwd;
+          showResetPassword.value = true;
+          showResetConfirmPassword.value = true;
+          showToast('已随机生成 12 位高强度密码！');
+        };
+
+        const submitAdminResetPassword = async () => {
+          if (!resetPwdForm.value.password) {
+            return showToast('请输入新密码', 'error');
+          }
+          if (resetPwdForm.value.password.length < 4) {
+            return showToast('新密码长度至少 4 位', 'error');
+          }
+          if (resetPwdForm.value.password !== resetPwdForm.value.confirmPassword) {
+            return showToast('两次输入的密码不一致', 'error');
+          }
+          submittingResetPwd.value = true;
+          try {
+            const uName = resetTargetUsername.value;
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(uName)}/reset-password`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({ newPassword: resetPwdForm.value.password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast(`用户【${uName}】的密码已成功重置！`);
+              showAdminResetPwdModal.value = false;
+            } else {
+              showToast(data.error || '重置密码失败', 'error');
+            }
+          } catch (e) {
+            showToast('请求失败: ' + e.message, 'error');
+          } finally {
+            submittingResetPwd.value = false;
+          }
+        };
+
+        const updateUserRole = async (u) => {
+          try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(u.username)}/role`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({ role: u.role })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast(data.message || `已成功更新【${u.username}】权限！`);
+            } else {
+              showToast(data.error || '修改权限失败', 'error');
+              await loadAdminUsers();
+            }
+          } catch (e) {
+            showToast('网络错误，修改权限失败', 'error');
+            await loadAdminUsers();
+          }
+        };
+
+        const openBanModal = (u) => {
+          banTargetUser.value = u;
+          banDurationType.value = '1h';
+          banCustomUntil.value = '';
+          banReason.value = '';
+          showBanModal.value = true;
+        };
+
+        const confirmBanUser = async () => {
+          if (!banTargetUser.value) return;
+          let durationMinutes = null;
+          let disabledUntil = null;
+
+          if (banDurationType.value === 'permanent') {
+            durationMinutes = null;
+            disabledUntil = null;
+          } else if (banDurationType.value === 'custom') {
+            if (!banCustomUntil.value) {
+              return showToast('请指定自定义解禁日期与时间', 'error');
+            }
+            const d = new Date(banCustomUntil.value);
+            if (isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+              return showToast('自定义解禁时间必须晚于当前时间', 'error');
+            }
+            disabledUntil = d.toISOString();
+          } else {
+            const minutesMap = {
+              '10m': 10,
+              '1h': 60,
+              '24h': 1440,
+              '7d': 10080,
+              '30d': 43200
+            };
+            durationMinutes = minutesMap[banDurationType.value] || 60;
+          }
+
+          try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(banTargetUser.value.username)}/status`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                disabled: true,
+                durationMinutes,
+                disabledUntil,
+                reason: banReason.value.trim()
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast(data.message || `已成功禁用用户【${banTargetUser.value.username}】！`);
+              showBanModal.value = false;
+              await loadAdminUsers();
+            } else {
+              showToast(data.error || '操作失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，操作失败', 'error');
+          }
+        };
+
+        const unbanUser = async (u) => {
+          if (!confirm(`确定要立即解禁并恢复用户【${u.username}】吗？\n\n解禁后：\n1. 该用户可正常登录 Web 管理端\n2. 客户端订阅将立即恢复正常下发`)) {
+            return;
+          }
+          try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(u.username)}/status`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({ disabled: false })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              showToast(data.message || `已成功解禁用户【${u.username}】！`);
+              await loadAdminUsers();
+            } else {
+              showToast(data.error || '解禁失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，解禁失败', 'error');
+          }
+        };
+
+        // 系统全局设置与自定义域名绑定方法
+        const loadSystemSettings = async () => {
+          try {
+            const url = currentUser.value?.role === 'admin' ? '/api/admin/system/settings' : '/api/system/public-settings';
+            const headers = token.value ? { 'Authorization': `Bearer ${token.value}` } : {};
+            const res = await fetch(url, { headers });
+            if (res.ok) {
+              const data = await res.json();
+              systemSettings.value = data;
+              if (data.customDomain) {
+                domainInput.value = data.customDomain.replace(/^https?:\/\//i, '');
+              }
+            }
+          } catch {}
+        };
+
+        const testDnsResolution = async () => {
+          if (!domainInput.value.trim()) {
+            return showToast('请先输入要测试的域名', 'error');
+          }
+          testingDns.value = true;
+          dnsTestResult.value = null;
+          try {
+            const res = await fetch('/api/admin/system/domain/test', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({ domain: domainInput.value.trim() })
+            });
+            const data = await res.json();
+            dnsTestResult.value = data;
+            if (data.ok) {
+              showToast(data.message || 'DNS 解析探测完成！');
+            } else {
+              showToast(data.error || 'DNS 解析失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，DNS 探测失败', 'error');
+          } finally {
+            testingDns.value = false;
+          }
+        };
+
+        const saveSystemDomainSettings = async () => {
+          let raw = domainInput.value.trim();
+          if (raw) {
+            raw = raw.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          }
+          savingDomain.value = true;
+          try {
+            const res = await fetch('/api/admin/system/settings', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                customDomain: raw ? `https://${raw}` : '',
+                enableHttpsRedirect: systemSettings.value.enableHttpsRedirect
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast('🎉 自定义域名已绑定成功！全站直链已全局切换为 HTTPS 域名！');
+            } else {
+              showToast(data.error || '保存域名失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，保存域名失败', 'error');
+          } finally {
+            savingDomain.value = false;
+          }
+        };
+
+        const clearSystemDomain = async () => {
+          if (!confirm('确定要解除域名绑定并回退至默认 IP 直连吗？')) return;
+          domainInput.value = '';
+          dnsTestResult.value = null;
+          await saveSystemDomainSettings();
+        };
+
+                const targetAccessUrl = computed(() => {
+          if (systemSettings.value.customDomain) {
+            return systemSettings.value.customDomain;
+          }
+          const host = cleanHostnameInput.value;
+          const port = sslPort.value || currentAppPort.value;
+          if (sslModalTab.value === 'direct' || sslEngine.value === 'direct') {
+            return (port === '80' || port === '443') ? `http://${host}` : `http://${host}:${port}`;
+          }
+          if (port === '443') return `https://${host}`;
+          if (port === '80') return `http://${host}`;
+          return `https://${host}:${port}`;
+        });
+
+        const targetPreviewUrl = computed(() => {
+          const host = cleanHostnameInput.value;
+          const port = sslPort.value || currentAppPort.value;
+          const proto = window.location.protocol;
+          if (sslEngine.value === 'direct') {
+            return (port === '80' || port === '443') ? `${proto}//${host}/api/sub?token=...` : `${proto}//${host}:${port}/api/sub?token=...`;
+          }
+          if (port === '443') {
+            return `https://${host}/api/sub?token=...`;
+          }
+          if (port === '80') {
+            return `http://${host}/api/sub?token=...`;
+          }
+          return `https://${host}:${port}/api/sub?token=...`;
+        });
+
+        const quickBindCurrentPort = async () => {
+          let raw = domainInput.value.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          if (!raw) {
+            return showToast('请先在输入框填入您的域名', 'error');
+          }
+          const host = raw.split(':')[0];
+          const targetDomain = `http://${host}:3000`;
+          domainInput.value = `${host}:3000`;
+          savingDomain.value = true;
+          try {
+            const res = await fetch('/api/admin/system/settings', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                customDomain: targetDomain,
+                enableHttpsRedirect: false
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast(`🎉 成功直连绑定至 ${targetDomain}！全站订阅直链已立即切换！`);
+            } else {
+              showToast(data.error || '绑定失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，绑定失败', 'error');
+          } finally {
+            savingDomain.value = false;
+          }
+        };
+
+        
+        const submitCustomCert = async () => {
+          if (!customCertPem.value.trim() || !customKeyPem.value.trim()) {
+            return showToast('请填写完整的证书公钥与私钥', 'error');
+          }
+          savingCustomCert.value = true;
+          try {
+            const res = await fetch('/api/admin/system/ssl/custom-cert', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                cert: customCertPem.value.trim(),
+                key: customKeyPem.value.trim(),
+                domain: cleanHostnameInput.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast(data.message || '🎉 自定义 SSL 证书已成功保存并生效！');
+              showSslModal.value = false;
+            } else {
+              showToast(data.error || '保存证书失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，保存证书失败', 'error');
+          } finally {
+            savingCustomCert.value = false;
+          }
+        };
+
+        const generateSelfSignedCert = async () => {
+          generatingSelfSigned.value = true;
+          try {
+            const res = await fetch('/api/admin/system/ssl/generate-self-signed', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                domain: cleanHostnameInput.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              systemSettings.value = data.settings;
+              showToast(data.message || '🎉 成功生成 10 年期原生 TLS 证书！');
+              showSslModal.value = false;
+            } else {
+              showToast(data.error || '生成自签证书失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，生成自签证书失败', 'error');
+          } finally {
+            generatingSelfSigned.value = false;
+          }
+        };
+
+        const openSslModal = () => {
+          if (!domainInput.value.trim()) {
+            return showToast('请先输入要配置证书的域名', 'error');
+          }
+          const raw = domainInput.value.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          if (raw.includes(':')) {
+            sslPort.value = raw.split(':')[1];
+          } else {
+            sslPort.value = window.location.port === '3000' ? '3000' : '443';
+          }
+          if (sslPort.value === '3000') {
+            sslEngine.value = 'direct';
+          }
+          sslProvisionLogs.value = '';
+          sslProvisionSuccess.value = false;
+          showSslModal.value = true;
+        };
+
+        const executeSslProvision = async () => {
+          const raw = domainInput.value.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          if (!raw) {
+            return showToast('请输入有效的域名', 'error');
+          }
+          provisioningSsl.value = true;
+          sslProvisionSuccess.value = false;
+          const engineName = sslEngine.value === 'direct' ? '直连 3000 端口模式' : (sslEngine.value === 'caddy' ? 'Caddy 自动化引擎' : 'Nginx + Certbot');
+          sslProvisionLogs.value = `🚀 正在向服务端发起【${engineName} (端口: ${sslPort.value})】配置流水线...\n\n`;
+
+          try {
+            const res = await fetch('/api/admin/system/ssl/provision', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                domain: raw,
+                port: sslPort.value,
+                engine: sslEngine.value
+              })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              if (data.logs) {
+                sslProvisionLogs.value += data.logs + '\n\n';
+              }
+              if (data.isDocker) {
+                sslProvisionLogs.value += `ℹ️ ${data.message}\n${data.command}\n`;
+                showToast(data.message);
+                provisioningSsl.value = false;
+                return;
+              }
+              sslProvisionLogs.value += `🎉 ${data.message}\n`;
+              sslProvisionSuccess.value = true;
+              if (data.settings) {
+                systemSettings.value = data.settings;
+              }
+              showToast('🎉 配置已成功应用！全站订阅直链已就绪！');
+            } else {
+              sslProvisionLogs.value += `❌ 配置失败: ${data.error || '未知错误'}\n`;
+              showToast(data.error || '配置失败', 'error');
+            }
+          } catch (e) {
+            sslProvisionLogs.value += `❌ 请求异常: ${e.message}\n`;
+            showToast('网络请求异常', 'error');
+          } finally {
+            provisioningSsl.value = false;
+          }
+        };
+
+        const cleanHostnameInput = computed(() => {
+          const raw = domainInput.value || '';
+          const clean = raw.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+          return clean || 'sub.yourdomain.com';
+        });
+
+        const currentAppPort = computed(() => {
+          return window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+        });
+
+        const caddyConfigPreview = computed(() => {
+          const host = cleanHostnameInput.value;
+          const port = currentAppPort.value;
+          return `${host} {\n    reverse_proxy 127.0.0.1:${port}\n}`;
+        });
+
+        const nginxConfigPreview = computed(() => {
+          const host = cleanHostnameInput.value;
+          const port = currentAppPort.value;
+          return `server {\n    server_name ${host};\n    location / {\n        proxy_pass http://127.0.0.1:${port};\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}`;
+        });
+
+        const copyCaddyConfig = () => {
+          copyCode(caddyConfigPreview.value);
+        };
+
+        const copyNginxConfig = () => {
+          copyCode(nginxConfigPreview.value);
+        };
+
+        // 切换模式
+        const switchMode = (mode) => {
+          config.value.mode = mode;
+          markDirty();
+          updateEditorContent();
+        };
+
+        // 更新代码编辑器内容
+        const updateEditorContent = async () => {
+          await nextTick();
+          const container = document.getElementById('code-editor-container');
+          if (!container) return;
+
+          let code = '';
+          if (config.value.mode === 'custom') {
+            code = config.value.customScript || '';
+          } else {
+            try {
+              const res = await fetch('/api/preview', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token.value}`
+                },
+                body: JSON.stringify(config.value)
+              });
+              const d = await res.json();
+              code = d.js || '';
+            } catch {}
+          }
+
+          if (!editorInstance) {
+            editorInstance = CodeMirror(container, {
+              value: code,
+              mode: 'javascript',
+              theme: 'dracula',
+              lineNumbers: true,
+              tabSize: 2,
+              readOnly: config.value.mode === 'gui'
+            });
+            editorInstance.on('change', () => {
+              if (config.value.mode === 'custom') {
+                markDirty();
+              }
+            });
+          } else {
+            editorInstance.setValue(code);
+            editorInstance.setOption('readOnly', config.value.mode === 'gui');
+          }
+
+          setTimeout(() => {
+            if (editorInstance) {
+              editorInstance.refresh();
+            }
+          }, 60);
+        };
+
+        // 逆向导入 JS 模态框与方法
+        const showJsImportModal = ref(false);
+        const jsImportInput = ref('');
+
+        const openJsImportModal = () => {
+          jsImportInput.value = '';
+          showJsImportModal.value = true;
+        };
+
+        const handleJsImport = () => {
+          const raw = jsImportInput.value;
+          if (!raw || !raw.trim()) {
+            return showToast('请先粘贴 JS 预处理脚本代码', 'error');
+          }
+          const parsed = parseJsToConfig(raw);
+          if (!parsed) {
+            return showToast('JS 解析失败，未识别到有效规则', 'error');
+          }
+          const oldToken = config.value.subscriptionToken;
+          const oldExpiry = config.value.tokenExpiresAt;
+          config.value = {
+            ...config.value,
+            ...parsed,
+            subscriptionToken: oldToken,
+            tokenExpiresAt: oldExpiry
+          };
+          markDirty();
+          showJsImportModal.value = false;
+          activeTab.value = 'gui';
+          const totalRules = (parsed.proxyDomains.length + parsed.proxyKeywords.length + parsed.proxyIps.length + parsed.proxyProcesses.length +
+                              parsed.directDomains.length + parsed.directKeywords.length + parsed.directIps.length + parsed.directProcesses.length);
+          showToast(`已成功从 JS 逆向提取 ${totalRules} 条规则并导入 GUI！`);
+        };
+
+        const parseCurrentEditorToGui = () => {
+          if (!editorInstance) return;
+          const code = editorInstance.getValue();
+          if (!code || !code.trim()) {
+            return showToast('编辑器代码为空', 'error');
+          }
+          const parsed = parseJsToConfig(code);
+          if (!parsed) {
+            return showToast('解析失败，未提取到有效规则', 'error');
+          }
+          const oldToken = config.value.subscriptionToken;
+          const oldExpiry = config.value.tokenExpiresAt;
+          config.value = {
+            ...config.value,
+            ...parsed,
+            mode: 'gui',
+            subscriptionToken: oldToken,
+            tokenExpiresAt: oldExpiry
+          };
+          markDirty();
+          activeTab.value = 'gui';
+          const totalRules = (parsed.proxyDomains.length + parsed.proxyKeywords.length + parsed.proxyIps.length + parsed.proxyProcesses.length +
+                              parsed.directDomains.length + parsed.directKeywords.length + parsed.directIps.length + parsed.directProcesses.length);
+          showToast(`成功解析并映射到 GUI（包含 ${totalRules} 条规则与加速配置）！`);
+        };
+
+        const fetchVersionInfo = async (silent = false, doCheck = false) => {
+          if (!token.value) return;
+          if (doCheck) checkingVersion.value = true;
+          try {
+            const url = doCheck ? '/api/system/version?check=true' : '/api/system/version';
+            const res = await fetch(url, {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              versionInfo.value = {
+                ...data,
+                lastCheckTime: new Date().toLocaleTimeString()
+              };
+              if (doCheck && !silent) {
+                if (data.checkError) {
+                  showToast(data.checkError, 'error');
+                } else if (data.hasUpdate) {
+                  showToast(`🚀 发现官方新版本 v${data.latestVersion}！`);
+                } else {
+                  showToast(`🟢 当前已是最新版本 (v${data.currentVersion})`);
+                }
+              }
+            }
+          } catch (e) {
+            if (doCheck && !silent) showToast('检查更新失败，请稍后重试', 'error');
+          } finally {
+            checkingVersion.value = false;
+          }
+        };
+
+        const openSystemUpdateConfirm = (targetVerObj = null) => {
+          if (targetVerObj) {
+            targetUpdateVersion.value = targetVerObj.version;
+            targetUpdateName.value = targetVerObj.name || `v${targetVerObj.version}`;
+            targetUpdateType.value = targetVerObj.actionType || (compareVersions(targetVerObj.version, versionInfo.value.currentVersion) > 0 ? 'upgrade' : 'rollback');
+          } else {
+            targetUpdateVersion.value = versionInfo.value.latestVersion || versionInfo.value.currentVersion;
+            targetUpdateName.value = `v${targetUpdateVersion.value}`;
+            targetUpdateType.value = 'upgrade';
+          }
+          updateLogs.value = `准备就绪，点击下方按钮开始切换至 v${targetUpdateVersion.value}...`;
+          showUpdateModal.value = true;
+        };
+
+        const executeSystemUpdate = async () => {
+          updatingSystem.value = true;
+          const targetTag = targetUpdateVersion.value ? `v${targetUpdateVersion.value.replace(/^v/, '')}` : '最新稳定版';
+          updateLogs.value = `🚀 正在向服务端发起【版本切换 -> ${targetTag}】流水线...\n\n`;
+          try {
+            const res = await fetch('/api/system/update', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                targetVersion: targetUpdateVersion.value || 'latest'
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              if (data.logs) {
+                updateLogs.value += data.logs + '\n\n';
+              }
+              if (data.isDockerManual) {
+                updateLogs.value += `ℹ️ ${data.message}\n${data.command}\n`;
+                showToast(data.message);
+                updatingSystem.value = false;
+                return;
+              }
+              updateLogs.value += '🎉 ' + data.message + '\n';
+              showToast(data.message);
+              
+              // Countdown to reload
+              let seconds = 3;
+              const timer = setInterval(() => {
+                seconds--;
+                if (seconds <= 0) {
+                  clearInterval(timer);
+                  window.location.reload();
+                } else {
+                  updateLogs.value += `⏳ ${seconds} 秒后自动刷新页面...\n`;
+                }
+              }, 1000);
+            } else {
+              updateLogs.value += `❌ 版本切换失败: ${data.error || '未知错误'}\n`;
+              showToast(data.error || '版本切换失败', 'error');
+              updatingSystem.value = false;
+            }
+          } catch (e) {
+            updateLogs.value += `❌ 请求异常: ${e.message}\n`;
+            showToast('版本切换请求异常', 'error');
+            updatingSystem.value = false;
+          }
+        };
+
+        watch(activeTab, (newTab) => {
+          if (newTab === 'editor') {
+            updateEditorContent();
+          } else if (newTab === 'logs') {
+            loadLogs();
+          } else if (newTab === 'users' || newTab === 'settings') {
+            if (currentUser.value.role === 'admin') {
+              loadAdminUsers();
+              loadSystemSettings();
+            }
+          }
+        });
+
+        // 离开页面前防丢提示
+        window.addEventListener('beforeunload', (e) => {
+          if (isDirty.value) {
+            e.preventDefault();
+            e.returnValue = '';
+          }
+        });
+
+        onMounted(async () => {
+          // 1. 若本地为免登录访客模式，优先加载本地离线配置
+          if (savedIsGuest) {
+            await loadConfig();
+            return;
+          }
+
+          // 2. 若本地已存有 Token 与用户信息，优先保持已登录状态渲染页面，避免刷新闪烁
+          if (token.value) {
+            const savedUserStr = localStorage.getItem('rule_hub_user');
+            if (savedUserStr) {
+              try { currentUser.value = JSON.parse(savedUserStr); } catch {}
+            }
+            await loadConfig();
+            loadSystemSettings();
+            if (currentUser.value.role === 'admin') {
+              loadAdminUsers();
+            }
+            fetchVersionInfo(true, false); // 仅加载本地版本元信息，不自动发起远端检查
+          }
+
+          // 2. 后台静默校验 Session 有效性
+          try {
+            const res = await fetch('/api/me', {
+              headers: token.value ? { 'Authorization': `Bearer ${token.value}` } : {}
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success) {
+                currentUser.value = { username: data.username, role: data.role, isGuest: false };
+                isLoggedIn.value = true;
+                localStorage.setItem('rule_hub_user', JSON.stringify(currentUser.value));
+                if (data.role === 'admin') {
+                  loadAdminUsers();
+                  loadSystemSettings();
+                }
+              }
+            } else if (res.status === 401 || res.status === 403) {
+              logout();
+            }
+          } catch {}
+        });
+
+        return {
+          authMode,
+          registerPasswordConfirm,
+          isLoggedIn,
+          usernameInput,
+          passwordInput,
+          loading,
+          saving,
+          activeTab,
+          proxyTab,
+          directTab,
+          config,
+          currentUser,
+          showDnsConfig,
+          showCoreConfig,
+          showExtraSubFormats,
+          showJsImportModal,
+          jsImportInput,
+          showSubModal,
+          showPwdModal,
+          openPwdModal,
+          submitChangePassword,
+          subForm,
+          subtTesting,
+          subTestResult,
+          refreshingSubs,
+          totalTrafficStats,
+          isDirty,
+          markDirty,
+          pwdForm,
+          showLoginPassword,
+          showRegisterPassword,
+          showRegisterConfirmPassword,
+          showOldPassword,
+          showNewPassword,
+          showConfirmPassword,
+          tokenExpiryInput,
+          logs,
+          adminUsers,
+          loadingUsers,
+          newUser,
+          toast,
+          subscriptionUrl,
+          clashYamlUrl,
+          smartSubUrl,
+          base64Url,
+          singBoxUrl,
+          surgeUrl,
+          isTokenExpired,
+          formatBytes,
+          formatDate,
+          formatFullTime,
+          calcDaysLeft,
+          getSubExpireInfo,
+          storageMode,
+          isGuest,
+          enterGuestOfflineMode,
+          downloadLocalCompiled,
+          compilingLocalTarget,
+          purgeCloudData,
+          purgingCloud,
+          showPromoteModal,
+          showBoundaryModal,
+          promoteForm,
+          promoteGuestToCloud,
+          login,
+          register,
+          logout,
+          saveConfig,
+          regenerateToken,
+          saveTokenExpiry,
+          clearTokenExpiry,
+          changePassword,
+          exportConfigJson,
+          importConfigJson,
+          openJsImportModal,
+          handleJsImport,
+          parseCurrentEditorToGui,
+          openAddSubModal,
+          openEditSubModal,
+          setExpirePreset,
+          testSubLink,
+          testSingleSub,
+          availableAutoTestRegions,
+          isRegionSelectedForAutoTest,
+          toggleRegionInAutoTest,
+          selectCommonRegions,
+          selectAllRegions,
+          isNodeInAutoTest,
+          toggleNodeAutoTest,
+          bulkSetAutoTest,
+          countAutoTestInSub,
+          resetAllExcludedNodes,
+          activeInspectSubId,
           inspectLoading,
           inspectNodesList,
           toggleInspectNodes,

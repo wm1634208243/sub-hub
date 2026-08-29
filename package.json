@@ -1,6 +1,6 @@
 {
   "name": "clash-sub-hub",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A modern Web GUI, Multi-Subscription Aggregator and Real-time Traffic Quota Dashboard for Clash/Mihomo clients",
   "main": "server.js",
   "type": "module",

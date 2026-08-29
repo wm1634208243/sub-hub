@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.2.0';
+const CURRENT_VERSION = '1.2.1';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2048,6 +2048,18 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.2.1',
+    tag: 'v1.2.1',
+    name: 'SubHub v1.2.1 · 修复前端白屏异常、完整上线优选候选池定制与逐节点勾选控制',
+    publishedAt: '2026-08-29T16:42:26.961Z',
+    highlights: ['🛠️ 彻底修复前端 Vue 语法截断引起的黑屏/白屏问题', '🎯 节点明细抽屉完整支持单个节点「⚡ 优选 / 🚫 排除」实时切换', '🌐 独立优选定制卡片：常用地区 (港/日/新/美) 与关键词包含/排除', '🛡️ 自动优选与故障转移仅在您指定的优质节点中测速轮换'],
+    changelogZh: `### 🎯 完整上线优选候选池定制与前端白屏修复
+- **修复前端代码截断异常**：彻底修复页面因脚本截断导致的黑屏/白屏问题，恢复所有页面组件；
+- **逐节点优选勾选控制**：在「查看节点」列表中，为每个节点提供「⚡ 优选 / 🚫 排除」切换开关，支持全选/全不选；
+- **全方位优选池定制工作台**：新增独立优选定制卡片，支持指定国家/地区（港日新美）及关键词智能过滤；
+- **精准优选与故障转移**：Clash 客户端仅在您指定的候选节点池内测速切换。`,
+  },
   {
     version: '1.2.0',
     tag: 'v1.2.0',
