@@ -94,7 +94,23 @@ detect_deploy_mode() {
     fi
 }
 
-# 下载并安装最新 Rust 原生二进制
+# 确保 VPS 具备基础构建环境
+ensure_build_tools() {
+    detect_os
+    case "$OS" in
+        ubuntu|debian|raspbian)
+            apt-get update -y && apt-get install -y curl git build-essential gcc
+            ;;
+        centos|rhel|rocky|almalinux|fedora)
+            yum install -y curl git gcc gcc-c++ make
+            ;;
+        alpine)
+            apk add curl git gcc g++ make musl-dev
+            ;;
+    esac
+}
+
+# 下载并安装最新 Rust 原生二进制 (含自动编译兜底机制)
 download_rust_binary() {
     local target_ver="$1"
     detect_os
@@ -102,30 +118,38 @@ download_rust_binary() {
     echo -e "${BLUE}[1/3] 正在拉取 SubHub Rust 原生高性能单文件二进制 (${BIN_ARCH})...${NC}"
     mkdir -p "$INSTALL_DIR/config" /usr/local/bin
 
-    local download_url
+    local download_url="https://github.com/wm1634208243/sub-hub/releases/latest/download/subhub-${BIN_ARCH}"
     if [ -n "$target_ver" ] && [ "$target_ver" != "latest" ]; then
         download_url="https://github.com/wm1634208243/sub-hub/releases/download/${target_ver}/subhub-${BIN_ARCH}"
-    else
-        download_url="https://github.com/wm1634208243/sub-hub/releases/latest/download/subhub-${BIN_ARCH}"
     fi
 
     echo -e "${YELLOW}下载源: $download_url${NC}"
     local download_success=0
-    if curl -fsSL --connect-timeout 10 "$download_url" -o "$BIN_PATH.tmp"; then
+    if curl -fSL --connect-timeout 10 "$download_url" -o "$BIN_PATH.tmp" 2>/dev/null; then
         mv "$BIN_PATH.tmp" "$BIN_PATH"
         chmod +x "$BIN_PATH"
         download_success=1
     fi
 
     if [ "$download_success" -eq 0 ]; then
-        echo -e "${YELLOW}从 GitHub Release 直接下载超时，正在通过 Git 源码自动构建/拉取...${NC}"
+        echo -e "${YELLOW}预编译二进制尚未就绪，正在通过 Rust 工具链极速本地编译构建 (预计耗时 ~30s)...${NC}"
+        ensure_build_tools
         sync_subhub_source
+
+        # 检查是否已安装 rustup/cargo
+        if ! command -v cargo &> /dev/null && [ ! -f "$HOME/.cargo/bin/cargo" ]; then
+            echo -e "${YELLOW}正在安装轻量 Rust 编译环境...${NC}"
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+        fi
+
+        export PATH="$HOME/.cargo/bin:$PATH"
         if command -v cargo &> /dev/null; then
-            cd "$INSTALL_DIR" && cargo build --release
+            echo -e "${YELLOW}正在编译生成 SubHub 原生单一二进制...${NC}"
+            cd "$INSTALL_DIR"
+            cargo build --release
             cp "$INSTALL_DIR/target/release/subhub" "$BIN_PATH"
             chmod +x "$BIN_PATH"
-        elif [ -f "$INSTALL_DIR/server.js" ] && command -v node &> /dev/null; then
-            echo -e "${YELLOW}使用 Node.js 兼容模式运行...${NC}"
+            echo -e "${GREEN}本地编译成功完成！${NC}"
         else
             echo -e "${RED}[错误] 无法获取或构建 SubHub 二进制！${NC}"
             exit 1
@@ -220,7 +244,7 @@ update_subhub() {
     echo -e "${YELLOW}🚀 正在执行 SubHub 全自动热升级流水线...${NC}"
     echo -e "${YELLOW}================================================================${NC}"
 
-    # 1. 下载新版本二进制
+    # 1. 下载新版本二进制 (若 release 尚未就绪则自动编译)
     download_rust_binary "$target_ver"
 
     # 2. 检查并迁移老版本数据目录
