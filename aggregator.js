@@ -8,7 +8,7 @@
 import YAML from 'yaml';
 import { fetchSubscription } from './subscription-fetcher.js';
 import { PRESET_SCENARIOS } from './presets.js';
-import { formatNodeName, prewarmDnsForProxies, REGION_FLAGS } from './node-renamer.js';
+import { formatNodeName, prewarmDnsForProxies, REGION_FLAGS, detectNodePrimaryRegion } from './node-renamer.js';
 import { batchProbeProxies, applyLatencyFilterAndSort } from './latency-tester.js';
 
 export async function aggregateClashYaml(userConfig, clientUa = '') {
@@ -105,7 +105,7 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
           nameCountMap.set(name, 0);
         }
 
-        const cleanProxy = { ...p, name };
+        const cleanProxy = { ...p, name, _defaultRegion: subInfo.defaultRegion || '' };
         allProxies.push(cleanProxy);
         subNodes.push(name);
       });
@@ -158,15 +158,28 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
   const allNodeNames = activeProxies.map(p => p.name);
   const mainProxyGroup = customProxyGroupName || '🚀 节点选择';
 
-  // 1.6 提取国家/地区优选组 (香港/日本/美国/新加坡等)
+  // 1.6 精准单地区归属判定与地区自动优选/故障转移组生成
+  const nodeRegionMap = new Map(); // nodeName -> primary region
+  activeProxies.forEach(p => {
+    const reg = detectNodePrimaryRegion(p.name, p.server, p._defaultRegion);
+    if (reg) {
+      nodeRegionMap.set(p.name, reg);
+    }
+  });
+
   const regionGroupMap = [];
   if (Array.isArray(REGION_FLAGS)) {
     for (const reg of REGION_FLAGS) {
-      const matched = allNodeNames.filter(name => reg.regex.test(name));
+      const matched = allNodeNames.filter(name => {
+        const nodeReg = nodeRegionMap.get(name);
+        return nodeReg && nodeReg.code === reg.code;
+      });
       if (matched.length > 0) {
         regionGroupMap.push({
           name: `${reg.flag} ${reg.name}自动`,
+          fallbackName: `${reg.flag} ${reg.name}故障转移`,
           flag: reg.flag,
+          code: reg.code,
           regionName: reg.name,
           nodeNames: matched
         });
@@ -177,11 +190,17 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
   // 2. Build Proxy Groups (统一主控架构 · 自动优选整合至节点选择)
   const proxyGroups = [];
 
-  // 节点选择主控内部可选的所有项目 (默认第 1 项为 ⚡ 自动优选)
+  // 节点选择主控内部可选的所有项目 (默认第 1 项为 ⚡ 自动优选，同时提供全部与各地区的自动优选与故障转移)
+  const regionalAutoAndFallback = [];
+  regionGroupMap.forEach(rg => {
+    regionalAutoAndFallback.push(rg.name);
+    regionalAutoAndFallback.push(rg.fallbackName);
+  });
+
   const masterSelectorProxies = [
     '⚡ 自动优选 (全部源)',
     '🛡️ 故障转移 (全部源)',
-    ...regionGroupMap.map(rg => rg.name),
+    ...regionalAutoAndFallback,
     ...activeSubGroupMap.map(sg => sg.name),
     ...allNodeNames,
     'DIRECT'
@@ -236,14 +255,24 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
   });
 
-  // 4. 国家/地区自动优选组 (香港/日本/美国/新加坡自动优选) - 标记 hidden: true
+  // 4. 国家/地区自动优选与故障转移组 (香港/日本/美国/新加坡自动优选与故障转移) - 标记 hidden: true
   regionGroupMap.forEach(rg => {
+    // 地区自动优选 (URLTest)
     proxyGroups.push({
       name: rg.name,
       type: 'url-test',
       url: 'http://www.gstatic.com/generate_204',
       interval: 300,
       tolerance: 50,
+      hidden: true,
+      proxies: rg.nodeNames
+    });
+    // 地区故障转移 (Fallback)
+    proxyGroups.push({
+      name: rg.fallbackName,
+      type: 'fallback',
+      url: 'http://www.gstatic.com/generate_204',
+      interval: 300,
       hidden: true,
       proxies: rg.nodeNames
     });

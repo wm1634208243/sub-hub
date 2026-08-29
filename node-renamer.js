@@ -20,7 +20,7 @@ export const REGION_FLAGS = [
   { code: 'SG', flag: '🇸🇬', name: '新加坡', regex: /(新加坡|singapore|sin|狮城|🇸🇬|\b(sg|sgp)\b)/i },
   { code: 'US', flag: '🇺🇸', name: '美国', regex: /(美国|united\s*states|usa|lax|sfo|nyc|sjc|iad|ord|sea|pdx|dfw|atl|ewr|洛杉矶|圣何塞|西雅图|纽约|芝加哥|硅谷|波特兰|达拉斯|亚特兰大|🇺🇸|\b(us|usa)\b)/i },
   { code: 'KR', flag: '🇰🇷', name: '韩国', regex: /(韩国|korea|sel|seoul|icn|首尔|仁川|🇰🇷|\b(kr|kor)\b)/i },
-  { code: 'GB', flag: '🇬🇧', name: '英国', regex: /(英国|united\s*kingdom|uk|gb|london|lhr|伦敦|🇬🇧|\b(uk|gb|gbr)\b)/i },
+  { code: 'GB', flag: '🇬🇧', name: '英国', regex: /(英国|united\s*kingdom|great\s*britain|london|lhr|伦敦|英格兰|🇬🇧|\b(uk|gbr)\b|(?<![0-9.])\bgb\b(?![0-9]))/i },
   { code: 'DE', flag: '🇩🇪', name: '德国', regex: /(德国|germany|fra|frankfurt|法兰克福|柏林|🇩🇪|\b(de|deu)\b)/i },
   { code: 'FR', flag: '🇫🇷', name: '法国', regex: /(法国|france|paris|cdg|巴黎|🇫🇷|\b(fr|fra)\b)/i },
   { code: 'CA', flag: '🇨🇦', name: '加拿大', regex: /(加拿大|canada|toronto|vancouver|yyz|yvr|多伦多|温哥华|🇨🇦|\b(ca|can)\b)/i },
@@ -116,6 +116,7 @@ export function formatNodeName(rawInput, options = {}) {
     name = name.replace(/[(（\[【\s]*(?:[xX*×]\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:倍率?|[xX*×]))[)）\]】\s]*/g, ' ');
     // Remove traffic announcements like (剩余流量: 200G), [到期: 2026-12-31]
     name = name.replace(/[(（\[【\s]*(?:剩余流量|已用流量|到期时间|剩余|到期)[\s:：]*[^\s,|)）\]】]+[)）\]】\s]*/gi, ' ');
+    name = name.replace(/[-_–—\s]*\d+(?:\.\d+)?\s*(?:KB|MB|GB|TB|PB|K|M|G|T)\b(?:-∞|\s*[-_–—]\s*∞)?/gi, ' ');
     // Remove website links / ads like 官网: xxx.com, 发布页: xxx
     name = name.replace(/[(（\[【\s]*(?:官网地址|官方网站|最新地址|官网|发布页)[\s:：]*[a-zA-Z0-9_\-\.\:\/]+[)）\]】\s]*/gi, ' ');
     // Clean empty parentheses or brackets left behind
@@ -302,4 +303,55 @@ export function formatProxiesList(proxies = [], options = {}) {
     const newName = formatNodeName(p, options);
     return { ...p, name: newName };
   });
+}
+
+
+/**
+ * Detect single primary region for a proxy node
+ * Returns { code, flag, name } or null
+ */
+export function detectNodePrimaryRegion(rawName, server = '', defaultRegion = '') {
+  if (defaultRegion) {
+    const reg = REGION_FLAGS.find(r => r.code.toUpperCase() === defaultRegion.toUpperCase());
+    if (reg) return reg;
+  }
+
+  let cleanName = (rawName || '').trim();
+  // Strip traffic suffix first to avoid false positives (e.g. 243.13GB matching GB)
+  cleanName = cleanName.replace(/[-_–—\s]*\d+(?:\.\d+)?\s*(?:KB|MB|GB|TB|PB|K|M|G|T)\b(?:-∞|\s*[-_–—]\s*∞)?/gi, ' ');
+
+  // 1. Match keywords in node name
+  for (const reg of REGION_FLAGS) {
+    if (reg.regex.test(cleanName)) {
+      return reg;
+    }
+  }
+
+  // 2. Match keywords in server domain
+  if (server) {
+    for (const reg of REGION_FLAGS) {
+      if (reg.regex.test(server)) {
+        return reg;
+      }
+    }
+
+    // 3. GeoIP lookup
+    const cleanServer = server.trim();
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(cleanServer) || cleanServer.includes(':')) {
+      const code = getCountryCodeFromIp(cleanServer);
+      if (code) {
+        const reg = REGION_FLAGS.find(r => r.code === code);
+        if (reg) return reg;
+      }
+    } else if (dnsCache.has(cleanServer)) {
+      const resolvedIp = dnsCache.get(cleanServer);
+      const code = getCountryCodeFromIp(resolvedIp);
+      if (code) {
+        const reg = REGION_FLAGS.find(r => r.code === code);
+        if (reg) return reg;
+      }
+    }
+  }
+
+  return null;
 }

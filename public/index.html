@@ -286,7 +286,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.0.9' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.1.0' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -791,6 +791,43 @@
                       <span v-else class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">
                         🟢 {{ sub.nodesCount || 0 }} 节点
                       </span>
+
+                      <!-- 可直接编辑/切换归属国家地区 -->
+                      <div class="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800 text-[10px]" title="指定该订阅源所属国家/地区">
+                        <select 
+                          v-model="sub.defaultRegion" 
+                          @change="markDirty(); saveConfig();" 
+                          class="bg-transparent text-slate-300 border-none outline-none cursor-pointer text-[10px] font-medium"
+                        >
+                          <option value="">🤖 智能自动识别</option>
+                          <option value="US">🇺🇸 美国 (US)</option>
+                          <option value="HK">🇭🇰 香港 (HK)</option>
+                          <option value="JP">🇯🇵 日本 (JP)</option>
+                          <option value="SG">🇸🇬 新加坡 (SG)</option>
+                          <option value="TW">🇹🇼 台湾 (TW)</option>
+                          <option value="KR">🇰🇷 韩国 (KR)</option>
+                          <option value="GB">🇬🇧 英国 (GB)</option>
+                          <option value="DE">🇩🇪 德国 (DE)</option>
+                          <option value="FR">🇫🇷 法国 (FR)</option>
+                          <option value="CA">🇨🇦 加拿大 (CA)</option>
+                          <option value="AU">🇦🇺 澳大利亚 (AU)</option>
+                          <option value="RU">🇷🇺 俄罗斯 (RU)</option>
+                          <option value="IN">🇮🇳 印度 (IN)</option>
+                          <option value="TH">🇹🇭 泰国 (TH)</option>
+                          <option value="VN">🇻🇳 越南 (VN)</option>
+                          <option value="MY">🇲🇾 马来西亚 (MY)</option>
+                          <option value="PH">🇵🇭 菲律宾 (PH)</option>
+                          <option value="TR">🇹🇷 土耳其 (TR)</option>
+                          <option value="AR">🇦🇷 阿根廷 (AR)</option>
+                          <option value="BR">🇧🇷 巴西 (BR)</option>
+                          <option value="NL">🇳🇱 荷兰 (NL)</option>
+                          <option value="CH">🇨🇭 瑞士 (CH)</option>
+                          <option value="SE">🇸🇪 瑞典 (SE)</option>
+                          <option value="IT">🇮🇹 意大利 (IT)</option>
+                          <option value="ES">🇪🇸 西班牙 (ES)</option>
+                          <option value="AE">🇦🇪 阿联酋 (AE)</option>
+                        </select>
+                      </div>
                     </div>
                     <p class="text-[11px] font-mono text-slate-500 truncate mt-1 select-all">{{ sub.url }}</p>
                     <p v-if="sub.status === 'error' && sub.error" class="text-[11px] text-rose-400 font-mono mt-0.5 flex items-center gap-1">
@@ -843,6 +880,12 @@
                   </div>
                   <div class="flex items-center gap-2">
                     <button 
+                      @click="toggleInspectNodes(sub)" 
+                      class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer flex items-center gap-1 font-medium"
+                    >
+                      <span>{{ activeInspectSubId === sub.id ? '收起节点 ▲' : '查看节点 ▼' }}</span>
+                    </button>
+                    <button 
                       @click="testSingleSub(sub)" 
                       class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
                     >
@@ -860,6 +903,39 @@
                     >
                       删除
                     </button>
+                  </div>
+                </div>
+
+                <!-- 展开的节点详情抽屉 -->
+                <div v-if="activeInspectSubId === sub.id" class="pt-3 border-t border-slate-800 space-y-2">
+                  <div class="flex items-center justify-between text-[11px] text-slate-400">
+                    <span class="font-semibold text-slate-300">📋 包含节点明细 ({{ inspectNodesList.length }} 个)</span>
+                    <span class="text-[10px] text-slate-500 font-mono">协议 · 目标主机 · 判定归属</span>
+                  </div>
+
+                  <div v-if="inspectLoading" class="text-center py-4 text-xs text-slate-400">
+                    <span class="animate-spin inline-block mr-1.5">⏳</span> 正在解析节点明细...
+                  </div>
+                  <div v-else-if="!inspectNodesList.length" class="text-center py-3 text-xs text-slate-500 bg-slate-950 rounded-xl border border-slate-800">
+                    暂未解析到有效节点或上游订阅响应异常
+                  </div>
+                  <div v-else class="space-y-1.5 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                    <div 
+                      v-for="(n, nIdx) in inspectNodesList" 
+                      :key="nIdx" 
+                      class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 flex items-center justify-between text-xs gap-2 hover:border-slate-700 transition-all"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="font-bold text-white truncate text-[11px]">{{ n.name }}</div>
+                        <div class="text-[10px] text-slate-500 font-mono truncate mt-0.5">
+                          {{ n.server }}:{{ n.port }}
+                        </div>
+                      </div>
+                      <div class="flex items-center gap-1.5 shrink-0">
+                        <span class="text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded font-mono font-bold">{{ n.type }}</span>
+                        <span class="text-[10px] bg-slate-900 border border-slate-700 px-2 py-0.5 rounded text-slate-300 font-medium">{{ n.countryFlag }} {{ n.countryName }}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3740,7 +3816,7 @@
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.0.9' }}
+                      v{{ versionInfo.currentVersion || '1.1.0' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -3966,7 +4042,7 @@
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.0.9' }}
+                v{{ versionInfo.currentVersion || '1.1.0' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -5365,13 +5441,42 @@ function main(config, profileName) {
         const refreshingSubs = ref(false);
         const showSubModal = ref(false);
         const subForm = ref({ id: '', name: '', url: '', prefix: '', defaultRegion: '', customExpire: '', enabled: true, autoRefreshInterval: 60 });
+        const activeInspectSubId = ref(null);
+        const inspectLoading = ref(false);
+        const inspectNodesList = ref([]);
+
+        const toggleInspectNodes = async (sub) => {
+          if (activeInspectSubId.value === sub.id) {
+            activeInspectSubId.value = null;
+            inspectNodesList.value = [];
+            return;
+          }
+          activeInspectSubId.value = sub.id;
+          inspectLoading.value = true;
+          inspectNodesList.value = [];
+          try {
+            const res = await fetch(`/api/subscriptions/${sub.id}/nodes`, {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.nodes) {
+              inspectNodesList.value = data.nodes;
+            } else {
+              showToast(data.error || '获取节点列表失败', 'error');
+            }
+          } catch (err) {
+            showToast('请求节点信息异常', 'error');
+          } finally {
+            inspectLoading.value = false;
+          }
+        };
         const subtTesting = ref(false);
         const subTestResult = ref(null);
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.0.9',
-          latestVersion: '1.0.9',
+          currentVersion: '1.1.0',
+          latestVersion: '1.1.0',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -6049,6 +6154,7 @@ function main(config, profileName) {
                 name: subForm.value.name,
                 url: subForm.value.url,
                 prefix: subForm.value.prefix,
+                defaultRegion: subForm.value.defaultRegion || '',
                 customExpire: subForm.value.customExpire || '',
                 enabled: subForm.value.enabled,
                 autoRefreshInterval: subForm.value.autoRefreshInterval !== undefined ? subForm.value.autoRefreshInterval : 60,
@@ -6070,6 +6176,7 @@ function main(config, profileName) {
               name: subForm.value.name,
               url: subForm.value.url,
               prefix: subForm.value.prefix,
+              defaultRegion: subForm.value.defaultRegion || '',
               customExpire: subForm.value.customExpire || '',
               enabled: subForm.value.enabled !== false,
               autoRefreshInterval: subForm.value.autoRefreshInterval !== undefined ? subForm.value.autoRefreshInterval : 60,
@@ -7677,6 +7784,10 @@ function main(config, profileName) {
           setExpirePreset,
           testSubLink,
           testSingleSub,
+          activeInspectSubId,
+          inspectLoading,
+          inspectNodesList,
+          toggleInspectNodes,
           saveSubForm,
           deleteSub,
           toggleSubEnabled,

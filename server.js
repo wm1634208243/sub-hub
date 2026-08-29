@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.0.9';
+const CURRENT_VERSION = '1.1.0';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1081,6 +1081,47 @@ app.post('/api/set-token-expiry', authMiddleware, async (req, res) => {
   res.json({ success: true, tokenExpiresAt: cfg.tokenExpiresAt });
 });
 
+
+app.get('/api/subscriptions/:id/nodes', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const cfg = loadUserConfig(req.session.username);
+  const sub = (cfg.subscriptions || []).find(s => s.id === id);
+  if (!sub) return res.status(404).json({ error: '未找到指定订阅源' });
+
+  try {
+    const result = await fetchSubscription(sub.url, sub.prefix || sub.name || '', false);
+    await prewarmDnsForProxies(result.nodes || []);
+
+    const nodes = (result.nodes || []).map(n => {
+      const formatted = formatNodeName(n, {
+        enableAutoFlags: cfg.enableAutoFlags !== false,
+        enableCleanAdAndRate: cfg.enableCleanAdAndRate !== false,
+        enableGeoIpLookup: cfg.enableGeoIpLookup !== false,
+        customRenameRules: cfg.customRenameRules || [],
+        defaultRegion: sub.defaultRegion || ''
+      });
+      const country = identifyNodeCountry(n, {
+        enableGeoIpLookup: cfg.enableGeoIpLookup !== false,
+        defaultRegion: sub.defaultRegion || ''
+      });
+      return {
+        rawName: n.name,
+        name: formatted,
+        type: (n.type || 'vless').toUpperCase(),
+        server: n.server || '',
+        port: n.port || '',
+        countryCode: country?.code || 'UN',
+        countryFlag: country?.flag || '🌐',
+        countryName: country?.name || '未知地区'
+      };
+    });
+
+    res.json({ success: true, subName: sub.name, defaultRegion: sub.defaultRegion || '', nodes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/subscriptions/refresh', authMiddleware, async (req, res) => {
   const cfg = loadUserConfig(req.session.username);
   const subs = cfg.subscriptions || [];
@@ -1997,6 +2038,19 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.0',
+    tag: 'v1.1.0',
+    name: 'SubHub v1.1.0 · 订阅源节点透视抽屉、即时地区编辑、精准单地区归属与地区故障转移支持',
+    publishedAt: '2026-08-29T15:40:56.690Z',
+    highlights: ['🔍 订阅源卡片一键展开节点明细透视抽屉', '🏳️ 卡片即时编辑与指定订阅源所属国家地区', '🛡️ 全国家/地区故障转移 (Fallback) 容灾组支持', '🐞 彻底修复 13GB 流量标签误触发英国自动匹配的 Bug'],
+    changelogZh: `### 🔍 订阅源节点透视、即时地区编辑与地区故障转移
+- **订阅源节点实时透视抽屉**：订阅源卡片新增「查看节点」抽屉，一键即时展开预览当前订阅内的所有节点名称、协议类型、目标主机/端口及系统自动判定的所属国家地区；
+- **卡片即时地区修改**：在订阅源卡片头部直接提供国家地区下拉菜单（🇺🇸 美国、🇭🇰 香港、🇯🇵 日本、🇸🇬 新加坡等），支持一键手动锁定该源的归属国家；
+- **修复英国地区正则误判**：彻底修复机场流量后缀（如 243.13GB）误触发英国 GB 关键字匹配导致无故生成 🇬🇧 英国自动的 Bug；
+- **精准单地区归属判定**：每个节点智能绑定至唯一的最佳归属地区，杜绝一个节点被重复塞入多个不同国家策略组；
+- **全地区故障转移支持**：不仅支持全局故障转移，每个提取出的国家地区均同时提供自动优选 (URLTest) 与容灾故障转移 (Fallback) 策略组。`,
+  },
   {
     version: '1.0.9',
     tag: 'v1.0.9',
