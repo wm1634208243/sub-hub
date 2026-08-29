@@ -340,7 +340,7 @@ update_subhub() {
     if [ -z "$target_ver" ]; then
         echo -e "\n请选择更新与版本切换模式:"
         echo -e " ${BOLD}1.${NC} 🚀 升级至 GitHub 官方最新稳定版 (${GREEN}推荐${NC})"
-        echo -e " ${BOLD}2.${NC} 🎯 切换 / 回退至指定历史版本 (${YELLOW}如 v1.1.9, v1.1.8 等${NC})"
+        echo -e " ${BOLD}2.${NC} 🎯 切换 / 回退至指定历史版本 (${YELLOW}如 v1.2.0, v1.1.9 等${NC})"
         read -p "请选择 [1-2, 默认: 1]: " up_choice
         up_choice=${up_choice:-1}
         if [ "$up_choice" = "2" ]; then

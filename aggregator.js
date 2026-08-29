@@ -227,7 +227,46 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     proxies: [...masterSelectorProxies]
   });
 
-  // 2. ⚡ 自动优选 (全部源) - 独立顶层卡片，开启 lazy: true 避免后台重复测速卡顿
+  // 1.7 构建自定义自动优选与故障转移候选池 (URLTest Candidate Filter)
+  const {
+    autoTestScope = 'all',
+    autoTestRegions = [],
+    autoTestIncludeKeywords = '',
+    autoTestExcludeKeywords = '',
+    excludedAutoTestNodes = []
+  } = userConfig;
+
+  const excludedSet = new Set(Array.isArray(excludedAutoTestNodes) ? excludedAutoTestNodes : []);
+  let autoTestCandidates = allNodeNames.filter(name => !excludedSet.has(name));
+
+  // 地区限定筛选
+  if (autoTestScope === 'custom' && Array.isArray(autoTestRegions) && autoTestRegions.length > 0) {
+    const regionCodeSet = new Set(autoTestRegions.map(r => r.toUpperCase()));
+    autoTestCandidates = autoTestCandidates.filter(name => {
+      const reg = nodeRegionMap.get(name);
+      return reg && regionCodeSet.has(reg.code);
+    });
+  }
+
+  // 包含关键词筛选 (如: 专线|高速|BGP)
+  if (autoTestIncludeKeywords && autoTestIncludeKeywords.trim()) {
+    try {
+      const incRegex = new RegExp(autoTestIncludeKeywords.trim(), 'i');
+      autoTestCandidates = autoTestCandidates.filter(name => incRegex.test(name));
+    } catch {}
+  }
+
+  // 排除关键词筛选 (如: 2x|3x|高倍率)
+  if (autoTestExcludeKeywords && autoTestExcludeKeywords.trim()) {
+    try {
+      const excRegex = new RegExp(autoTestExcludeKeywords.trim(), 'i');
+      autoTestCandidates = autoTestCandidates.filter(name => !excRegex.test(name));
+    } catch {}
+  }
+
+  const finalAutoTestProxies = autoTestCandidates.length > 0 ? autoTestCandidates : (allNodeNames.length > 0 ? allNodeNames : ['DIRECT']);
+
+  // 2. ⚡ 自动优选 (全部源) - 独立顶层卡片，已应用自定义候选池过滤与 lazy: true
   proxyGroups.push({
     name: '⚡ 自动优选 (全部源)',
     type: 'url-test',
@@ -235,17 +274,17 @@ export async function aggregateClashYaml(userConfig, clientUa = '') {
     interval: 300,
     tolerance: 50,
     lazy: true,
-    proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
+    proxies: [...finalAutoTestProxies]
   });
 
-  // 3. 🛡️ 故障转移 (全部源) - 独立顶层卡片，开启 lazy: true
+  // 3. 🛡️ 故障转移 (全部源) - 独立顶层卡片，已应用自定义候选池过滤与 lazy: true
   proxyGroups.push({
     name: '🛡️ 故障转移 (全部源)',
     type: 'fallback',
     url: 'http://www.gstatic.com/generate_204',
     interval: 300,
     lazy: true,
-    proxies: allNodeNames.length > 0 ? [...allNodeNames] : ['DIRECT']
+    proxies: [...finalAutoTestProxies]
   });
 
   // 4. 国家/地区自动优选与故障转移组 (香港/日本/美国/新加坡自动优选与故障转移) - 标记 hidden: true

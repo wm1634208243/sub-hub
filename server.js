@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.9';
+const CURRENT_VERSION = '1.2.0';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -198,6 +198,11 @@ function defaultUserConfig() {
     enableLatencySort: false,
     latencyTimeoutMs: 2000,
     customRenameRules: [],
+    autoTestScope: 'all',
+    autoTestRegions: ['HK', 'JP', 'SG', 'US'],
+    autoTestIncludeKeywords: '',
+    autoTestExcludeKeywords: '',
+    excludedAutoTestNodes: [],
     nameservers:  ['223.5.5.5', '119.29.29.29'],
     fallbackDns:  ['https://1.1.1.1/dns-query', 'https://8.8.8.8/dns-query'],
     proxyIps: [], proxyProcesses: [], proxyKeywords: [], proxyDomains: [],
@@ -494,6 +499,7 @@ const CONFIG_WHITELIST = new Set([
   'targetPlatforms', 'enableAutoPlatformDetect', 'subscriptions',
   'enableAutoFlags', 'enableCleanAdAndRate', 'enableGeoIpLookup',
   'enableDeadNodeFilter', 'enableLatencySort', 'latencyTimeoutMs', 'customRenameRules',
+  'autoTestScope', 'autoTestRegions', 'autoTestIncludeKeywords', 'autoTestExcludeKeywords', 'excludedAutoTestNodes',
   'nameservers', 'fallbackDns',
   'proxyIps', 'proxyProcesses', 'proxyKeywords', 'proxyDomains',
   'directIps', 'directProcesses', 'directKeywords', 'directDomains',
@@ -2042,6 +2048,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.2.0',
+    tag: 'v1.2.0',
+    name: 'SubHub v1.2.0 · 全局自动优选 (URLTest) 候选池深度定制系统重磅发布',
+    publishedAt: '2026-08-29T16:38:49.626Z',
+    highlights: ['🎯 节点明细抽屉支持逐个节点自由打勾/排除「⚡ 参与优选」', '🌐 支持一键按国家/地区圈定优选范围 (港/日/新/美常用四国)', '🔍 支持按关键字/正则智能包含 (如专线/高速) 与排除 (如2x/慢速)', '🛡️ 自动优选与故障转移同步应用精准候选池'],
+    changelogZh: `### 🎯 全局自动优选 (URLTest) 候选池深度定制系统重磅发布
+- **节点明细自由打勾控制**：在订阅卡片「查看节点」列表中，每个节点右侧新增「⚡ 优选 / 🚫 排除」切换开关，支持单独剔除不想要的慢速或冷门节点，并支持一键批量全选/全不选；
+- **全方位优选池定制工作台**：新增独立优选定制卡片，支持切换「全地区优选」与「仅限指定国家/地区优选 (港/日/新/美)」，支持包含关键词与排除关键词智能过滤；
+- **精准测速与容灾联动**：Clash 客户端中的「⚡ 自动优选」与「🛡️ 故障转移」仅会在您定制的候选池内测速切换，彻底告别盲目全量测速！`
+  },
   {
     version: '1.1.9',
     tag: 'v1.1.9',
