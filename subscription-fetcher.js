@@ -213,22 +213,35 @@ export function clearSubCache(subUrl) {
  */
 export function isAnnouncementNode(proxy) {
   if (!proxy) return true;
-  const name = (proxy.name || '').trim();
+  let name = (proxy.name || '').trim();
+  // Strip leading [prefix] e.g. "[良心云] 剩余流量: 2.76TB" -> "剩余流量: 2.76TB"
+  name = name.replace(/^\[[^\]]+\]\s*/, '').trim();
   const server = (proxy.server || '').trim().toLowerCase();
 
-  // Dummy loopback servers
-  if (['127.0.0.1', '0.0.0.0', 'localhost', '::1'].includes(server)) {
+  // 1. Dummy loopback / local servers or port 0
+  if (['127.0.0.1', '0.0.0.0', 'localhost', '::1', 'null', 'example.com'].includes(server) || proxy.port === 0) {
     return true;
   }
 
-  // Standalone traffic / announcement names
-  const announcementRegex = /^(?:剩余流量|已用流量|距离重置|套餐到期|到期时间|官网地址|官方网站|最新地址|通知公告|客服群组|使用说明|重要提示|套餐|TB|GB|MB|重置|剩余|到期|通知|公告|说明|提示)[s:：0-9a-zA-Z._\-–—∞%]*$/i;
-  if (announcementRegex.test(name)) {
-    return true;
+  // 2. Announcment and traffic keywords
+  const announcementKeywords = [
+    '剩余流量', '已用流量', '距离重置', '套餐到期', '到期时间', '官方网站', '官网地址', '最新地址',
+    '通知公告', '客服群组', '使用说明', '重要提示', '套餐重置', '账号到期', '流量剩余', '官网',
+    '发布页', '重置时间', '重置日', '公告', '通知', '维护中', '说明', '套餐', '客服', '群组',
+    '剩余', '到期', '重置', '提示'
+  ];
+
+  for (const kw of announcementKeywords) {
+    if (name.includes(kw)) {
+      if (name.includes('剩余流量') || name.includes('已用流量') || name.includes('到期时间') || name.includes('距离重置') || name.includes('官方网站') || name.includes('官网') || name.includes('通知') || name.includes('公告') || name.includes('套餐') || name === 'TB' || name === 'GB' || name === 'MB') {
+        return true;
+      }
+    }
   }
 
-  // Matches names starting with heavy announcement prefixes
-  if (/^(?:剩余|已用|到期|套餐|官网|发布页|通知|公告|客服|群组|提示|维护)[s:：]/i.test(name)) {
+  // 3. Leftover unit words like "TB", "GB", "MB", "套餐"
+  const cleanStripped = name.replace(/[-_–—\s:：0-9.∞%]/g, '').toLowerCase();
+  if (['tb', 'gb', 'mb', 'kb', '套餐', '重置', '剩余', '到期', '通知', '公告', '官网', '提示', '说明', '群组', '客服'].includes(cleanStripped)) {
     return true;
   }
 

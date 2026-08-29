@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.2';
+const CURRENT_VERSION = '1.1.3';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1089,10 +1089,12 @@ app.get('/api/subscriptions/:id/nodes', authMiddleware, async (req, res) => {
   if (!sub) return res.status(404).json({ error: '未找到指定订阅源' });
 
   try {
-    const result = await fetchSubscription(sub.url, sub.prefix || sub.name || '', false);
+    clearSubCache(sub.url);
+    const result = await fetchSubscription(sub.url, sub.prefix || sub.name || '', true);
     await prewarmDnsForProxies(result.nodes || []);
 
-    const nodes = (result.nodes || []).map(n => {
+    const validNodes = (result.nodes || []).filter(n => !isAnnouncementNode(n));
+    const nodes = validNodes.map(n => {
       const formatted = formatNodeName(n, {
         enableAutoFlags: cfg.enableAutoFlags !== false,
         enableCleanAdAndRate: cfg.enableCleanAdAndRate !== false,
@@ -2038,6 +2040,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.3',
+    tag: 'v1.1.3',
+    name: 'SubHub v1.1.3 · 订阅卡片像素级等高对齐、彻底清洗过滤机场公告假节点与精简国家选择器',
+    publishedAt: '2026-08-29T15:53:53.592Z',
+    highlights: ['📏 订阅卡片像素级等高对齐 (min-h-[190px] 完美对称)', '🧹 彻底清洗并剔除机场 TB/套餐 等纯提示公告伪节点', '🏷️ 精简地区选择器为「🤖 智能识别」等紧凑标签避免换行', '✨ 界面整洁度与多节点机场体验全面升级'],
+    changelogZh: `### 📏 订阅卡片像素级等高排版与彻底过滤机场假节点
+- **订阅卡片像素级等高排版**：精简卡片头部国家选择器文本并设定统一的最小高度，彻底解决卡片因标签文字换行导致的左右两侧高度不一问题，未展开时左右卡片 100% 齐平对称；
+- **深度清洗过滤机场公告伪节点**：修复因订阅源名称前缀（如 [良心云]）导致正则未能识别公告节点的问题，彻底过滤并剔除 TB、套餐、剩余流量、距离重置等纯提示假节点；
+- **精简国家地区选择器**：将卡片上方的地区标签精简为「🤖 智能识别」等紧凑字样，视觉清爽优雅不换行。`,
+  },
   {
     version: '1.1.2',
     tag: 'v1.1.2',
