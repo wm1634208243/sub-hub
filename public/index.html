@@ -286,7 +286,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.1.1' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.1.2' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -763,7 +763,7 @@
             </div>
 
             <!-- 订阅卡片网格 -->
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <div 
                 v-for="sub in config.subscriptions" 
                 :key="sub.id"
@@ -798,34 +798,21 @@
                           v-model="sub.defaultRegion" 
                           @change="markDirty(); saveConfig();" 
                           class="bg-transparent text-slate-300 border-none outline-none cursor-pointer text-[10px] font-medium"
+                          title="多国家机场请选智能识别；单地区VPS可强制锁定"
                         >
-                          <option value="">🤖 智能自动识别</option>
-                          <option value="US">🇺🇸 美国 (US)</option>
-                          <option value="HK">🇭🇰 香港 (HK)</option>
-                          <option value="JP">🇯🇵 日本 (JP)</option>
-                          <option value="SG">🇸🇬 新加坡 (SG)</option>
-                          <option value="TW">🇹🇼 台湾 (TW)</option>
-                          <option value="KR">🇰🇷 韩国 (KR)</option>
-                          <option value="GB">🇬🇧 英国 (GB)</option>
-                          <option value="DE">🇩🇪 德国 (DE)</option>
-                          <option value="FR">🇫🇷 法国 (FR)</option>
-                          <option value="CA">🇨🇦 加拿大 (CA)</option>
-                          <option value="AU">🇦🇺 澳大利亚 (AU)</option>
-                          <option value="RU">🇷🇺 俄罗斯 (RU)</option>
-                          <option value="IN">🇮🇳 印度 (IN)</option>
-                          <option value="TH">🇹🇭 泰国 (TH)</option>
-                          <option value="VN">🇻🇳 越南 (VN)</option>
-                          <option value="MY">🇲🇾 马来西亚 (MY)</option>
-                          <option value="PH">🇵🇭 菲律宾 (PH)</option>
-                          <option value="TR">🇹🇷 土耳其 (TR)</option>
-                          <option value="AR">🇦🇷 阿根廷 (AR)</option>
-                          <option value="BR">🇧🇷 巴西 (BR)</option>
-                          <option value="NL">🇳🇱 荷兰 (NL)</option>
-                          <option value="CH">🇨🇭 瑞士 (CH)</option>
-                          <option value="SE">🇸🇪 瑞典 (SE)</option>
-                          <option value="IT">🇮🇹 意大利 (IT)</option>
-                          <option value="ES">🇪🇸 西班牙 (ES)</option>
-                          <option value="AE">🇦🇪 阿联酋 (AE)</option>
+                          <option value="">🤖 智能多国家自动识别 (各节点分别判定)</option>
+                          <option disabled class="text-slate-500 font-bold bg-slate-900">── 仅单地区 VPS 可手动锁定整源 ──</option>
+                          <option value="US">🔒 强制整源锁定: 🇺🇸 美国 (US)</option>
+                          <option value="HK">🔒 强制整源锁定: 🇭🇰 香港 (HK)</option>
+                          <option value="JP">🔒 强制整源锁定: 🇯🇵 日本 (JP)</option>
+                          <option value="SG">🔒 强制整源锁定: 🇸🇬 新加坡 (SG)</option>
+                          <option value="TW">🔒 强制整源锁定: 🇹🇼 台湾 (TW)</option>
+                          <option value="KR">🔒 强制整源锁定: 🇰🇷 韩国 (KR)</option>
+                          <option value="GB">🔒 强制整源锁定: 🇬🇧 英国 (GB)</option>
+                          <option value="DE">🔒 强制整源锁定: 🇩🇪 德国 (DE)</option>
+                          <option value="FR">🔒 强制整源锁定: 🇫🇷 法国 (FR)</option>
+                          <option value="CA">🔒 强制整源锁定: 🇨🇦 加拿大 (CA)</option>
+                          <option value="AU">🔒 强制整源锁定: 🇦🇺 澳大利亚 (AU)</option>
                         </select>
                       </div>
                     </div>
@@ -3816,7 +3803,7 @@
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.1.1' }}
+                      v{{ versionInfo.currentVersion || '1.1.2' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -4042,7 +4029,7 @@
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.1.1' }}
+                v{{ versionInfo.currentVersion || '1.1.2' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -4951,31 +4938,19 @@
               v-model="subForm.defaultRegion" 
               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
             >
-              <option value="">🌐 智能自动识别 (优先关键字 ➔ 兜底 IP/域名 GeoIP 定位)</option>
-              <option value="HK">🇭🇰 中国香港 (Hong Kong)</option>
-              <option value="TW">🇹🇼 中国台湾 (Taiwan)</option>
-              <option value="JP">🇯🇵 日本 (Japan)</option>
-              <option value="SG">🇸🇬 新加坡 (Singapore)</option>
-              <option value="US">🇺🇸 美国 (United States)</option>
-              <option value="KR">🇰🇷 韩国 (Korea)</option>
-              <option value="GB">🇬🇧 英国 (United Kingdom)</option>
-              <option value="DE">🇩🇪 德国 (Germany)</option>
-              <option value="FR">🇫🇷 法国 (France)</option>
-              <option value="CA">🇨🇦 加拿大 (Canada)</option>
-              <option value="AU">🇦🇺 澳大利亚 (Australia)</option>
-              <option value="RU">🇷🇺 俄罗斯 (Russia)</option>
-              <option value="IN">🇮🇳 印度 (India)</option>
-              <option value="TH">🇹🇭 泰国 (Thailand)</option>
-              <option value="VN">🇻🇳 越南 (Vietnam)</option>
-              <option value="MY">🇲🇾 马来西亚 (Malaysia)</option>
-              <option value="PH">🇵🇭 菲律宾 (Philippines)</option>
-              <option value="TR">🇹🇷 土耳其 (Turkey)</option>
-              <option value="NL">🇳🇱 荷兰 (Netherlands)</option>
-              <option value="CH">🇨🇭 瑞士 (Switzerland)</option>
-              <option value="SE">🇸🇪 瑞典 (Sweden)</option>
-              <option value="IT">🇮🇹 意大利 (Italy)</option>
-              <option value="ES">🇪🇸 西班牙 (Spain)</option>
-              <option value="AE">🇦🇪 阿联酋 (UAE / Dubai)</option>
+              <option value="">🤖 智能多国家自动识别 (按节点特征分别识别 · 机场推荐)</option>
+              <option disabled class="text-slate-500 font-bold bg-slate-900">── 仅单地区自建 VPS 建议强制整源锁定 ──</option>
+              <option value="US">🔒 强制整源锁定: 🇺🇸 美国 (United States)</option>
+              <option value="HK">🔒 强制整源锁定: 🇭🇰 中国香港 (Hong Kong)</option>
+              <option value="JP">🔒 强制整源锁定: 🇯🇵 日本 (Japan)</option>
+              <option value="SG">🔒 强制整源锁定: 🇸🇬 新加坡 (Singapore)</option>
+              <option value="TW">🔒 强制整源锁定: 🇹🇼 中国台湾 (Taiwan)</option>
+              <option value="KR">🔒 强制整源锁定: 🇰🇷 韩国 (Korea)</option>
+              <option value="GB">🔒 强制整源锁定: 🇬🇧 英国 (United Kingdom)</option>
+              <option value="DE">🔒 强制整源锁定: 🇩🇪 德国 (Germany)</option>
+              <option value="FR">🔒 强制整源锁定: 🇫🇷 法国 (France)</option>
+              <option value="CA">🔒 强制整源锁定: 🇨🇦 加拿大 (Canada)</option>
+              <option value="AU">🔒 强制整源锁定: 🇦🇺 澳大利亚 (Australia)</option>
             </select>
           </div>
 
@@ -5478,8 +5453,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.1.1',
-          latestVersion: '1.1.1',
+          currentVersion: '1.1.2',
+          latestVersion: '1.1.2',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',

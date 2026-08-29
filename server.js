@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.1';
+const CURRENT_VERSION = '1.1.2';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2038,6 +2038,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.2',
+    tag: 'v1.1.2',
+    name: 'SubHub v1.1.2 · 订阅卡片独立高度对齐、机场伪节点/公告清洗与智能多国家分别识别说明优化',
+    publishedAt: '2026-08-29T15:49:52.248Z',
+    highlights: ['📐 订阅卡片网格 items-start 独立高度对齐 (展开互不影响拉伸)', '🧹 自动识别并过滤机场公告/流量伪节点 (TB/套餐/重置提示)', '🌐 明确「智能多国家分别识别」与「单地区整源锁定」选项语义', '✨ 界面整洁度与多节点机场体验全面升级'],
+    changelogZh: `### 📐 订阅卡片独立高度排版与机场公告伪节点清洗
+- **订阅卡片独立高度对齐**：修复展开某一个订阅卡片节点抽屉时导致同一行其他卡片被强制拉伸产生大片空白的 CSS 布局问题，采用 items-start 保持各自独立紧凑高度；
+- **机场公告/流量伪节点自动过滤**：自动过滤机场订阅头部常见的公告与流量信息伪节点（如「剩余流量 2.76TB」、「距离套餐重置还有X天」等），防止无用假节点污染代理池；
+- **明确区分「多国家智能分别判定」与「单地区整源锁定」**：多地区商业机场保持默认的「🤖 智能多国家自动识别」，系统自动按节点特征分别归类至日本/美国/香港等地区组；单地区 VPS 可选择整源锁定。`,
+  },
   {
     version: '1.1.1',
     tag: 'v1.1.1',

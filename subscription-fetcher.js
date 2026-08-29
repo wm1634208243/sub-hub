@@ -170,6 +170,7 @@ export function parseSubscriptionContent(content, prefix = '') {
       if (parsedYaml && Array.isArray(parsedYaml.proxies)) {
         return parsedYaml.proxies.map(p => {
           if (!p || typeof p !== 'object') return null;
+          if (isAnnouncementNode(p)) return null;
           const nodeName = p.name ? (prefix ? `[${prefix}] ${p.name}` : p.name) : 'Node';
           return { ...p, name: nodeName };
         }).filter(Boolean);
@@ -192,7 +193,7 @@ export function parseSubscriptionContent(content, prefix = '') {
   const nodes = [];
   for (const line of lines) {
     const node = parseNodeLink(line, prefix);
-    if (node) nodes.push(node);
+    if (node && !isAnnouncementNode(node)) nodes.push(node);
   }
 
   return nodes;
@@ -204,4 +205,32 @@ export function parseSubscriptionContent(content, prefix = '') {
 export function clearSubCache(subUrl) {
   if (subUrl) subCache.delete(subUrl);
   else subCache.clear();
+}
+
+
+/**
+ * Detects if a node is an airport announcement / dummy traffic info node
+ */
+export function isAnnouncementNode(proxy) {
+  if (!proxy) return true;
+  const name = (proxy.name || '').trim();
+  const server = (proxy.server || '').trim().toLowerCase();
+
+  // Dummy loopback servers
+  if (['127.0.0.1', '0.0.0.0', 'localhost', '::1'].includes(server)) {
+    return true;
+  }
+
+  // Standalone traffic / announcement names
+  const announcementRegex = /^(?:剩余流量|已用流量|距离重置|套餐到期|到期时间|官网地址|官方网站|最新地址|通知公告|客服群组|使用说明|重要提示|套餐|TB|GB|MB|重置|剩余|到期|通知|公告|说明|提示)[s:：0-9a-zA-Z._\-–—∞%]*$/i;
+  if (announcementRegex.test(name)) {
+    return true;
+  }
+
+  // Matches names starting with heavy announcement prefixes
+  if (/^(?:剩余|已用|到期|套餐|官网|发布页|通知|公告|客服|群组|提示|维护)[s:：]/i.test(name)) {
+    return true;
+  }
+
+  return false;
 }
