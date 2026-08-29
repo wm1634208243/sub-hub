@@ -48,13 +48,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     tokio::fs::create_dir_all(&args.config_dir).await?;
 
-    // Load or initialize users
+    // Load or initialize users (support multiple migration paths)
     let users_file = Path::new(&args.config_dir).join("users.json");
+    let old_data_users = Path::new(&args.config_dir).join("../data/users.json");
+    let old_root_data_users = Path::new("data/users.json");
+
     let mut initial_users = Vec::new();
+
     if users_file.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&users_file).await {
             if let Ok(parsed) = serde_json::from_str::<Vec<User>>(&content) {
                 initial_users = parsed;
+            }
+        }
+    }
+
+    if initial_users.is_empty() && old_data_users.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&old_data_users).await {
+            if let Ok(parsed) = serde_json::from_str::<Vec<User>>(&content) {
+                initial_users = parsed;
+                let _ = tokio::fs::write(&users_file, &content).await;
+            }
+        }
+    }
+
+    if initial_users.is_empty() && old_root_data_users.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&old_root_data_users).await {
+            if let Ok(parsed) = serde_json::from_str::<Vec<User>>(&content) {
+                initial_users = parsed;
+                let _ = tokio::fs::write(&users_file, &content).await;
             }
         }
     }

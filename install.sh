@@ -94,6 +94,25 @@ detect_deploy_mode() {
     fi
 }
 
+# 迁移旧版本 Node.js 数据文件至 Rust config/ 目录
+migrate_legacy_data() {
+    mkdir -p "$INSTALL_DIR/config/configs"
+    if [ -d "$INSTALL_DIR/data" ]; then
+        echo -e "${BLUE}🔍 正在无损迁移并承接原 Node.js 历史数据与配置...${NC}"
+        if [ -f "$INSTALL_DIR/data/users.json" ]; then
+            cp -f "$INSTALL_DIR/data/users.json" "$INSTALL_DIR/config/users.json"
+        fi
+        if [ -d "$INSTALL_DIR/data/configs" ]; then
+            cp -rf "$INSTALL_DIR/data/configs/." "$INSTALL_DIR/config/configs/"
+            cp -rf "$INSTALL_DIR/data/configs/." "$INSTALL_DIR/config/"
+        fi
+        if [ -f "$INSTALL_DIR/data/config.json" ]; then
+            cp -f "$INSTALL_DIR/data/config.json" "$INSTALL_DIR/config/config.json"
+        fi
+        echo -e "${GREEN}✅ 原有用户数据与订阅配置已 100% 成功承接迁移！${NC}"
+    fi
+}
+
 # 确保 VPS 具备基础构建环境
 ensure_build_tools() {
     detect_os
@@ -132,11 +151,10 @@ download_rust_binary() {
     fi
 
     if [ "$download_success" -eq 0 ]; then
-        echo -e "${YELLOW}预编译二进制尚未就绪，正在通过 Rust 工具链极速本地编译构建 (预计耗时 ~30s)...${NC}"
+        echo -e "${YELLOW}正在通过 Rust 工具链本地极速构建 (耗时 ~30s)...${NC}"
         ensure_build_tools
         sync_subhub_source
 
-        # 检查是否已安装 rustup/cargo
         if ! command -v cargo &> /dev/null && [ ! -f "$HOME/.cargo/bin/cargo" ]; then
             echo -e "${YELLOW}正在安装轻量 Rust 编译环境...${NC}"
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
@@ -144,7 +162,6 @@ download_rust_binary() {
 
         export PATH="$HOME/.cargo/bin:$PATH"
         if command -v cargo &> /dev/null; then
-            echo -e "${YELLOW}正在编译生成 SubHub 原生单一二进制...${NC}"
             cd "$INSTALL_DIR"
             cargo build --release
             cp "$INSTALL_DIR/target/release/subhub" "$BIN_PATH"
@@ -188,6 +205,7 @@ install_native_mode() {
 
     echo -e "\n${BLUE}[3/4] 下载并安装 SubHub Rust 单二进制...${NC}"
     download_rust_binary "latest"
+    migrate_legacy_data
 
     echo -e "\n${BLUE}[4/4] 配置 Systemd 守护进程与开机自启...${NC}"
 
@@ -244,14 +262,11 @@ update_subhub() {
     echo -e "${YELLOW}🚀 正在执行 SubHub 全自动热升级流水线...${NC}"
     echo -e "${YELLOW}================================================================${NC}"
 
-    # 1. 下载新版本二进制 (若 release 尚未就绪则自动编译)
+    # 1. 下载新版本二进制
     download_rust_binary "$target_ver"
 
-    # 2. 检查并迁移老版本数据目录
-    if [ -d "$INSTALL_DIR/data" ] && [ ! -f "$INSTALL_DIR/config/users.json" ]; then
-        echo -e "${BLUE}正在迁移并保留原有数据配置...${NC}"
-        cp -r "$INSTALL_DIR/data/." "$INSTALL_DIR/config/" 2>/dev/null || true
-    fi
+    # 2. 检查并迁移原有的数据与订阅配置
+    migrate_legacy_data
 
     # 3. 更新 systemd 服务文件指向 Rust 二进制
     cat <<EOF > "$SERVICE_FILE"

@@ -38,7 +38,7 @@ pub async fn unified_sub_handler(
     let mut matched_cfg = None;
 
     for u in users.iter() {
-        let cfg = load_user_config(&state.config_dir, &u.username).await;
+        let cfg = load_user_config(&state.config_dir, &u.username, &u.password_hash).await;
         if cfg.subscription_token == token {
             matched_user = Some(u.clone());
             matched_cfg = Some(cfg);

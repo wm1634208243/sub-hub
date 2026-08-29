@@ -1,5 +1,6 @@
 use crate::api::auth_handlers::{save_user_config_to_disk, AppState};
-use crate::models::UserConfig;
+use crate::engine::crypto::decrypt_user_config_bundle;
+use crate::models::{User, UserConfig};
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
@@ -22,7 +23,10 @@ pub async fn get_config_handler(
         )
     })?;
 
-    let cfg = load_user_config(&state.config_dir, uname).await;
+    let users = state.users.read().await;
+    let user_secret = users.iter().find(|u| u.username == *uname).map(|u| u.password_hash.as_str()).unwrap_or("subhub_master_secret_fallback_v1");
+
+    let cfg = load_user_config(&state.config_dir, uname, user_secret).await;
     Ok(Json(cfg))
 }
 
@@ -68,7 +72,10 @@ pub async fn inspect_nodes_handler(
         )
     })?;
 
-    let mut cfg = load_user_config(&state.config_dir, uname).await;
+    let users = state.users.read().await;
+    let user_secret = users.iter().find(|u| u.username == *uname).map(|u| u.password_hash.as_str()).unwrap_or("subhub_master_secret_fallback_v1");
+
+    let mut cfg = load_user_config(&state.config_dir, uname, user_secret).await;
     let sub = cfg.subscriptions.iter_mut().find(|s| s.id == sub_id).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
@@ -116,14 +123,32 @@ pub async fn inspect_nodes_handler(
     })))
 }
 
-pub async fn load_user_config(config_dir: &str, username: &str) -> UserConfig {
-    let file = FilePath::new(config_dir).join(format!("user_{}.json", username.to_lowercase()));
-    if file.exists() {
-        if let Ok(content) = tokio::fs::read_to_string(&file).await {
-            if let Ok(cfg) = serde_json::from_str::<UserConfig>(&content) {
-                return cfg;
+pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &str) -> UserConfig {
+    let candidates = [
+        FilePath::new(config_dir).join("configs").join(format!("{}.json", username)),
+        FilePath::new(config_dir).join(format!("user_{}.json", username.to_lowercase())),
+        FilePath::new(config_dir).join(format!("{}.json", username)),
+        FilePath::new(config_dir).join("../data/configs").join(format!("{}.json", username)),
+        FilePath::new(config_dir).join("../data/config.json"),
+        FilePath::new(config_dir).join("config.json"),
+    ];
+
+    for file in candidates {
+        if file.exists() {
+            if let Ok(content) = tokio::fs::read_to_string(&file).await {
+                if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
+                    // Try decrypt if encrypted bundle
+                    let decrypted_val = decrypt_user_config_bundle(&json_val, user_secret, username)
+                        .or_else(|_| decrypt_user_config_bundle(&json_val, "subhub_master_secret_fallback_v1", username))
+                        .unwrap_or(json_val);
+
+                    if let Ok(cfg) = serde_json::from_value::<UserConfig>(decrypted_val) {
+                        return cfg;
+                    }
+                }
             }
         }
     }
+
     UserConfig::default()
 }

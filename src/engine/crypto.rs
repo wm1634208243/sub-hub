@@ -1,56 +1,61 @@
 use aes_gcm::{
     aead::{Aead, KeyInit},
-    Aes256Gcm, Nonce,
+    Aes256Gcm, Nonce, Tag,
 };
-use rand::RngCore;
-use sha2::{Digest, Sha256};
-use std::error::Error;
+use scrypt::{scrypt, Params};
+use serde::{Deserialize, Serialize};
 
-pub fn derive_user_key(username: &str, salt: &str) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(username.as_bytes());
-    hasher.update(b":subhub_secure_salt:");
-    hasher.update(salt.as_bytes());
-    hasher.finalize().into()
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EncryptedBundle {
+    #[serde(default)]
+    pub _encrypted: bool,
+    #[serde(default)]
+    pub algorithm: String,
+    pub iv: String,
+    #[serde(rename = "authTag")]
+    pub auth_tag: String,
+    pub payload: String,
 }
 
-pub fn encrypt_data(key: &[u8; 32], plaintext: &[u8]) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let cipher = Aes256Gcm::new_from_slice(key)?;
-    let mut iv = [0u8; 12];
-    rand::thread_rng().fill_bytes(&mut iv);
-    let nonce = Nonce::from_slice(&iv);
-
-    let ciphertext = cipher
-        .encrypt(nonce, plaintext)
-        .map_err(|e| format!("Encryption error: {:?}", e))?;
-
-    let mut combined = Vec::with_capacity(iv.len() + ciphertext.len());
-    combined.extend_from_slice(&iv);
-    combined.extend_from_slice(&ciphertext);
-
-    Ok(base64::Engine::encode(
-        &base64::engine::general_purpose::STANDARD,
-        &combined,
-    ))
+pub fn derive_user_key(user_secret: &str, username: &str) -> Result<[u8; 32], String> {
+    let uname = username.trim().to_lowercase();
+    let salt = format!("subhub_zk_tenant_{}_v1", uname);
+    let mut key = [0u8; 32];
+    // Node.js scrypt defaults: N=16384 (log_n=14), r=8, p=1
+    let params = Params::new(14, 8, 1, 32).map_err(|e| format!("Invalid scrypt params: {}", e))?;
+    scrypt(user_secret.as_bytes(), salt.as_bytes(), &params, &mut key)
+        .map_err(|e| format!("scrypt key derivation error: {:?}", e))?;
+    Ok(key)
 }
 
-pub fn decrypt_data(key: &[u8; 32], b64_ciphertext: &str) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-    let combined = base64::Engine::decode(
-        &base64::engine::general_purpose::STANDARD,
-        b64_ciphertext.trim(),
-    )?;
-
-    if combined.len() < 12 {
-        return Err("Invalid ciphertext length".into());
+pub fn decrypt_user_config_bundle(bundle_json: &serde_json::Value, user_secret: &str, username: &str) -> Result<serde_json::Value, String> {
+    // If not encrypted, return directly
+    if bundle_json.get("_encrypted").and_then(|v| v.as_bool()) != Some(true) {
+        return Ok(bundle_json.clone());
     }
 
-    let (iv, ciphertext) = combined.split_at(12);
-    let cipher = Aes256Gcm::new_from_slice(key)?;
-    let nonce = Nonce::from_slice(iv);
+    let iv_hex = bundle_json.get("iv").and_then(|v| v.as_str()).ok_or("Missing iv")?;
+    let tag_hex = bundle_json.get("authTag").and_then(|v| v.as_str()).ok_or("Missing authTag")?;
+    let payload_hex = bundle_json.get("payload").and_then(|v| v.as_str()).ok_or("Missing payload")?;
 
-    let plaintext = cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|e| format!("Decryption error: {:?}", e))?;
+    let iv_bytes = hex::decode(iv_hex).map_err(|e| format!("Invalid iv hex: {}", e))?;
+    let tag_bytes = hex::decode(tag_hex).map_err(|e| format!("Invalid tag hex: {}", e))?;
+    let mut payload_bytes = hex::decode(payload_hex).map_err(|e| format!("Invalid payload hex: {}", e))?;
 
-    Ok(plaintext)
+    if iv_bytes.len() != 12 || tag_bytes.len() != 16 {
+        return Err("Invalid IV or AuthTag length".into());
+    }
+
+    let key = derive_user_key(user_secret, username)?;
+    let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| format!("AES init error: {:?}", e))?;
+    let nonce = Nonce::from_slice(&iv_bytes);
+
+    // In Rust aes-gcm, standard decrypt expects ciphertext concatenated with the 16-byte tag!
+    payload_bytes.extend_from_slice(&tag_bytes);
+
+    let decrypted = cipher.decrypt(nonce, payload_bytes.as_ref())
+        .map_err(|e| format!("AES-256-GCM decryption failed: {:?}", e))?;
+
+    let decrypted_str = String::from_utf8(decrypted).map_err(|e| format!("Invalid UTF-8: {}", e))?;
+    serde_json::from_str(&decrypted_str).map_err(|e| format!("JSON parse error: {}", e))
 }
