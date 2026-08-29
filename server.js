@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.3';
+const CURRENT_VERSION = '1.1.4';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -2040,6 +2040,17 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.4',
+    tag: 'v1.1.4',
+    name: 'SubHub v1.1.4 · 订阅卡片严格等高对齐、地区选择器底部下沉与布局重构',
+    publishedAt: '2026-08-29T15:56:23.788Z',
+    highlights: ['📏 订阅卡片严格等高对齐 (头部单行化，杜绝换行拉伸)', '📍 地区选择器优雅下沉至卡片底部操作栏', '🧹 彻底清除机场公告与流量伪节点 (TB/套餐占位项)', '✨ 左右卡片 100% 严丝合缝对称美观'],
+    changelogZh: `### 📏 订阅卡片严格等高对齐与地区选择器底部下沉
+- **卡片头部严格单行化**：将国家地区选择器优雅移至卡片底部操作栏，卡片头部标题与状态徽章严格保持单行，标题超长自动优雅省略，彻底杜绝换行导致的左右高度不一致；
+- **全网格严格等高对齐**：采用 items-stretch 与弹性伸缩，所有未展开卡片 100% 严丝合缝等高对齐；
+- **彻底清除公告伪节点**：确保机场订阅中的 TB、套餐等无用提示假节点彻底消失，只呈现真实节点。`,
+  },
   {
     version: '1.1.3',
     tag: 'v1.1.3',

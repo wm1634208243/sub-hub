@@ -286,7 +286,7 @@
                   class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
-                  <span>v{{ versionInfo.currentVersion || '1.1.3' }}</span>
+                  <span>v{{ versionInfo.currentVersion || '1.1.4' }}</span>
                 </button>
               </div>
               <div class="flex items-center gap-1 mt-1">
@@ -763,75 +763,52 @@
             </div>
 
             <!-- 订阅卡片网格 -->
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
               <div 
                 v-for="sub in config.subscriptions" 
                 :key="sub.id"
                 :class="sub.enabled !== false ? 'border-slate-800 bg-slate-900' : 'border-slate-800/50 bg-slate-900/40 opacity-70'"
-                class="border rounded-2xl p-5 shadow-xl flex flex-col justify-between gap-4 transition-all min-h-[190px]"
+                class="border rounded-2xl p-5 shadow-xl flex flex-col justify-between gap-3.5 transition-all"
               >
-                <!-- 卡片头部 -->
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <span class="text-sm font-bold text-white truncate">{{ sub.name }}</span>
+                <!-- 卡片头部 (严格单行不换行，标题超长自动省略) -->
+                <div>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="min-w-0 flex-1 flex items-center gap-2">
+                      <span class="text-sm font-bold text-white truncate max-w-[130px] sm:max-w-[190px]" :title="sub.name">{{ sub.name }}</span>
                       
                       <!-- 自动识别的来源平台徽章 -->
-                      <span v-if="sub.sourceType" class="text-[10px] bg-slate-800 text-cyan-300 px-2 py-0.5 rounded-md border border-slate-700 font-medium">
+                      <span v-if="sub.sourceType" class="text-[10px] bg-slate-800 text-cyan-300 px-2 py-0.5 rounded-md border border-slate-700 font-medium shrink-0">
                         🏷️ {{ sub.sourceType }}
                       </span>
 
-                      <span v-if="sub.prefix" class="text-[10px] bg-purple-500/10 text-purple-300 px-2 py-0.5 rounded-md border border-purple-500/20 font-mono">
+                      <span v-if="sub.prefix" class="text-[10px] bg-purple-500/10 text-purple-300 px-2 py-0.5 rounded-md border border-purple-500/20 font-mono shrink-0">
                         [{{ sub.prefix }}]
                       </span>
                       <!-- 在线/错误状态 -->
-                      <span v-if="sub.status === 'error'" :title="sub.error || '上游订阅响应错误'" class="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20 font-medium flex items-center gap-1 cursor-help">
-                        <span>⚠️ 同步失败</span>
+                      <span v-if="sub.status === 'error'" :title="sub.error || '上游订阅响应错误'" class="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20 font-medium shrink-0 cursor-help">
+                        ⚠️ 错误
                       </span>
-                      <span v-else class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">
+                      <span v-else class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono shrink-0">
                         🟢 {{ sub.nodesCount || 0 }} 节点
                       </span>
-
-                      <!-- 可直接编辑/切换归属国家地区 -->
-                      <div class="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800 text-[10px]" title="指定该订阅源所属国家/地区">
-                        <select 
-                          v-model="sub.defaultRegion" 
-                          @change="markDirty(); saveConfig();" 
-                          class="bg-transparent text-slate-300 border-none outline-none cursor-pointer text-[10px] font-medium"
-                          title="多国家机场请选智能识别；单地区VPS可强制锁定"
-                        >
-                          <option value="">🤖 智能识别</option>
-                          <option disabled class="text-slate-500 font-bold bg-slate-900">── 仅单地区 VPS 可手动锁定整源 ──</option>
-                          <option value="US">🇺🇸 美国 (US)</option>
-                          <option value="HK">🇭🇰 香港 (HK)</option>
-                          <option value="JP">🇯🇵 日本 (JP)</option>
-                          <option value="SG">🇸🇬 新加坡 (SG)</option>
-                          <option value="TW">🇹🇼 台湾 (TW)</option>
-                          <option value="KR">🇰🇷 韩国 (KR)</option>
-                          <option value="GB">🇬🇧 英国 (GB)</option>
-                          <option value="DE">🇩🇪 德国 (DE)</option>
-                          <option value="FR">🇫🇷 法国 (FR)</option>
-                          <option value="CA">🇨🇦 加拿大 (CA)</option>
-                          <option value="AU">🇦🇺 澳大利亚 (AU)</option>
-                        </select>
-                      </div>
                     </div>
-                    <p class="text-[11px] font-mono text-slate-500 truncate mt-1 select-all">{{ sub.url }}</p>
-                    <p v-if="sub.status === 'error' && sub.error" class="text-[11px] text-rose-400 font-mono mt-0.5 flex items-center gap-1">
-                      <span>❌ 失败原因: {{ sub.error }}</span>
-                    </p>
+
+                    <!-- 启用开关 -->
+                    <div class="flex items-center gap-2 shrink-0">
+                      <input 
+                        type="checkbox" 
+                        v-model="sub.enabled" 
+                        @change="toggleSubEnabled(sub)" 
+                        class="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
+                        title="启用/停用该订阅"
+                      />
+                    </div>
                   </div>
 
-                  <!-- 启用开关 -->
-                  <div class="flex items-center gap-2 shrink-0">
-                    <input 
-                      type="checkbox" 
-                      v-model="sub.enabled" 
-                      @change="toggleSubEnabled(sub)" 
-                      class="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
-                      title="启用/停用该订阅"
-                    />
-                  </div>
+                  <p class="text-[11px] font-mono text-slate-500 truncate mt-1.5 select-all">{{ sub.url }}</p>
+                  <p v-if="sub.status === 'error' && sub.error" class="text-[11px] text-rose-400 font-mono mt-0.5 flex items-center gap-1">
+                    <span>❌ 失败: {{ sub.error }}</span>
+                  </p>
                 </div>
 
                 <!-- 实时流量看板进度条 -->
@@ -859,13 +836,34 @@
                   </div>
                 </div>
 
-                <!-- 卡片底部操作栏 & 自动同步周期 -->
-                <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs flex-wrap gap-2">
-                  <div class="flex items-center gap-1.5 text-[10px] text-slate-500">
-                    <span>🔄 自动同步: {{ sub.autoRefreshInterval !== undefined && sub.autoRefreshInterval > 0 ? (sub.autoRefreshInterval >= 60 ? (sub.autoRefreshInterval/60) + ' 小时' : sub.autoRefreshInterval + ' 分钟') : (sub.autoRefreshInterval === 0 ? '仅手动' : '每 1 小时') }}</span>
-                    <span v-if="sub.updatedAt">· 上次: {{ formatFullTime(sub.updatedAt) }}</span>
+                <!-- 卡片底部操作栏 (左侧地区选择+同步，右侧操作按钮) -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs gap-2 flex-wrap">
+                  <div class="flex items-center gap-2 text-[10px] text-slate-500 min-w-0">
+                    <!-- 地区选择器 -->
+                    <div class="flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-md border border-slate-800 text-[10px]" title="指定归属国家：多国家机场选智能识别，单地区VPS可锁定">
+                      <select 
+                        v-model="sub.defaultRegion" 
+                        @change="markDirty(); saveConfig();" 
+                        class="bg-transparent text-slate-300 border-none outline-none cursor-pointer text-[10px] font-medium"
+                      >
+                        <option value="">🤖 智能识别</option>
+                        <option disabled class="text-slate-500 font-bold bg-slate-900">── 仅单地区 VPS 可锁定 ──</option>
+                        <option value="US">🇺🇸 美国 (US)</option>
+                        <option value="HK">🇭🇰 香港 (HK)</option>
+                        <option value="JP">🇯🇵 日本 (JP)</option>
+                        <option value="SG">🇸🇬 新加坡 (SG)</option>
+                        <option value="TW">🇹🇼 台湾 (TW)</option>
+                        <option value="KR">🇰🇷 韩国 (KR)</option>
+                        <option value="GB">🇬🇧 英国 (GB)</option>
+                        <option value="DE">🇩🇪 德国 (DE)</option>
+                        <option value="FR">🇫🇷 法国 (FR)</option>
+                        <option value="CA">🇨🇦 加拿大 (CA)</option>
+                        <option value="AU">🇦🇺 澳大利亚 (AU)</option>
+                      </select>
+                    </div>
+                    <span class="truncate">🔄 {{ sub.autoRefreshInterval !== undefined && sub.autoRefreshInterval > 0 ? (sub.autoRefreshInterval >= 60 ? (sub.autoRefreshInterval/60) + 'h' : sub.autoRefreshInterval + 'm') : '1h' }}</span>
                   </div>
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 shrink-0">
                     <button 
                       @click="toggleInspectNodes(sub)" 
                       class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer flex items-center gap-1 font-medium"
@@ -3803,7 +3801,7 @@
                   <div class="font-bold text-white text-xs flex items-center gap-2">
                     <span>系统版本与在线升级中心</span>
                     <span class="text-[10px] font-mono bg-slate-900 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800">
-                      v{{ versionInfo.currentVersion || '1.1.3' }}
+                      v{{ versionInfo.currentVersion || '1.1.4' }}
                     </span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5">
@@ -4029,7 +4027,7 @@
             <div>
               <span class="text-[11px] text-slate-500 block">当前运行版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
-                v{{ versionInfo.currentVersion || '1.1.3' }}
+                v{{ versionInfo.currentVersion || '1.1.4' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
@@ -5453,8 +5451,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '1.1.3',
-          latestVersion: '1.1.3',
+          currentVersion: '1.1.4',
+          latestVersion: '1.1.4',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
