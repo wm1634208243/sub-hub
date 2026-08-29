@@ -4,13 +4,16 @@ mod models;
 mod static_files;
 
 use api::auth_handlers::{
-    change_password_handler, login_handler, me_handler, register_handler, AppState,
+    admin_get_system_settings_handler, admin_save_system_settings_handler, change_password_handler,
+    create_user_handler, delete_user_handler, list_users_handler, login_handler, me_handler,
+    public_system_settings_handler, register_handler, reset_password_handler, user_role_handler,
+    user_status_handler, AppState,
 };
 use api::config_handlers::{get_config_handler, inspect_nodes_handler, save_config_handler};
 use api::sub_handlers::unified_sub_handler;
 use api::system_handlers::{get_system_settings_handler, get_versions_handler};
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use clap::Parser;
@@ -114,6 +117,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/register", post(register_handler))
         .route("/api/me", get(me_handler))
         .route("/api/change-password", post(change_password_handler))
+        // Admin User Management APIs
+        .route("/api/admin/users", get(list_users_handler).post(create_user_handler))
+        .route("/api/admin/users/:username", delete(delete_user_handler))
+        .route("/api/admin/users/:username/status", post(user_status_handler))
+        .route("/api/admin/users/:username/role", post(user_role_handler))
+        .route("/api/admin/users/:username/reset-password", post(reset_password_handler))
         // Config APIs
         .route("/api/config", get(get_config_handler).post(save_config_handler))
         .route("/api/subscriptions/:id/nodes", get(inspect_nodes_handler))
@@ -123,7 +132,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/sing-box.json", get(unified_sub_handler))
         .route("/api/surge.list", get(unified_sub_handler))
         .route("/api/base64", get(unified_sub_handler))
-        // System APIs
+        // System Settings APIs
+        .route("/api/admin/system/settings", get(admin_get_system_settings_handler).post(admin_save_system_settings_handler))
+        .route("/api/system/public-settings", get(public_system_settings_handler))
         .route("/api/system/versions", get(get_versions_handler))
         .route("/api/system/settings", get(get_system_settings_handler))
         // Static Files fallback
