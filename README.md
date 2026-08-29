@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🦀 SubHub (Clash Sub Hub) v2.0.5
+# 🦀 SubHub (Clash Sub Hub) v2.0.6
 
 ### 基于 Rust 原生单二进制架构的高性能通用订阅聚合、智能分流覆写与多源流量中台
 **Next-Generation High-Performance Universal Subscription Aggregator, Rule Override Hub & Traffic Dashboard in Pure Rust**
 
 [![Rust](https://img.shields.io/badge/Rust-1.80%2B-orange.svg?logo=rust)](https://www.rust-lang.org/)
-[![Version](https://img.shields.io/badge/Release-v2.0.5-blue.svg)](https://github.com/wm1634208243/sub-hub/releases)
+[![Version](https://img.shields.io/badge/Release-v2.0.6-blue.svg)](https://github.com/wm1634208243/sub-hub/releases)
 [![Memory](https://img.shields.io/badge/Memory-~5MB-success.svg)]()
 [![Single Binary](https://img.shields.io/badge/Single_Binary-Zero_Dependencies-brightgreen.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

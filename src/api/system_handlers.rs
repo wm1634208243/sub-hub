@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.6",
+            "tag": "v2.0.6",
+            "name": "SubHub v2.0.6 · 补全 applications 规则集提供者并实现 100% 规则无缝启动",
+            "publishedAt": "2026-08-29T18:56:31.390Z",
+            "highlights": [
+                "🛡️ 修复 Clash 启动报错 LibclashStart failed: rules[131] rule set [applications] not found",
+                "✨ 补全 Loyalsoldier 全套 rule-providers 映射定义",
+                "🚀 保证全平台 Clash / Clash Mi / Clash Verge / Sing-box 零错误直接连通"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.6 发布\n- **修复 Loyalsoldier 规则集提供者缺失**：补全 rule-providers 中的 applications 规则集定义，彻底解决 Clash 启动时提示 rule set [applications] not found 的错误；\n- **全规则链路零报错保障**：所有内置规则与外部规则集 100% 严格一一映射闭环。"
+        }),
+        serde_json::json!({
             "version": "2.0.5",
             "tag": "v2.0.5",
             "name": "SubHub v2.0.5 · 修复空策略组名称导致 Clash 闪退与订阅解析异常",

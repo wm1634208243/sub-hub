@@ -428,6 +428,7 @@ pub async fn aggregate_clash_yaml(
 
     if config.enable_loyalsoldier {
         let rule_providers = serde_json::json!({
+            "applications": { "type": "http", "behavior": "classical", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt", "path": "./ruleset/loyalsoldier/applications.txt", "interval": 86400 },
             "reject": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt", "path": "./ruleset/loyalsoldier/reject.txt", "interval": 86400 },
             "proxy": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt", "path": "./ruleset/loyalsoldier/proxy.txt", "interval": 86400 },
             "gfw": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt", "path": "./ruleset/loyalsoldier/gfw.txt", "interval": 86400 },
