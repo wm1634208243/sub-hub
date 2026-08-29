@@ -15,9 +15,9 @@ pub async fn get_versions_handler() -> Json<VersionInfo> {
     let current_version = env!("CARGO_PKG_VERSION").to_string();
     let history = vec![
         serde_json::json!({
-            "version": "1.2.1",
-            "tag": "v1.2.1",
-            "name": "SubHub v1.2.1 · 纯 Rust 高性能架构重构版",
+            "version": "2.0.0",
+            "tag": "v2.0.0",
+            "name": "SubHub v2.0.0 · 纯 Rust 高性能架构重构版",
             "publishedAt": "2026-08-30T00:50:00Z",
             "highlights": [
                 "🦀 全面重构为 Rust 原生单二进制高性能架构",
