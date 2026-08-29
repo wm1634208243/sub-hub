@@ -18,7 +18,7 @@ import util from 'util';
 import dns from 'dns';
 const execPromise = util.promisify(exec);
 
-const CURRENT_VERSION = '1.1.5';
+const CURRENT_VERSION = '1.1.6';
 const REPO_OWNER = 'wm1634208243';
 const REPO_NAME = 'sub-hub';
 const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
@@ -1118,7 +1118,9 @@ app.get('/api/subscriptions/:id/nodes', authMiddleware, async (req, res) => {
       };
     });
 
-    res.json({ success: true, subName: sub.name, defaultRegion: sub.defaultRegion || '', nodes });
+    sub.nodesCount = nodes.length;
+    await saveUserConfig(req.session.username, cfg);
+    res.json({ success: true, subName: sub.name, defaultRegion: sub.defaultRegion || '', nodesCount: nodes.length, nodes });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2040,6 +2042,16 @@ async function checkAndRefreshAllSubscriptions() {
 // ── Builtin Multi-Version Chinese Releases Matrix ─────────────────────────────
 
 const BUILTIN_VERSIONS_ZH = [
+  {
+    version: '1.1.6',
+    tag: 'v1.1.6',
+    name: 'SubHub v1.1.6 · 订阅卡片节点数与清洗后真实有效节点实时自动同步',
+    publishedAt: '2026-08-29T16:01:41.064Z',
+    highlights: ['🔄 卡片头部徽章节点数与明细抽屉真实节点数 100% 实时动态同步', '🧹 剔除 2 个公告假节点后徽章自动从 61 更新为 59 个真实节点', '✨ 数据源、持久化配置与前端状态完全统一'],
+    changelogZh: `### 🔄 订阅卡片节点数与清洗后真实节点实时动态同步
+- **节点数量一致性自动同步**：彻底解决上游机场包含公告假节点时卡片头部徽章显示历史 61 节点而抽屉显示清洗后 59 节点的数字差异；
+- **双向实时同步更新**：展开节点抽屉或同步刷新时，后端与前端自动将卡片徽章更新为过滤后的纯净真实节点数（59 个）。`
+  },
   {
     version: '1.1.5',
     tag: 'v1.1.5',
