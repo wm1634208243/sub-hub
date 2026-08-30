@@ -257,3 +257,21 @@ pub fn detect_source_type(sub_url: &str, body_text: &str, nodes: &[ProxyNode]) -
 
     "标准代理订阅".into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_fetch_direct_vless_node_link() {
+        let fetcher = SubscriptionFetcher::new();
+        let raw_vless = "vless://5935302c-3d1c-4063-9b90-8b66fbb6d71d@154.36.179.51:443?type=tcp&security=reality&pbk=JNB0fv4NYiJr4etyNEu7S7b_hGdhxbPJz2yo0ALhaTw&fp=chrome&sni=www.cloudflare.com&sid=ee1a1954#%E9%80%90%E7%BB%B4%E4%BA%91JP";
+        let res = fetcher.fetch(raw_vless, "", false).await.expect("Should parse vless node directly");
+        assert_eq!(res.nodes.len(), 1);
+        assert_eq!(res.nodes[0].name, "逐维云JP");
+        assert_eq!(res.nodes[0].server, "154.36.179.51");
+        assert_eq!(res.nodes[0].port, 443);
+        assert_eq!(res.nodes[0].node_type, "vless");
+    }
+}
+
