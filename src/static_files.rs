@@ -16,7 +16,17 @@ pub async fn static_handler(uri: axum::http::Uri) -> Response {
         path = "index.html".to_string();
     }
 
-    // 1. Try local filesystem first (for instant development edits)
+    // 1. Try embedded binary assets (single binary deployment takes priority)
+    if let Some(file) = EmbeddedAssets::get(&path) {
+        let mime = mime_guess::from_path(&path).first_or_octet_stream();
+        return Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, HeaderValue::from_str(mime.as_ref()).unwrap())
+            .body(Body::from(file.data))
+            .unwrap();
+    }
+
+    // 2. Fallback to local filesystem
     let local_file = Path::new("public").join(&path);
     if local_file.exists() && local_file.is_file() {
         if let Ok(bytes) = tokio::fs::read(&local_file).await {
@@ -28,16 +38,7 @@ pub async fn static_handler(uri: axum::http::Uri) -> Response {
                 .unwrap();
         }
     }
-
-    // 2. Try embedded binary assets (single binary deployment)
-    if let Some(file) = EmbeddedAssets::get(&path) {
-        let mime = mime_guess::from_path(&path).first_or_octet_stream();
-        Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, HeaderValue::from_str(mime.as_ref()).unwrap())
-            .body(Body::from(file.data))
-            .unwrap()
-    } else if let Some(index) = EmbeddedAssets::get("index.html") {
+    if let Some(index) = EmbeddedAssets::get("index.html") {
         Response::builder()
             .status(StatusCode::OK)
             .header(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"))

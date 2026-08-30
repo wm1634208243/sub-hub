@@ -296,8 +296,8 @@ EOF
         echo -e "${GREEN}Systemd 守护进程已成功热重启！${NC}"
     fi
 
-    # 5. 清理旧 node_modules 释放磁盘
-    rm -rf "$INSTALL_DIR/node_modules" 2>/dev/null || true
+    # 5. 清理旧 node_modules 及历史静态资源，确保 100% 呈现最新原生二进制内置前端
+    rm -rf "$INSTALL_DIR/node_modules" "$INSTALL_DIR/public" 2>/dev/null || true
 
     echo -e "\n${GREEN}🎉 SubHub 已成功完成平滑热升级！所有数据与配置 100% 完整保留！${NC}"
 }
