@@ -325,7 +325,7 @@
             >
               <span>🛰️ 订阅聚合</span>
               <span v-if="(config.subscriptions || []).length > 0" class="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.2 rounded-full font-mono">
-                {{ (config.subscriptions || []).length }}
+                {{ (config.subscriptions || []).filter(s => s.enabled !== false).length }}<span v-if="(config.subscriptions || []).filter(s => s.enabled === false).length > 0" class="text-slate-400">/{{ (config.subscriptions || []).length }}</span>
               </span>
             </button>
             <button 
@@ -837,8 +837,8 @@
               <div 
                 v-for="sub in config.subscriptions" 
                 :key="sub.id"
-                :class="sub.enabled !== false ? 'border-slate-800 bg-slate-900' : 'border-slate-800/50 bg-slate-900/40 opacity-70'"
-                class="border rounded-2xl p-5 shadow-xl flex flex-col justify-between gap-3.5 transition-all"
+                :class="sub.enabled !== false ? 'border-slate-800 bg-slate-900 shadow-xl' : 'border-slate-800/60 bg-slate-950/70 opacity-65 grayscale-[25%] shadow-none'"
+                class="border rounded-2xl p-5 flex flex-col justify-between gap-3.5 transition-all"
               >
                 <!-- 卡片头部 (严格单行不换行，标题超长自动省略) -->
                 <div>
@@ -854,8 +854,11 @@
                       <span v-if="sub.prefix" class="text-[10px] bg-purple-500/10 text-purple-300 px-2 py-0.5 rounded-md border border-purple-500/20 font-mono shrink-0">
                         [{{ sub.prefix }}]
                       </span>
-                      <!-- 在线/错误状态 -->
-                      <span v-if="sub.status === 'error'" :title="sub.error || '上游订阅响应错误'" class="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20 font-medium shrink-0 cursor-help">
+                      <!-- 启用/在线/错误状态 -->
+                      <span v-if="sub.enabled === false" class="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium shrink-0">
+                        ⏸️ 已停用
+                      </span>
+                      <span v-else-if="sub.status === 'error'" :title="sub.error || '上游订阅响应错误'" class="text-[10px] bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/20 font-medium shrink-0 cursor-help">
                         ⚠️ 错误
                       </span>
                       <span v-else class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono shrink-0">
@@ -863,15 +866,21 @@
                       </span>
                     </div>
 
-                    <!-- 启用开关 -->
+                    <!-- 启用/停用 高质感胶囊开关 -->
                     <div class="flex items-center gap-2 shrink-0">
-                      <input 
-                        type="checkbox" 
-                        v-model="sub.enabled" 
-                        @change="toggleSubEnabled(sub)" 
-                        class="w-4 h-4 accent-cyan-500 rounded cursor-pointer"
-                        title="启用/停用该订阅"
-                      />
+                      <button 
+                        type="button" 
+                        @click="sub.enabled = (sub.enabled === false ? true : false); toggleSubEnabled(sub);" 
+                        :class="sub.enabled !== false ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'"
+                        class="px-2.5 py-1 rounded-xl border text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer select-none hover:opacity-90 active:scale-95 shrink-0"
+                        :title="sub.enabled !== false ? '点击停用该订阅源' : '点击启用该订阅源'"
+                      >
+                        <span 
+                          :class="sub.enabled !== false ? 'bg-emerald-400' : 'bg-slate-600'" 
+                          class="w-2 h-2 rounded-full inline-block transition-all"
+                        ></span>
+                        <span>{{ sub.enabled !== false ? '启用中' : '已停用' }}</span>
+                      </button>
                     </div>
                   </div>
 
@@ -945,6 +954,13 @@
                       class="text-xs text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
                     >
                       测试同步
+                    </button>
+                    <button 
+                      @click="sub.enabled = (sub.enabled === false ? true : false); toggleSubEnabled(sub);" 
+                      :class="sub.enabled !== false ? 'text-amber-400/90 hover:text-amber-300' : 'text-emerald-400 hover:text-emerald-300 font-semibold'"
+                      class="text-xs transition-colors cursor-pointer"
+                    >
+                      {{ sub.enabled !== false ? '停用' : '启用' }}
                     </button>
                     <button 
                       @click="openEditSubModal(sub)" 
@@ -5444,6 +5460,28 @@
             </div>
           </div>
 
+          <!-- 订阅启用/停用开关 -->
+          <div class="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800">
+            <div>
+              <div class="text-xs font-semibold text-white flex items-center gap-2">
+                <span>启用此订阅源</span>
+                <span class="text-[10px] font-normal px-2 py-0.5 rounded-full" :class="subForm.enabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-800'">
+                  {{ subForm.enabled ? '🟢 参与节点聚合' : '⏸️ 已暂停聚合' }}
+                </span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-0.5">停用后该订阅源的节点将不会进入生成的聚合订阅与分流策略中</p>
+            </div>
+            <button 
+              type="button" 
+              @click="subForm.enabled = !subForm.enabled" 
+              :class="subForm.enabled ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-500'"
+              class="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer select-none"
+            >
+              <span :class="subForm.enabled ? 'bg-emerald-400' : 'bg-slate-600'" class="w-2 h-2 rounded-full inline-block"></span>
+              <span>{{ subForm.enabled ? '已启用' : '已停用' }}</span>
+            </button>
+          </div>
+
           <!-- 到期时间设置 (带暗黑日历选择框与快捷预设) -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
@@ -6137,8 +6175,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.3.8',
-          latestVersion: '2.3.8',
+          currentVersion: '2.3.9',
+          latestVersion: '2.3.9',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -6756,6 +6794,7 @@ function main(config, profileName) {
         const openEditSubModal = (sub) => {
           subForm.value = {
             ...sub,
+            enabled: sub.enabled !== false,
             defaultRegion: sub.defaultRegion || '',
             customExpire: sub.customExpire || '',
             autoRefreshInterval: sub.autoRefreshInterval !== undefined ? sub.autoRefreshInterval : 60

@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.9",
+            "tag": "v2.3.9",
+            "name": "SubHub v2.3.9 · 订阅源高质感独立启用/停用开关与视觉状态增强",
+            "publishedAt": "2026-08-30T07:34:22.235Z",
+            "highlights": [
+                "🔘 订阅卡片配备高质感交互开关与「🟢 启用中 / ⏸️ 已停用」动态状态指示",
+                "✏️ 添加与编辑订阅弹窗新增独立启用/停用开关，停用源智能置灰防干扰",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.9 发布\n- **订阅源启用/停用全新升级**：将原本简陋的勾选框重构为高质感胶囊开关，停用状态卡片智能置灰，顶部标签动态呈现活跃数；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.3.8",
             "tag": "v2.3.8",
             "name": "SubHub v2.3.8 · 极简收纳外层卡片，下沉自动优选至节点选择内",
