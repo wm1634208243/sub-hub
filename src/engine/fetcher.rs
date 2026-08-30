@@ -55,8 +55,8 @@ impl SubscriptionFetcher {
 
     pub async fn fetch(&self, sub_url: &str, prefix: &str, force_refresh: bool) -> Result<FetchResult, String> {
         let url = sub_url.trim();
-        if url.is_empty() {
-            return Err("无效的订阅链接".into());
+        if let Err(msg) = crate::security::validate_subscription_url(url) {
+            return Err(msg.to_string());
         }
 
         if !force_refresh {

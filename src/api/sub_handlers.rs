@@ -21,11 +21,27 @@ pub async fn unified_sub_handler(
     Query(query): Query<SubQuery>,
 ) -> Response {
     let ua = headers.get("user-agent").and_then(|v| v.to_str().ok()).unwrap_or_default();
-    let ip = headers.get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .map(|s| s.split(',').next().unwrap_or(s).trim())
-        .or_else(|| headers.get("x-real-ip").and_then(|v| v.to_str().ok()))
-        .unwrap_or("127.0.0.1");
+    let ip = crate::security::extract_client_ip(&headers);
+    let ip_token_key = format!("sub_bad_token_ip:{}", ip);
+
+    // 1. Anti Token Brute-Force Rate Limiter Check
+    if let Err(remaining) = state.rate_limiter.check(&ip_token_key).await {
+        let secs = remaining.as_secs().max(1);
+        record_access_log(
+            &state.config_dir,
+            "admin",
+            &ip,
+            ua,
+            "🚫 Token 爆破拦截",
+            429,
+            &format!("该 IP 连续请求无效 Token 触发防扫描保护，剩余锁定 {} 秒", secs),
+        ).await;
+
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            format!("请求过于频繁，触发安全防护拦截，请等待 {} 秒后再试", secs),
+        ).into_response();
+    }
 
     let token = query.token.or_else(|| {
         headers.get("authorization")
@@ -36,7 +52,7 @@ pub async fn unified_sub_handler(
     let token = match token {
         Some(t) if !t.is_empty() => t,
         _ => {
-            record_access_log(&state.config_dir, "admin", ip, ua, "🌐 订阅请求", 401, "Token 缺失被拦截").await;
+            record_access_log(&state.config_dir, "admin", &ip, ua, "🌐 订阅请求", 401, "Token 缺失被拦截").await;
             return (StatusCode::UNAUTHORIZED, "Token 缺失").into_response();
         }
     };
@@ -85,9 +101,26 @@ pub async fn unified_sub_handler(
     }
 
     let cfg = match matched_cfg {
-        Some(c) => c,
+        Some(c) => {
+            state.rate_limiter.record_success(&ip_token_key).await;
+            c
+        }
         None => {
-            record_access_log(&state.config_dir, "admin", ip, ua, "🌐 订阅请求", 401, "无效 Token 拒绝访问").await;
+            use std::time::Duration;
+            let lock_dur = state.rate_limiter.record_failure(
+                &ip_token_key,
+                10, // 10 bad tokens within 60s
+                Duration::from_secs(60),
+                Duration::from_secs(300), // 5-minute lock
+            ).await;
+
+            let detail = if let Some(dur) = lock_dur {
+                format!("连续 10 次无效 Token，已触发 IP 封锁 {} 秒", dur.as_secs())
+            } else {
+                "无效 Token 拒绝访问".to_string()
+            };
+
+            record_access_log(&state.config_dir, "admin", &ip, ua, "🌐 订阅请求", 401, &detail).await;
             return (StatusCode::UNAUTHORIZED, "无效的订阅 Token").into_response();
         }
     };
@@ -96,7 +129,7 @@ pub async fn unified_sub_handler(
 
     if let Some(user) = &matched_user {
         if user.disabled.unwrap_or(false) {
-            record_access_log(&state.config_dir, username, ip, ua, "🌐 订阅请求", 403, "账号已被禁用，暂停下发").await;
+            record_access_log(&state.config_dir, username, &ip, ua, "🌐 订阅请求", 403, "账号已被禁用，暂停下发").await;
             return (StatusCode::FORBIDDEN, "该账号已被禁用，订阅已暂停下发").into_response();
         }
     }
@@ -167,7 +200,7 @@ pub async fn unified_sub_handler(
             record_access_log(
                 &state.config_dir,
                 username,
-                ip,
+                &ip,
                 ua,
                 type_label,
                 200,
@@ -177,7 +210,7 @@ pub async fn unified_sub_handler(
             res
         }
         Err(e) => {
-            record_access_log(&state.config_dir, username, ip, ua, "🌐 订阅构建", 500, &format!("生成订阅失败: {}", e)).await;
+            record_access_log(&state.config_dir, username, &ip, ua, "🌐 订阅构建", 500, &format!("生成订阅失败: {}", e)).await;
             (StatusCode::INTERNAL_SERVER_ERROR, format!("生成订阅失败: {}", e)).into_response()
         }
     }

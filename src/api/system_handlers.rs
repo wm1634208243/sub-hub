@@ -58,6 +58,21 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.1.0",
+            "tag": "v2.1.0",
+            "name": "SubHub v2.1.0 · 全栈安全防护强化版 (Anti-Brute Force & Zero Trust)",
+            "publishedAt": "2026-08-30T01:55:08.834Z",
+            "highlights": [
+                "🛡️ 密码防暴力破解：5 次连续错误自动触发 IP 与账号双重 15 分钟熔断封禁",
+                "⏳ 防时序探测攻击：用户不存在时执行恒定时长虚拟哈希比对，彻底粉碎用户名枚举",
+                "🌐 订阅 Token 防扫描：连续无效 Token 自动触发 5 分钟安全拦截与审计告警",
+                "🔒 路径穿越与注入防护：所有用户名与订阅 URL 强制白名单校验",
+                "🛡️ 工业级 HTTP 安全标头：全面注入 nosniff、SAMEORIGIN、XSS 与 Strict Referrer",
+                "💥 4MB 请求体硬上限：杜绝恶意超大 Payload 引起的 OOM 拒绝服务攻击"
+            ],
+            "changelogZh": "### 🛡️ SubHub v2.1.0 安全防护强化版发布\n- **全栈防爆破体系**：上线内存滑动窗口速率限制引擎，针对登录密码与订阅 Token 提供多维度 IP 临时锁定防护；\n- **防时序攻击与用户枚举**：引入恒定时长密码校验算法，消除用户存在与否的时间差异；\n- **注入与路径安全**：全面收紧输入校验，杜绝路径穿越、非法字符与恶意 SSRF 请求；\n- **安全响应头与防 DoS**：全局注入行业标准安全响应头并实施严格请求体大小约束。"
+        }),
+        serde_json::json!({
             "version": "2.0.9",
             "tag": "v2.0.9",
             "name": "SubHub v2.0.9 · 修复修改密码后用户配置解密与多密钥自动迁移恢复",

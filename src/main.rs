@@ -1,6 +1,7 @@
 mod api;
 mod engine;
 mod models;
+pub mod security;
 mod static_files;
 
 use api::auth_handlers::{
@@ -113,11 +114,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = tokio::fs::write(&users_file, serde_json::to_string_pretty(&initial_users)?).await;
     }
 
+    let rate_limiter = security::RateLimiter::new();
+
+    // Spawn background task to periodically clean up expired rate limiter entries
+    let rl_clone = rate_limiter.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(600));
+        loop {
+            interval.tick().await;
+            rl_clone.cleanup().await;
+        }
+    });
+
     let state = AppState {
         config_dir: args.config_dir.clone(),
         users: Arc::new(RwLock::new(initial_users)),
         sessions: Arc::new(RwLock::new(HashMap::new())),
         fetcher: Arc::new(SubscriptionFetcher::new()),
+        rate_limiter,
     };
 
     let cors = CorsLayer::new()
@@ -191,6 +205,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/system/settings", get(get_system_settings_handler))
         // Static Files fallback
         .fallback(static_files::static_handler)
+        .layer(axum::middleware::from_fn(security::security_headers_middleware))
+        .layer(axum::extract::DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(state);

@@ -14,6 +14,7 @@ pub struct AppState {
     pub users: Arc<RwLock<Vec<User>>>,
     pub sessions: Arc<RwLock<std::collections::HashMap<String, String>>>, // token -> username
     pub fetcher: Arc<crate::engine::SubscriptionFetcher>,
+    pub rate_limiter: crate::security::RateLimiter,
 }
 
 #[derive(Deserialize)]
@@ -110,37 +111,113 @@ async fn check_admin(state: &AppState, headers: &HeaderMap) -> Result<User, (Sta
 
 pub async fn login_handler(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<LoginPayload>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let client_ip = crate::security::extract_client_ip(&headers);
+    let ua = headers.get("user-agent").and_then(|v| v.to_str().ok()).unwrap_or_default();
+    let ip_key = format!("login_ip:{}", client_ip);
     let uname = payload.username.trim().to_lowercase();
-    let users = state.users.read().await;
+    let user_key = format!("login_user:{}", uname);
 
-    let user = users.iter().find(|u| u.username.to_lowercase() == uname);
-    let user = match user {
-        Some(u) => u,
-        None => {
-            return Err((
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({ "error": "用户名或密码错误" })),
-            ));
-        }
-    };
+    // 1. Check IP and Username Rate Limits (Anti-Brute Force)
+    if let Err(remaining) = state.rate_limiter.check(&ip_key).await {
+        let secs = remaining.as_secs().max(1);
+        crate::api::config_handlers::record_access_log(
+            &state.config_dir,
+            &uname,
+            &client_ip,
+            ua,
+            "🚫 登录爆破拦截",
+            429,
+            &format!("该 IP 密码错误次数过多，触发系统防护，剩余锁定 {} 秒", secs),
+        ).await;
 
-    if user.disabled.unwrap_or(false) {
-        let msg = user.disabled_reason.clone().unwrap_or_else(|| "账号已被封禁".into());
         return Err((
-            StatusCode::FORBIDDEN,
-            Json(serde_json::json!({ "error": format!("该账号已被禁用: {}", msg) })),
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({
+                "error": format!("密码错误次数过多，IP已被安全锁定！请等待 {} 秒后再试", secs)
+            })),
         ));
     }
 
-    let is_valid = bcrypt::verify(&payload.password, &user.password_hash).unwrap_or(false);
-    if !is_valid {
+    if let Err(remaining) = state.rate_limiter.check(&user_key).await {
+        let secs = remaining.as_secs().max(1);
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({
+                "error": format!("该账号已被防爆破临时锁定！请等待 {} 秒后再试", secs)
+            })),
+        ));
+    }
+
+    // 2. Lookup User
+    let users = state.users.read().await;
+    let user = users.iter().find(|u| u.username.to_lowercase() == uname);
+
+    let (is_valid, user_data) = match user {
+        Some(u) => {
+            if u.disabled.unwrap_or(false) {
+                let msg = u.disabled_reason.clone().unwrap_or_else(|| "账号已被封禁".into());
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    Json(serde_json::json!({ "error": format!("该账号已被禁用: {}", msg) })),
+                ));
+            }
+            let valid = bcrypt::verify(&payload.password, &u.password_hash).unwrap_or(false);
+            (valid, Some(u.clone()))
+        }
+        None => {
+            // Timing-attack mitigation: execute dummy bcrypt verify so response time is identical
+            crate::security::dummy_bcrypt_verify(&payload.password);
+            (false, None)
+        }
+    };
+
+    // 3. Handle Failure (5 failed attempts within 15 min -> 15 min lock)
+    if !is_valid || user_data.is_none() {
+        use std::time::Duration;
+        let lock_ip = state.rate_limiter.record_failure(
+            &ip_key,
+            5,
+            Duration::from_secs(900),
+            Duration::from_secs(900),
+        ).await;
+
+        let _ = state.rate_limiter.record_failure(
+            &user_key,
+            5,
+            Duration::from_secs(900),
+            Duration::from_secs(900),
+        ).await;
+
+        let detail = if let Some(lock_dur) = lock_ip {
+            format!("连续 5 次密码错误，已自动触发 IP 封锁 {} 秒", lock_dur.as_secs())
+        } else {
+            "用户名或密码错误".to_string()
+        };
+
+        crate::api::config_handlers::record_access_log(
+            &state.config_dir,
+            &uname,
+            &client_ip,
+            ua,
+            "❌ 登录失败",
+            401,
+            &detail,
+        ).await;
+
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({ "error": "用户名或密码错误" })),
         ));
     }
+
+    let user = user_data.unwrap();
+
+    // 4. Success -> Reset failed counters
+    state.rate_limiter.record_success(&ip_key).await;
+    state.rate_limiter.record_success(&user_key).await;
 
     use rand::Rng;
     let token: String = (0..32)
@@ -149,6 +226,16 @@ pub async fn login_handler(
 
     let mut sessions = state.sessions.write().await;
     sessions.insert(token.clone(), user.username.clone());
+
+    crate::api::config_handlers::record_access_log(
+        &state.config_dir,
+        &user.username,
+        &client_ip,
+        ua,
+        "🔑 账号登录成功",
+        200,
+        "身份鉴权通过，颁发安全 Session 令牌",
+    ).await;
 
     Ok(Json(serde_json::json!({
         "success": true,
@@ -163,6 +250,12 @@ pub async fn register_handler(
     Json(payload): Json<RegisterPayload>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let uname = payload.username.trim().to_string();
+    if let Err(msg) = crate::security::validate_username(&uname) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": msg })),
+        ));
+    }
     if uname.len() < 3 {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -300,6 +393,12 @@ pub async fn create_user_handler(
     check_admin(&state, &headers).await?;
 
     let uname = payload.username.trim().to_string();
+    if let Err(msg) = crate::security::validate_username(&uname) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": msg })),
+        ));
+    }
     if uname.len() < 3 {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -351,6 +450,13 @@ pub async fn delete_user_handler(
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let curr_user = check_admin(&state, &headers).await?;
 
+    if let Err(msg) = crate::security::validate_username(&target_username) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": msg })),
+        ));
+    }
+
     if curr_user.username.to_lowercase() == target_username.to_lowercase() {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -388,6 +494,13 @@ pub async fn user_status_handler(
     Json(payload): Json<UpdateStatusPayload>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let curr_user = check_admin(&state, &headers).await?;
+
+    if let Err(msg) = crate::security::validate_username(&target_username) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": msg })),
+        ));
+    }
 
     if curr_user.username.to_lowercase() == target_username.to_lowercase() && payload.disabled {
         return Err((
@@ -440,10 +553,17 @@ pub async fn user_role_handler(
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let curr_user = check_admin(&state, &headers).await?;
 
+    if let Err(msg) = crate::security::validate_username(&target_username) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": msg })),
+        ));
+    }
+
     if curr_user.username.to_lowercase() == target_username.to_lowercase() && payload.role != "admin" {
         return Err((
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "error": "无法将自身降级为普通用户" })),
+            Json(serde_json::json!({ "error": "无法取消当前登录管理员的 admin 身份" })),
         ));
     }
 
@@ -473,6 +593,13 @@ pub async fn reset_password_handler(
     Json(payload): Json<ResetPwdPayload>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     check_admin(&state, &headers).await?;
+
+    if let Err(msg) = crate::security::validate_username(&target_username) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": msg })),
+        ));
+    }
 
     if payload.new_password.len() < 4 {
         return Err((
