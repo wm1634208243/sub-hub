@@ -490,9 +490,11 @@ pub async fn delete_user_handler(
 
     save_users_to_disk(&state.config_dir, &users).await;
 
-    // Delete user config file if exists
-    let cfg_file = std::path::Path::new(&state.config_dir).join(format!("user_{}.json", target_username.to_lowercase()));
-    let _ = tokio::fs::remove_file(cfg_file).await;
+    // Delete user config files across all candidate directories
+    let uname_lower = target_username.to_lowercase();
+    let _ = tokio::fs::remove_file(std::path::Path::new(&state.config_dir).join(format!("user_{}.json", uname_lower))).await;
+    let _ = tokio::fs::remove_file(std::path::Path::new(&state.config_dir).join("configs").join(format!("{}.json", uname_lower))).await;
+    let _ = tokio::fs::remove_file(std::path::Path::new(&state.config_dir).join(format!("{}.json", uname_lower))).await;
 
     Ok(Json(serde_json::json!({
         "success": true,
@@ -640,6 +642,23 @@ pub async fn reset_password_handler(
     Ok(Json(serde_json::json!({
         "success": true,
         "message": format!("用户【{}】密码已重置", target_username)
+    })))
+}
+
+pub async fn admin_reset_user_config_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(target_username): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    check_admin(&state, &headers).await?;
+
+    let clean_uname = target_username.trim().to_lowercase();
+    let empty_cfg = UserConfig::default();
+    save_user_config_to_disk(&state.config_dir, &clean_uname, &empty_cfg).await;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("用户【{}】的配置已成功重置初始化", clean_uname)
     })))
 }
 

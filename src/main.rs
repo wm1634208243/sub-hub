@@ -6,10 +6,10 @@ pub mod security;
 mod static_files;
 
 use api::auth_handlers::{
-    admin_get_system_settings_handler, admin_save_system_settings_handler, change_password_handler,
-    create_user_handler, delete_user_handler, list_users_handler, login_handler, logout_handler, me_handler,
-    public_system_settings_handler, register_handler, reset_password_handler, user_role_handler,
-    user_status_handler, AppState,
+    admin_get_system_settings_handler, admin_reset_user_config_handler, admin_save_system_settings_handler,
+    change_password_handler, create_user_handler, delete_user_handler, list_users_handler, login_handler,
+    logout_handler, me_handler, public_system_settings_handler, register_handler, reset_password_handler,
+    user_role_handler, user_status_handler, AppState,
 };
 use api::config_handlers::{
     admin_backup_export_handler, admin_backup_restore_handler, admin_batch_delete_backups_handler,
@@ -158,6 +158,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/admin/users/:username/status", post(user_status_handler))
         .route("/api/admin/users/:username/role", post(user_role_handler))
         .route("/api/admin/users/:username/reset-password", post(reset_password_handler))
+        .route("/api/admin/users/:username/reset-config", post(admin_reset_user_config_handler))
         // Config & Token APIs
         .route("/api/config", get(get_config_handler).post(save_config_handler))
         .route("/api/config/purge", delete(purge_config_handler))

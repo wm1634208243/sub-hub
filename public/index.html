@@ -3950,6 +3950,14 @@
                         </button>
                         <button 
                           v-if="u.username !== currentUser.username"
+                          @click="resetUserConfig(u.username)" 
+                          class="text-xs text-slate-400 hover:text-amber-300 cursor-pointer"
+                          title="清空该用户的所有订阅与规则数据"
+                        >
+                          清空数据
+                        </button>
+                        <button 
+                          v-if="u.username !== currentUser.username"
                           @click="deleteUser(u.username)" 
                           class="text-xs text-rose-400 hover:text-rose-300 cursor-pointer"
                         >
@@ -4036,6 +4044,14 @@
                       class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-medium cursor-pointer text-center"
                     >
                       🔑 重置密码
+                    </button>
+                    <button 
+                      v-if="u.username !== currentUser.username"
+                      @click="resetUserConfig(u.username)" 
+                      class="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 rounded-lg text-xs cursor-pointer text-center"
+                      title="清空重置该用户数据"
+                    >
+                      🧹
                     </button>
                     <button 
                       v-if="u.username !== currentUser.username"
@@ -6549,8 +6565,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.5.2',
-          latestVersion: '2.5.2',
+          currentVersion: '2.5.3',
+          latestVersion: '2.5.3',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -8499,6 +8515,26 @@ function main(config, profileName) {
           }
         };
 
+        const resetUserConfig = async (uName) => {
+          if (!confirm(`确定要清空重置用户【${uName}】的全部订阅与节点数据吗？此操作不可逆！`)) return;
+          try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(uName)}/reset-config`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token.value}`
+              }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast(data.message || `用户【${uName}】的数据已成功重置！`);
+            } else {
+              showToast(data.error || '重置失败', 'error');
+            }
+          } catch (e) {
+            showToast('网络请求失败', 'error');
+          }
+        };
+
         const updateUserRole = async (u) => {
           try {
             const res = await fetch(`/api/admin/users/${encodeURIComponent(u.username)}/role`, {
@@ -9330,6 +9366,7 @@ function main(config, profileName) {
           openAdminResetPwdModal,
           generateRandomPasswordForReset,
           submitAdminResetPassword,
+          resetUserConfig,
           copySmartSubUrl,
           copyRulesJsUrl,
           rulesJsUrl,

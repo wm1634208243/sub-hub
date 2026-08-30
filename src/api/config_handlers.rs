@@ -664,11 +664,16 @@ pub async fn admin_download_backup_archive_handler(
 // ── Multi-Path User Config Loader ─────────────────────────────────────────────
 
 pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &str) -> UserConfig {
+    let uname_lower = username.trim().to_lowercase();
+    let is_admin = uname_lower == "admin";
+
     let mut candidate_secrets = vec![
         user_secret.to_string(),
         "subhub_master_secret_fallback_v1".to_string(),
-        "admin".to_string(),
     ];
+    if is_admin {
+        candidate_secrets.push("admin".to_string());
+    }
 
     // Collect all known user hashes from users.json files
     let users_files = [
@@ -680,28 +685,37 @@ pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &st
         if let Ok(content) = tokio::fs::read_to_string(&uf).await {
             if let Ok(users) = serde_json::from_str::<Vec<User>>(&content) {
                 for u in users {
-                    if !candidate_secrets.contains(&u.password_hash) {
-                        candidate_secrets.push(u.password_hash);
+                    if u.username.to_lowercase() == uname_lower {
+                        if !candidate_secrets.contains(&u.password_hash) {
+                            candidate_secrets.push(u.password_hash);
+                        }
                     }
                 }
             }
         }
     }
 
-    let candidates = [
-        FilePath::new(config_dir).join(format!("user_{}.json", username.to_lowercase())),
-        FilePath::new(config_dir).join("configs").join(format!("{}.json", username)),
-        FilePath::new(config_dir).join(format!("{}.json", username)),
-        FilePath::new(config_dir).join("user_admin.json"),
-        FilePath::new(config_dir).join("configs/admin.json"),
-        FilePath::new(config_dir).join("admin.json"),
-        FilePath::new(config_dir).join("../data/configs").join(format!("{}.json", username)),
-        FilePath::new(config_dir).join("../data/configs/admin.json"),
-        FilePath::new(config_dir).join("../data/config.json"),
-        FilePath::new(config_dir).join("config.json"),
-        FilePath::new("data/config.json").to_path_buf(),
-        FilePath::new("data/configs/admin.json").to_path_buf(),
-    ];
+    // STRICT USER ISOLATION: Non-admin users must ONLY search their own user files
+    let candidates: Vec<std::path::PathBuf> = if is_admin {
+        vec![
+            FilePath::new(config_dir).join("user_admin.json"),
+            FilePath::new(config_dir).join("configs").join("admin.json"),
+            FilePath::new(config_dir).join("admin.json"),
+            FilePath::new(config_dir).join("../data/configs").join("admin.json"),
+            FilePath::new(config_dir).join("../data/config.json"),
+            FilePath::new(config_dir).join("config.json"),
+            FilePath::new("data/config.json").to_path_buf(),
+            FilePath::new("data/configs/admin.json").to_path_buf(),
+        ]
+    } else {
+        vec![
+            FilePath::new(config_dir).join(format!("user_{}.json", uname_lower)),
+            FilePath::new(config_dir).join("configs").join(format!("{}.json", uname_lower)),
+            FilePath::new(config_dir).join(format!("{}.json", uname_lower)),
+            FilePath::new(config_dir).join("../data/configs").join(format!("{}.json", uname_lower)),
+            FilePath::new("data/configs").join(format!("{}.json", uname_lower)),
+        ]
+    };
 
     let mut best_fallback: Option<UserConfig> = None;
 
@@ -720,11 +734,9 @@ pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &st
                             }
                         }
                     } else {
-                        // It is encrypted, try all candidate secrets
+                        // It is encrypted, try candidate secrets for this user
                         for sec in &candidate_secrets {
-                            if let Ok(decrypted_val) = decrypt_user_config_bundle(&json_val, sec, username)
-                                .or_else(|_| decrypt_user_config_bundle(&json_val, sec, "admin"))
-                            {
+                            if let Ok(decrypted_val) = decrypt_user_config_bundle(&json_val, sec, &uname_lower) {
                                 if let Ok(cfg) = serde_json::from_value::<UserConfig>(decrypted_val) {
                                     if !cfg.subscriptions.is_empty() {
                                         // Save unencrypted copy for future smooth access
@@ -743,5 +755,48 @@ pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &st
         }
     }
 
+    // If no config exists for this user, return a fresh clean UserConfig
     best_fallback.unwrap_or_default()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_user_config_isolation() {
+        let temp_dir = std::env::temp_dir().join(format!("subhub_test_isolation_{}", rand::random::<u64>()));
+        let _ = tokio::fs::create_dir_all(&temp_dir).await;
+        let config_dir_str = temp_dir.to_str().unwrap();
+
+        // 1. Create admin config with 1 subscription
+        let mut admin_cfg = UserConfig::default();
+        admin_cfg.subscriptions.push(crate::models::SubscriptionItem {
+            id: "sub-1".into(),
+            name: "Admin Sub".into(),
+            url: "https://example.com/admin.yaml".into(),
+            prefix: None,
+            default_region: None,
+            custom_expire: None,
+            enabled: true,
+            auto_refresh_interval: 60,
+            status: None,
+            error: None,
+            nodes_count: None,
+            source_type: None,
+            user_info: None,
+            updated_at: None,
+        });
+        crate::api::auth_handlers::save_user_config_to_disk(config_dir_str, "admin", &admin_cfg).await;
+
+        // 2. Load config for non-admin user 'test'
+        let test_cfg = load_user_config(config_dir_str, "test", "test_hash").await;
+
+        // 3. Verify 'test' user gets 0 subscriptions (isolated from admin)
+        assert_eq!(test_cfg.subscriptions.len(), 0, "Non-admin user 'test' must not inherit admin subscriptions");
+
+        // 4. Clean up
+        let _ = tokio::fs::remove_dir_all(temp_dir).await;
+    }
+}
+

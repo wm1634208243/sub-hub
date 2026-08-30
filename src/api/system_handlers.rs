@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.3",
+            "tag": "v2.5.3",
+            "name": "SubHub v2.5.3 · 严格隔离多租户数据与管理员一键清空重置",
+            "publishedAt": "2026-08-30T14:46:16.750Z",
+            "highlights": [
+                "🛡️ 彻底修复多用户配置隔离：普通账号严禁继承或回退读取管理员节点与订阅",
+                "🧹 用户管理面板新增「清空数据」快捷功能：支持管理员一键初始化任意用户空间",
+                "✨ 全链路物理级租户隔离，保障 100% 数据安全与隐私"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.3 发布\n- **严格多租户数据隔离**：普通用户不再继承管理员订阅，注册或新建用户拥有完全独立的纯净空间；\n- **管理员一键数据重置**：后台用户列表新增「清空数据」操作。"
+        }),
+        serde_json::json!({
             "version": "2.5.2",
             "tag": "v2.5.2",
             "name": "SubHub v2.5.2 · 新增离线脱网文件导入指南与 UI 标注",
