@@ -243,10 +243,29 @@ pub async fn get_versions_handler(
                             let pub_at = r.get("published_at").and_then(|v| v.as_str()).unwrap_or("");
 
                             let existing = discovered.get(&raw_ver);
-                            let highlights = existing
+                            let mut highlights = existing
                                 .and_then(|e| e.get("highlights"))
                                 .cloned()
-                                .unwrap_or_else(|| serde_json::json!(["官方 GitHub 稳定发布版", "点击右侧升级按钮即可在线平滑更新"]));
+                                .unwrap_or_else(|| serde_json::json!([]));
+
+                            // If highlights is empty or default, dynamically extract bullet items from body
+                            if (highlights.as_array().map(|a| a.is_empty()).unwrap_or(true) || highlights.as_array().map(|a| a.len() <= 2).unwrap_or(false)) && !body.is_empty() {
+                                let mut extracted = Vec::new();
+                                for line in body.lines() {
+                                    let trim_line = line.trim();
+                                    if let Some(bullet) = trim_line.strip_prefix("- ").or_else(|| trim_line.strip_prefix("* ")) {
+                                        let clean_b = bullet.trim();
+                                        if !clean_b.is_empty() && extracted.len() < 6 {
+                                            extracted.push(serde_json::Value::String(clean_b.to_string()));
+                                        }
+                                    }
+                                }
+                                if !extracted.is_empty() {
+                                    highlights = serde_json::Value::Array(extracted);
+                                } else {
+                                    highlights = serde_json::json!(["官方 GitHub 稳定发布版", "点击右侧升级按钮即可在线平滑更新"]);
+                                }
+                            }
 
                             discovered.insert(raw_ver.clone(), serde_json::json!({
                                 "version": raw_ver,
