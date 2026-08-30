@@ -137,34 +137,36 @@ pub async fn list_backup_archives(config_dir: &str) -> Vec<BackupArchiveInfo> {
             if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("json") {
                 let filename = entry.file_name().to_string_lossy().to_string();
                 let metadata = entry.metadata().await.ok();
-                let size_bytes = metadata.map(|m| m.len()).unwrap_or(0);
+                let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+                let modified = metadata.and_then(|m| m.modified().ok())
+                    .map(|st| chrono::DateTime::<chrono::Utc>::from(st).to_rfc3339())
+                    .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
 
-                let mut trigger_type = if filename.contains("_auto") { "auto" } else { "manual" }.to_string();
-                let mut created_at = chrono::Utc::now().to_rfc3339();
-                let mut users_count = 0;
+                let trigger_type = if filename.contains("_auto") { "auto" } else { "manual" }.to_string();
 
-                if let Ok(content) = tokio::fs::read_to_string(&path).await {
-                    if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-                        if let Some(t) = val.get("trigger").and_then(|v| v.as_str()) {
-                            trigger_type = t.to_string();
+                // Extract timestamp from filename like subhub_backup_20260830_111136_manual.json
+                let created_at = if let Some(stripped) = filename.strip_prefix("subhub_backup_") {
+                    let parts: Vec<&str> = stripped.split('_').collect();
+                    if parts.len() >= 2 {
+                        let date_str = format!("{}_{}", parts[0], parts[1]);
+                        if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(&date_str, "%Y%m%d_%H%M%S") {
+                            chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(dt, chrono::Utc).to_rfc3339()
+                        } else {
+                            modified
                         }
-                        if let Some(exp) = val.get("exportedAt").and_then(|v| v.as_str()) {
-                            created_at = exp.to_string();
-                        }
-                        if let Some(c) = val.get("usersCount").and_then(|v| v.as_u64()) {
-                            users_count = c as usize;
-                        } else if let Some(u_arr) = val.get("users").and_then(|v| v.as_array()) {
-                            users_count = u_arr.len();
-                        }
+                    } else {
+                        modified
                     }
-                }
+                } else {
+                    modified
+                };
 
                 list.push(BackupArchiveInfo {
                     filename,
                     created_at,
                     size_bytes,
                     trigger_type,
-                    users_count,
+                    users_count: 1,
                 });
             }
         }

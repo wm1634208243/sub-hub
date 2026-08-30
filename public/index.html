@@ -4229,9 +4229,10 @@
                     type="button" 
                     @click="fetchServerBackups" 
                     :disabled="loadingBackups"
-                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <span>🔄 刷新列表</span>
+                    <span :class="{'animate-spin inline-block': loadingBackups}">🔄</span>
+                    <span>{{ loadingBackups ? '刷新中...' : '刷新列表' }}</span>
                   </button>
                   <button 
                     type="button" 
@@ -4245,7 +4246,7 @@
               </div>
 
               <!-- 快照列表 -->
-              <div v-if="loadingBackups" class="py-8 text-center text-xs text-slate-400">
+              <div v-if="loadingBackups && serverBackups.length === 0" class="py-8 text-center text-xs text-slate-400">
                 正在加载快照矩阵...
               </div>
               <div v-else-if="serverBackups.length === 0" class="py-8 text-center text-xs text-slate-500 bg-slate-900/30 rounded-xl border border-dashed border-slate-800">
@@ -6088,8 +6089,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.1.5',
-          latestVersion: '2.1.5',
+          currentVersion: '2.1.6',
+          latestVersion: '2.1.6',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -7536,8 +7537,11 @@ function main(config, profileName) {
         const savingBackupSettings = ref(false);
         const creatingBackup = ref(false);
 
+        let isFetchingBackups = false;
         const fetchServerBackups = async () => {
           if (currentUser.value?.role !== 'admin') return;
+          if (isFetchingBackups) return;
+          isFetchingBackups = true;
           loadingBackups.value = true;
           try {
             const res = await fetch('/api/admin/backups', {
@@ -7552,6 +7556,7 @@ function main(config, profileName) {
             console.error('Failed to fetch server backups:', e);
           } finally {
             loadingBackups.value = false;
+            isFetchingBackups = false;
           }
         };
 
