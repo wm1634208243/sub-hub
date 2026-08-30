@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.3",
+            "tag": "v2.2.3",
+            "name": "SubHub v2.2.3 · 修复 iOS ClashMi 策略组拓扑顺序与全平台白屏问题",
+            "publishedAt": "2026-08-30T04:27:08.973Z",
+            "highlights": [
+                "🍎 修复 iOS 端 ClashMi 代理页面白屏：严格遵循策略组拓扑依赖顺序声明，确保子策略组预先注册",
+                "🛡️ 全内核语法兼容加固：清理老旧内核不支持的隐藏标记，保障 iOS libclash / Android / Windows / macOS 100% 渲染",
+                "🚀 订阅秒开即用：无缝呈现内嵌流量与到期状态"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.3 发布\n- **修复 iOS 端 ClashMi 白屏**：修复 Clash YAML 中策略组声明顺序，确保子组（订阅源分组、地区测速组、自动优选）在主选择器前完成声明，彻底解决 libclash 内核解析失败导致代理列表白屏的问题；\n- **全平台多客户端 100% 稳定运行**。"
+        }),
+        serde_json::json!({
             "version": "2.2.2",
             "tag": "v2.2.2",
             "name": "SubHub v2.2.2 · 订阅源名称无缝内嵌流量与到期信息",

@@ -267,9 +267,64 @@ pub async fn aggregate_clash_yaml(
         vec!["DIRECT".into()]
     };
 
-    // 3. Construct Proxy Groups in topological order (Leaf groups defined first!)
+    // 3. Construct Proxy Groups in strict topological order (Leaf groups defined first!)
     let mut proxy_groups: Vec<serde_json::Value> = Vec::new();
-    // 3.1 🚀 节点选择 (Master Selector - 放在首位作为主控)
+
+    // 3.1 Upstream Sub Groups (Leaf selector groups containing nodes)
+    for (sg_name, node_names) in &sub_group_map {
+        let mut sg_proxies = node_names.clone();
+        sg_proxies.push("DIRECT".to_string());
+        sg_proxies.retain(|s| !s.trim().is_empty());
+        sg_proxies.dedup();
+        proxy_groups.push(serde_json::json!({
+            "name": sg_name,
+            "type": "select",
+            "proxies": sg_proxies
+        }));
+    }
+
+    // 3.2 Regional URLTest & Fallback groups (Leaf speed test groups)
+    for (auto_name, fallback_name, node_names) in &region_groups {
+        proxy_groups.push(serde_json::json!({
+            "name": auto_name,
+            "type": "url-test",
+            "url": "http://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50,
+            "lazy": true,
+            "proxies": node_names
+        }));
+        proxy_groups.push(serde_json::json!({
+            "name": fallback_name,
+            "type": "fallback",
+            "url": "http://www.gstatic.com/generate_204",
+            "interval": 300,
+            "lazy": true,
+            "proxies": node_names
+        }));
+    }
+
+    // 3.3 ⚡ 自动优选 (全部源) & 🛡️ 故障转移 (全部源)
+    proxy_groups.push(serde_json::json!({
+        "name": "⚡ 自动优选 (全部源)",
+        "type": "url-test",
+        "url": "http://www.gstatic.com/generate_204",
+        "interval": 300,
+        "tolerance": 50,
+        "lazy": true,
+        "proxies": final_auto_test_proxies
+    }));
+
+    proxy_groups.push(serde_json::json!({
+        "name": "🛡️ 故障转移 (全部源)",
+        "type": "fallback",
+        "url": "http://www.gstatic.com/generate_204",
+        "interval": 300,
+        "lazy": true,
+        "proxies": final_auto_test_proxies
+    }));
+
+    // 3.4 🚀 节点选择 (Master Selector - References sub groups, regional groups, auto tests, nodes, and DIRECT)
     let mut master_selector_proxies = Vec::new();
     for info_name in &global_info_node_names {
         master_selector_proxies.push(info_name.clone());
@@ -294,63 +349,6 @@ pub async fn aggregate_clash_yaml(
         "type": "select",
         "proxies": master_selector_proxies
     }));
-
-    // 3.2 ⚡ 自动优选 (全部源) & 🛡️ 故障转移 (全部源)
-    proxy_groups.push(serde_json::json!({
-        "name": "⚡ 自动优选 (全部源)",
-        "type": "url-test",
-        "url": "http://www.gstatic.com/generate_204",
-        "interval": 300,
-        "tolerance": 50,
-        "lazy": true,
-        "proxies": final_auto_test_proxies
-    }));
-
-    proxy_groups.push(serde_json::json!({
-        "name": "🛡️ 故障转移 (全部源)",
-        "type": "fallback",
-        "url": "http://www.gstatic.com/generate_204",
-        "interval": 300,
-        "lazy": true,
-        "proxies": final_auto_test_proxies
-    }));
-
-    // 3.3 Regional URLTest & Fallback groups
-    for (auto_name, fallback_name, node_names) in &region_groups {
-        proxy_groups.push(serde_json::json!({
-            "name": auto_name,
-            "type": "url-test",
-            "url": "http://www.gstatic.com/generate_204",
-            "interval": 300,
-            "tolerance": 50,
-            "lazy": true,
-            "hidden": true,
-            "proxies": node_names
-        }));
-        proxy_groups.push(serde_json::json!({
-            "name": fallback_name,
-            "type": "fallback",
-            "url": "http://www.gstatic.com/generate_204",
-            "interval": 300,
-            "lazy": true,
-            "hidden": true,
-            "proxies": node_names
-        }));
-    }
-
-    // 3.4 Upstream Sub Groups
-    for (sg_name, node_names) in &sub_group_map {
-        let mut sg_proxies = node_names.clone();
-        sg_proxies.push("DIRECT".to_string());
-        sg_proxies.retain(|s| !s.trim().is_empty());
-        sg_proxies.dedup();
-        proxy_groups.push(serde_json::json!({
-            "name": sg_name,
-            "type": "select",
-            "hidden": true,
-            "proxies": sg_proxies
-        }));
-    }
 
     // 3.5 Scenario Groups Proxies List
     let mut scenario_proxies = Vec::new();
