@@ -403,6 +403,7 @@ pub fn convert_to_singbox_json(proxies: &[ProxyNode]) -> String {
         "route": {
             "rules": [
                 { "protocol": "dns", "outbound": "dns-out" },
+                { "domain_suffix": ["wmxhub.com"], "outbound": "direct" },
                 { "geosite": "category-ads-all", "outbound": "block" },
                 { "geosite": "cn", "outbound": "direct" },
                 { "geoip": "cn", "outbound": "direct" },

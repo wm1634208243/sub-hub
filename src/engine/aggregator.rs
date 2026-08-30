@@ -444,6 +444,9 @@ pub async fn aggregate_clash_yaml(
     for kw in &config.direct_keywords {
         if !kw.trim().is_empty() { rules.push(format!("DOMAIN-KEYWORD,{},DIRECT", kw.trim())); }
     }
+    // SubHub server domain & LAN always DIRECT
+    rules.push("DOMAIN-SUFFIX,wmxhub.com,DIRECT".into());
+
     for dom in &config.direct_domains {
         if !dom.trim().is_empty() { rules.push(format!("DOMAIN-SUFFIX,{},DIRECT", dom.trim())); }
     }
@@ -544,7 +547,7 @@ pub async fn aggregate_clash_yaml(
     dns_cfg.insert("nameserver".into(), serde_json::to_value(&config.nameservers).unwrap_or_default());
     dns_cfg.insert("fallback".into(), serde_json::to_value(&config.fallback_dns).unwrap_or_default());
     dns_cfg.insert("fake-ip-filter".into(), serde_json::to_value(if config.fake_ip_filter.is_empty() {
-        vec!["*.lan".to_string(), "*.local".to_string()]
+        vec!["*.lan".to_string(), "*.local".to_string(), "+.wmxhub.com".to_string()]
     } else {
         config.fake_ip_filter.clone()
     }).unwrap_or_default());
