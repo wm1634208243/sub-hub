@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.1",
+            "tag": "v2.5.1",
+            "name": "SubHub v2.5.1 · 免登录与离线用户体验全面升级",
+            "publishedAt": "2026-08-30T14:22:49.844Z",
+            "highlights": [
+                "🛡️ 登录首页新增「🔄 免登录 · 通用订阅转换」快捷直达通道",
+                "⚡ 离线访客模式 100% 免鉴权使用通用转换与直链生成",
+                "🚀 全格式转换零门槛、零等待、开箱即用"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.1 发布\n- **免登录与离线访客直通**：登录页新增「🔄 免登录 · 通用订阅转换」一键入口；\n- **零鉴权体验优化**：离线用户无需注册登录，即可随时进行多格式转换并一键导入客户端。"
+        }),
+        serde_json::json!({
             "version": "2.5.0",
             "tag": "v2.5.0",
             "name": "SubHub v2.5.0 · 重磅上线独立通用订阅转换系统 (Universal SubConverter)",

@@ -255,19 +255,29 @@
         <!-- 分隔线与免登录纯本地工作台入口 -->
         <div class="relative my-5">
           <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-800"></div></div>
-          <div class="relative flex justify-center text-[11px]"><span class="bg-slate-900 px-3 text-slate-500 font-medium">或者 极致隐私选择</span></div>
+          <div class="relative flex justify-center text-[11px]"><span class="bg-slate-900 px-3 text-slate-500 font-medium">或者 免登录直接使用</span></div>
         </div>
 
-        <button 
-          type="button" 
-          @click="enterGuestOfflineMode"
-          class="w-full bg-slate-950 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/60 font-semibold py-3 px-4 rounded-xl transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-2 cursor-pointer text-xs group"
-        >
-          <span class="text-base group-hover:scale-110 transition-transform">🛡️</span>
-          <span>免登录 · 进入纯本地离线工作台</span>
-          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-normal">0云端存储</span>
-        </button>
-        <p class="text-[10px] text-slate-500 text-center mt-2">无需注册账号 · 数据 100% 存在浏览器 LocalStorage · 物理级绝对隐私</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <button 
+            type="button" 
+            @click="enterGuestOfflineMode(); activeTab = 'converter';"
+            class="bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/60 font-semibold py-2.5 px-3 rounded-xl transition-all shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-1.5 cursor-pointer text-xs group"
+          >
+            <span class="text-base group-hover:scale-110 transition-transform">🔄</span>
+            <span>通用订阅转换</span>
+          </button>
+
+          <button 
+            type="button" 
+            @click="enterGuestOfflineMode(); activeTab = 'subs';"
+            class="bg-slate-950 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 hover:border-emerald-500/60 font-semibold py-2.5 px-3 rounded-xl transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-1.5 cursor-pointer text-xs group"
+          >
+            <span class="text-base group-hover:scale-110 transition-transform">🛡️</span>
+            <span>离线工作台</span>
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-500 text-center mt-2">无需注册账号 · 随开随转 · 转换直链永久可用</p>
 
         <div class="flex items-center justify-center mt-4 pt-3 border-t border-slate-850">
           <button 
@@ -6523,8 +6533,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.5.0',
-          latestVersion: '2.5.0',
+          currentVersion: '2.5.1',
+          latestVersion: '2.5.1',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -7195,12 +7205,13 @@ function main(config, profileName) {
           converting.value = true;
           convertResult.value = null;
           try {
+            const reqHeaders = { 'Content-Type': 'application/json' };
+            if (token.value) {
+              reqHeaders['Authorization'] = `Bearer ${token.value}`;
+            }
             const res = await fetch('/api/convert/preview', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token.value}`
-              },
+              headers: reqHeaders,
               body: JSON.stringify({
                 url: converterForm.value.url,
                 target: converterForm.value.target,
