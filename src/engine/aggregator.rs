@@ -278,10 +278,11 @@ pub async fn aggregate_clash_yaml(
         "proxies": master_selector_proxies
     }));
 
-    // 3.3 ⚡ 全局自动优选
+    // 3.3 ⚡ 全局自动优选 (从主界面卡片隐藏，收纳于「🚀 节点选择」内)
     proxy_groups.push(serde_json::json!({
         "name": "⚡ 自动优选",
         "type": "url-test",
+        "hidden": true,
         "url": "http://www.gstatic.com/generate_204",
         "interval": 300,
         "tolerance": 50,
@@ -289,11 +290,12 @@ pub async fn aggregate_clash_yaml(
         "proxies": final_auto_test_proxies
     }));
 
-    // 3.4 各订阅源专属自动优选组 (URLTest)
+    // 3.4 各订阅源专属自动优选组 (从主界面卡片隐藏，收纳于「🚀 节点选择」内)
     for (auto_name, nodes) in &sub_auto_groups {
         proxy_groups.push(serde_json::json!({
             "name": auto_name,
             "type": "url-test",
+            "hidden": true,
             "url": "http://www.gstatic.com/generate_204",
             "interval": 300,
             "tolerance": 50,

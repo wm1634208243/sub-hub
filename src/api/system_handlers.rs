@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.8",
+            "tag": "v2.3.8",
+            "name": "SubHub v2.3.8 · 极简收纳外层卡片，下沉自动优选至节点选择内",
+            "publishedAt": "2026-08-30T07:20:20.857Z",
+            "highlights": [
+                "✨ 顶层卡片极简清爽：隐藏外层自动优选与订阅源优选卡片，首页仅呈现「🚀 节点选择」与核心场景组",
+                "📂 完整二级选项收纳：全局自动优选与各订阅源专属优选全部收纳在「🚀 节点选择」内供灵活点选",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.8 发布\n- **主页卡片极致精简**：通过 `hidden: true` 隐藏外层平铺的优选卡片，告别多卡片滚屏；\n- **二级选项随时取用**：在「🚀 节点选择」内可随时点选全局优选或任意机场独立优选。"
+        }),
+        serde_json::json!({
             "version": "2.3.7",
             "tag": "v2.3.7",
             "name": "SubHub v2.3.7 · 新增各订阅源专属独立自动优选策略组",
