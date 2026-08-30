@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.7",
+            "tag": "v2.4.7",
+            "name": "SubHub v2.4.7 · 订阅源列表响应式智能排序，已启用订阅自动前置展示",
+            "publishedAt": "2026-08-30T13:33:19.291Z",
+            "highlights": [
+                "✨ 订阅源卡片智能动态排序：已启用（🟢 启用中）订阅优先展示在前，已停用自动沉底",
+                "⚡ 切换启用/停用状态时实时平滑重排，管理订阅更直观清爽",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.7 发布\n- **订阅卡片智能前置排序**：启用的订阅源始终保持在列表最前，停用订阅自动归类于末尾；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.6",
             "tag": "v2.4.6",
             "name": "SubHub v2.4.6 · 原生支持直接粘贴 vless/vmess/trojan/ss/hy2 单节点与多节点链接",

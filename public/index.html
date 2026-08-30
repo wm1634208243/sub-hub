@@ -835,7 +835,7 @@
             <!-- 订阅卡片网格 -->
             <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
               <div 
-                v-for="sub in config.subscriptions" 
+                v-for="sub in sortedSubscriptions" 
                 :key="sub.id"
                 :class="sub.enabled !== false ? 'border-slate-800 bg-slate-900 shadow-xl' : 'border-slate-800/60 bg-slate-950/70 opacity-65 grayscale-[25%] shadow-none'"
                 class="border rounded-2xl p-5 flex flex-col justify-between gap-3.5 transition-all"
@@ -6175,8 +6175,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.4.6',
-          latestVersion: '2.4.6',
+          currentVersion: '2.4.7',
+          latestVersion: '2.4.7',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -6399,6 +6399,16 @@ function main(config, profileName) {
             healthTesting.value = false;
           }
         };
+
+        // 订阅源列表排序：启用的订阅排在前面，停用的排在末尾
+        const sortedSubscriptions = computed(() => {
+          if (!config.value || !config.value.subscriptions) return [];
+          return [...config.value.subscriptions].sort((a, b) => {
+            const aEnabled = a.enabled !== false ? 1 : 0;
+            const bEnabled = b.enabled !== false ? 1 : 0;
+            return bEnabled - aEnabled;
+          });
+        });
 
         const addRenameRule = () => {
           if (!config.value.customRenameRules) config.value.customRenameRules = [];
@@ -8757,6 +8767,7 @@ function main(config, profileName) {
           parseCurrentEditorToGui,
           openAddSubModal,
           openEditSubModal,
+          sortedSubscriptions,
           setExpirePreset,
           testSubLink,
           testSingleSub,
