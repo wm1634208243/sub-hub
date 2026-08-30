@@ -4263,9 +4263,9 @@
             </div>
 
             <!-- 特性亮点标签 (Highlights) -->
-            <div v-if="v.highlights && v.highlights.length" class="flex flex-wrap gap-1.5 pt-1">
+            <div v-if="getVersionHighlights(v) && getVersionHighlights(v).length" class="flex flex-wrap gap-1.5 pt-1">
               <span 
-                v-for="(h, hIdx) in v.highlights" 
+                v-for="(h, hIdx) in getVersionHighlights(v)" 
                 :key="hIdx"
                 class="px-2 py-0.5 rounded-md bg-slate-900/90 text-slate-300 border border-slate-800 text-[10px] font-sans"
               >
@@ -4286,8 +4286,8 @@
               <div 
                 v-show="expandedVersions[v.version]" 
                 class="mt-2 p-3 bg-black/70 rounded-xl border border-slate-800/80 text-xs text-slate-300 font-sans leading-relaxed whitespace-pre-wrap select-text"
+                v-html="renderChangelogHtml(v.changelogZh)"
               >
-                {{ v.changelogZh }}
               </div>
             </div>
           </div>
@@ -5710,6 +5710,53 @@ function main(config, profileName) {
 
         const toggleVersionDetails = (ver) => {
           expandedVersions.value[ver] = !expandedVersions.value[ver];
+        };
+
+        const getVersionHighlights = (v) => {
+          if (!v) return [];
+          const isGeneric = (list) => {
+            if (!list || !list.length) return true;
+            if (list.length === 2 && list[0].includes('官方 GitHub') && list[1].includes('点击右侧升级')) return true;
+            return false;
+          };
+
+          if (v.highlights && v.highlights.length && !isGeneric(v.highlights)) {
+            return v.highlights;
+          }
+
+          // Dynamically extract from changelogZh bullets
+          if (v.changelogZh) {
+            const lines = v.changelogZh.split('\n');
+            const extracted = [];
+            for (const l of lines) {
+              const trim = l.trim();
+              if (trim.startsWith('- ') || trim.startsWith('* ')) {
+                const bullet = trim.replace(/^[-*]\s+/, '').trim();
+                const clean = bullet.replace(/\*\*(.*?)\*\*/g, '$1').trim();
+                if (clean && !clean.includes('点击右侧升级按钮') && extracted.length < 6) {
+                  extracted.push(clean);
+                }
+              }
+            }
+            if (extracted.length > 0) return extracted;
+          }
+
+          return v.highlights || [];
+        };
+
+        const renderChangelogHtml = (text) => {
+          if (!text) return '';
+          let html = String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+          html = html.replace(/^### (.*$)/gim, '<div class="font-bold text-cyan-400 text-xs mt-1 mb-1.5 pb-1 border-b border-slate-800/80">$1</div>');
+          html = html.replace(/^## (.*$)/gim, '<div class="font-bold text-cyan-300 text-sm mt-2 mb-1 pb-1 border-b border-slate-800/80">$1</div>');
+          html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+          html = html.replace(/^[-*] (.*$)/gim, '<div class="flex items-start gap-1.5 my-1 text-slate-300"><span class="text-cyan-400 font-bold shrink-0">•</span><span>$1</span></div>');
+
+          return html;
         };
 
         const openVersionModal = () => {
@@ -8087,6 +8134,8 @@ function main(config, profileName) {
           targetUpdateType,
           targetUpdateName,
           toggleVersionDetails,
+          getVersionHighlights,
+          renderChangelogHtml,
           systemSettings,
           domainInput,
           testingDns,
