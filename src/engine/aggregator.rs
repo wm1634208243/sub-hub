@@ -506,6 +506,9 @@ pub async fn batch_test_proxies_health(proxies: &[ProxyNode], timeout_ms: u64) -
 pub fn sanitize_proxy_node_for_clash(node: &ProxyNode) -> serde_json::Value {
     if let Ok(mut val) = serde_json::to_value(node) {
         if let Some(obj) = val.as_object_mut() {
+            // Force name to strictly match node.name (overriding any stale name in extra)
+            obj.insert("name".into(), serde_json::Value::String(node.name.clone()));
+
             // 1. Remove all null values
             obj.retain(|_, v| !v.is_null());
 

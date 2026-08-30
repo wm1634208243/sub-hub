@@ -120,8 +120,9 @@ pub fn format_node_name(
     if enable_auto_flags {
         let region = detect_node_primary_region(&name, server, default_region);
         if let Some(reg) = region {
-            // Remove existing flags first to prevent duplicate flags
-            name = ALL_FLAGS_REGEX.replace_all(&name, "").trim().to_string();
+            // Remove existing flags and stray regional indicators first to prevent corrupted/duplicate flags
+            name = ALL_FLAGS_REGEX.replace_all(&name, "").to_string();
+            name = name.chars().filter(|c| !('\u{1F1E6}'..='\u{1F1FF}').contains(c)).collect::<String>().trim().to_string();
             name = format!("{} {}", reg.flag, name);
         }
     }
