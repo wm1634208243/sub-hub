@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.4",
+            "tag": "v2.2.4",
+            "name": "SubHub v2.2.4 · 置顶主控节点选择卡片并精简全策略组层级",
+            "publishedAt": "2026-08-30T04:35:05.042Z",
+            "highlights": [
+                "🔝 置顶主控「🚀 节点选择」：确保客户端代理列表首位永远是主控选择器卡片，一键切换全局节点",
+                "📦 订阅源信息紧凑内嵌：订阅源分组名称融合流量与到期状态，层级一目了然",
+                "🛡️ 全内核零报错零白屏保障：完美兼容 iOS ClashMi / Clash Verge / Mihomo"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.4 发布\n- **置顶主节点选择**：将主控「🚀 节点选择」固定在代理列表首位第一张卡片，方便快速切换；\n- **订阅源信息内嵌与极简布局**：保持各订阅源流量/到期直观展示的同时，兼顾全平台客户端最佳操作手感。"
+        }),
+        serde_json::json!({
             "version": "2.2.3",
             "tag": "v2.2.3",
             "name": "SubHub v2.2.3 · 修复 iOS ClashMi 策略组拓扑顺序与全平台白屏问题",
