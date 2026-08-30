@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.5",
+            "tag": "v2.2.5",
+            "name": "SubHub v2.2.5 · 精简主界面顶层卡片，下沉子组至节点选择器内",
+            "publishedAt": "2026-08-30T05:05:20.629Z",
+            "highlights": [
+                "✨ 顶层卡片极简清爽：隐藏地区测速与订阅源子组顶层卡片，主界面仅保留「🚀 节点选择」与场景分流组",
+                "📂 完整二级选项收纳：所有地区自动、故障转移与各订阅源分组均收纳在「🚀 节点选择」内部供灵活自选",
+                "🎯 告别冗长滚动：彻底解决首页 20+ 张卡片铺满屏幕的问题"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.5 发布\n- **顶层卡片精简收敛**：通过 `hidden: true` 将地区测速组、自动优选与订阅源子组从顶层卡片列表中隐藏，不再堆叠在主页面；\n- **二级选项随时取用**：在「🚀 节点选择」弹窗内仍可完整自选各地区自动组与独立订阅源。"
+        }),
+        serde_json::json!({
             "version": "2.2.4",
             "tag": "v2.2.4",
             "name": "SubHub v2.2.4 · 置顶主控节点选择卡片并精简全策略组层级",

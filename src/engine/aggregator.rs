@@ -304,6 +304,7 @@ pub async fn aggregate_clash_yaml(
         "interval": 300,
         "tolerance": 50,
         "lazy": true,
+        "hidden": true,
         "proxies": final_auto_test_proxies
     }));
 
@@ -313,6 +314,7 @@ pub async fn aggregate_clash_yaml(
         "url": "http://www.gstatic.com/generate_204",
         "interval": 300,
         "lazy": true,
+        "hidden": true,
         "proxies": final_auto_test_proxies
     }));
 
@@ -325,6 +327,7 @@ pub async fn aggregate_clash_yaml(
             "interval": 300,
             "tolerance": 50,
             "lazy": true,
+            "hidden": true,
             "proxies": node_names
         }));
         proxy_groups.push(serde_json::json!({
@@ -333,6 +336,7 @@ pub async fn aggregate_clash_yaml(
             "url": "http://www.gstatic.com/generate_204",
             "interval": 300,
             "lazy": true,
+            "hidden": true,
             "proxies": node_names
         }));
     }
@@ -346,6 +350,7 @@ pub async fn aggregate_clash_yaml(
         proxy_groups.push(serde_json::json!({
             "name": sg_name,
             "type": "select",
+            "hidden": true,
             "proxies": sg_proxies
         }));
     }
