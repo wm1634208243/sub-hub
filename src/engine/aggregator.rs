@@ -443,7 +443,8 @@ pub async fn aggregate_clash_yaml(
         clash_map.insert("rule-providers".into(), rule_providers);
     }
 
-    clash_map.insert("proxies".into(), serde_json::to_value(&active_proxies).unwrap_or_default());
+    let cleaned_proxies: Vec<serde_json::Value> = active_proxies.iter().map(sanitize_proxy_node_for_clash).collect();
+    clash_map.insert("proxies".into(), serde_json::Value::Array(cleaned_proxies));
     clash_map.insert("proxy-groups".into(), serde_json::Value::Array(proxy_groups));
     clash_map.insert("rules".into(), serde_json::to_value(rules).unwrap_or_default());
 
@@ -488,4 +489,93 @@ pub async fn batch_test_proxies_health(proxies: &[ProxyNode], timeout_ms: u64) -
         }));
     }
     results
+}
+
+pub fn sanitize_proxy_node_for_clash(node: &ProxyNode) -> serde_json::Value {
+    if let Ok(mut val) = serde_json::to_value(node) {
+        if let Some(obj) = val.as_object_mut() {
+            // 1. Remove all null values
+            obj.retain(|_, v| !v.is_null());
+
+            // 2. Remove legacy snake_case keys if kebab-case exists
+            for (snake, kebab) in &[
+                ("reality_opts", "reality-opts"),
+                ("ws_opts", "ws-opts"),
+                ("grpc_opts", "grpc-opts"),
+                ("h2_opts", "h2-opts"),
+                ("http_opts", "http-opts"),
+                ("client_fingerprint", "client-fingerprint"),
+                ("skip_cert_verify", "skip-cert-verify"),
+                ("alter_id", "alterId"),
+            ] {
+                if obj.contains_key(*kebab) {
+                    obj.remove(*snake);
+                }
+            }
+
+            // 3. Clean reality-opts internal keys
+            if let Some(r_opts) = obj.get_mut("reality-opts").and_then(|v| v.as_object_mut()) {
+                r_opts.retain(|_, v| !v.is_null());
+                if let Some(pbk) = r_opts.remove("public_key") {
+                    r_opts.insert("public-key".into(), pbk);
+                }
+                if let Some(sid) = r_opts.remove("short_id") {
+                    r_opts.insert("short-id".into(), sid);
+                }
+            }
+
+            // 4. Clean ws-opts internal keys
+            if let Some(w_opts) = obj.get_mut("ws-opts").and_then(|v| v.as_object_mut()) {
+                w_opts.retain(|_, v| !v.is_null());
+            }
+
+            // 5. Clean grpc-opts internal keys
+            if let Some(g_opts) = obj.get_mut("grpc-opts").and_then(|v| v.as_object_mut()) {
+                g_opts.retain(|_, v| !v.is_null());
+                if let Some(svc) = g_opts.remove("service_name").or_else(|| g_opts.remove("grpc_service_name")) {
+                    g_opts.insert("grpc-service-name".into(), svc);
+                }
+            }
+
+            return serde_json::Value::Object(obj.clone());
+        }
+    }
+    serde_json::to_value(node).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sanitize_vless_reality_no_nulls() {
+        let node = ProxyNode {
+            name: "US-Reality".into(),
+            node_type: "vless".into(),
+            server: "1.2.3.4".into(),
+            port: 443,
+            uuid: Some("uuid-1234".into()),
+            tls: Some(true),
+            udp: Some(true),
+            servername: Some("www.cloudflare.com".into()),
+            client_fingerprint: Some("chrome".into()),
+            reality_opts: Some(serde_json::json!({
+                "public-key": "pbk123",
+                "short-id": "sid123"
+            })),
+            ..Default::default()
+        };
+
+        let val = sanitize_proxy_node_for_clash(&node);
+        let yaml = serde_yaml::to_string(&val).unwrap();
+        println!("Generated YAML:\n{}", yaml);
+
+        assert!(!yaml.contains("null"), "YAML should not contain any nulls!");
+        assert!(yaml.contains("client-fingerprint: chrome"));
+        assert!(yaml.contains("reality-opts:"));
+        assert!(!yaml.contains("reality_opts:"));
+        assert!(!yaml.contains("cipher:"));
+        assert!(!yaml.contains("alter_id:"));
+        assert!(!yaml.contains("password:"));
+    }
 }

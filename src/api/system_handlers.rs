@@ -58,6 +58,19 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.1.1",
+            "tag": "v2.1.1",
+            "name": "SubHub v2.1.1 · 修复 iOS Clash Mi/Mihomo 节点解析与代理启动兼容",
+            "publishedAt": "2026-08-30T02:27:54.426Z",
+            "highlights": [
+                "📱 彻底解决 iOS 端 Clash Mi 导入订阅打不开代理与节点列表空白的问题",
+                "🧹 彻底净化节点 YAML 字段：清理所有 null 冗余，规范 kebab-case 属性",
+                "✨ 完美适配 VLESS Reality / gRPC / WebSocket / Hysteria2 全协议",
+                "🏷️ 前端版本中心自动动态提取并呈现特性亮点胶囊徽章"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.1.1 发布\n- **彻底修复 iOS Clash Mi / Mihomo 启动与节点选择异常**：修复节点属性序列化时夹带 null 字段及 snake_case 冗余键导致 Go 核心解析失败的缺陷；\n- **全协议标准格式清洗**：严格规范 VLESS Reality (public-key/short-id)、VMess (alterId)、gRPC (grpc-service-name) 等协议字段；\n- **版本中心富文本与徽章体验提升**：动态解析并呈现各版本特性亮点胶囊徽章与 Markdown 格式化排版。"
+        }),
+        serde_json::json!({
             "version": "2.1.0",
             "tag": "v2.1.0",
             "name": "SubHub v2.1.0 · 全栈安全防护强化版 (Anti-Brute Force & Zero Trust)",

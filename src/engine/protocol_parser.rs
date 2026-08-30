@@ -100,9 +100,7 @@ fn parse_vless(link: &str, prefix: &str) -> Option<ProxyNode> {
         server,
         port,
         uuid: Some(uuid),
-        password: None,
         cipher: Some("none".into()),
-        alter_id: None,
         network: Some(network),
         tls: Some(is_tls),
         udp: Some(true),
@@ -114,11 +112,9 @@ fn parse_vless(link: &str, prefix: &str) -> Option<ProxyNode> {
         ws_opts,
         grpc_opts,
         reality_opts,
-        auth: None,
-        insecure: None,
-        default_region: None,
         raw_name: Some(tag),
         extra,
+        ..Default::default()
     })
 }
 
@@ -159,7 +155,6 @@ fn parse_vmess(link: &str, prefix: &str) -> Option<ProxyNode> {
         server,
         port,
         uuid: Some(uuid),
-        password: None,
         cipher: Some(cipher),
         alter_id: Some(alter_id),
         network: Some(net),
@@ -167,17 +162,9 @@ fn parse_vmess(link: &str, prefix: &str) -> Option<ProxyNode> {
         udp: Some(true),
         servername: sni.clone(),
         sni,
-        alpn: None,
-        skip_cert_verify: None,
-        client_fingerprint: None,
         ws_opts,
-        grpc_opts: None,
-        reality_opts: None,
-        auth: None,
-        insecure: None,
-        default_region: None,
         raw_name: Some(raw_name.to_string()),
-        extra: HashMap::new(),
+        ..Default::default()
     })
 }
 
@@ -197,10 +184,7 @@ fn parse_trojan(link: &str, prefix: &str) -> Option<ProxyNode> {
         node_type: "trojan".into(),
         server,
         port,
-        uuid: None,
         password: Some(password),
-        cipher: None,
-        alter_id: None,
         network: query.get("type").cloned(),
         tls: Some(true),
         udp: Some(true),
@@ -208,15 +192,8 @@ fn parse_trojan(link: &str, prefix: &str) -> Option<ProxyNode> {
         sni,
         alpn: query.get("alpn").map(|a| a.split(',').map(|s| s.trim().to_string()).collect()),
         skip_cert_verify: query.get("allowInsecure").map(|v| v == "1"),
-        client_fingerprint: None,
-        ws_opts: None,
-        grpc_opts: None,
-        reality_opts: None,
-        auth: None,
-        insecure: None,
-        default_region: None,
         raw_name: Some(tag),
-        extra: HashMap::new(),
+        ..Default::default()
     })
 }
 
@@ -254,26 +231,11 @@ fn parse_shadowsocks(link: &str, prefix: &str) -> Option<ProxyNode> {
         node_type: "ss".into(),
         server,
         port,
-        uuid: None,
         password: Some(password),
         cipher: Some(cipher),
-        alter_id: None,
-        network: None,
-        tls: None,
         udp: Some(true),
-        servername: None,
-        sni: None,
-        alpn: None,
-        skip_cert_verify: None,
-        client_fingerprint: None,
-        ws_opts: None,
-        grpc_opts: None,
-        reality_opts: None,
-        auth: None,
-        insecure: None,
-        default_region: None,
         raw_name: Some(tag),
-        extra: HashMap::new(),
+        ..Default::default()
     })
 }
 
@@ -295,26 +257,17 @@ fn parse_hysteria2(link: &str, prefix: &str) -> Option<ProxyNode> {
         node_type: "hysteria2".into(),
         server,
         port,
-        uuid: None,
         password: Some(auth.clone()),
-        cipher: None,
-        alter_id: None,
-        network: None,
         tls: Some(true),
         udp: Some(true),
         servername: sni.clone(),
         sni,
         alpn: query.get("alpn").map(|a| a.split(',').map(|s| s.trim().to_string()).collect()),
         skip_cert_verify: insecure,
-        client_fingerprint: None,
-        ws_opts: None,
-        grpc_opts: None,
-        reality_opts: None,
         auth: Some(auth),
         insecure,
-        default_region: None,
         raw_name: Some(tag),
-        extra: HashMap::new(),
+        ..Default::default()
     })
 }
 
@@ -337,23 +290,13 @@ fn parse_tuic(link: &str, prefix: &str) -> Option<ProxyNode> {
         port,
         uuid: Some(uuid),
         password: Some(password),
-        cipher: None,
-        alter_id: None,
-        network: None,
         tls: Some(true),
         udp: Some(true),
         servername: sni.clone(),
         sni,
         alpn: query.get("alpn").map(|a| a.split(',').map(|s| s.trim().to_string()).collect()),
         skip_cert_verify: query.get("allow_insecure").map(|v| v == "1"),
-        client_fingerprint: None,
-        ws_opts: None,
-        grpc_opts: None,
-        reality_opts: None,
-        auth: None,
-        insecure: None,
-        default_region: None,
         raw_name: Some(tag),
-        extra: HashMap::new(),
+        ..Default::default()
     })
 }
