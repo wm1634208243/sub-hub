@@ -17,8 +17,6 @@ pub async fn aggregate_clash_yaml(
 ) -> Result<AggregatedResult, String> {
     let mut all_proxies: Vec<ProxyNode> = Vec::new();
     let mut sub_group_map: Vec<(String, Vec<String>)> = Vec::new();
-    let mut all_info_nodes: Vec<ProxyNode> = Vec::new();
-    let mut global_info_node_names: Vec<String> = Vec::new();
 
     let mut agg_upload: u64 = 0;
     let mut agg_download: u64 = 0;
@@ -158,47 +156,8 @@ pub async fn aggregate_clash_yaml(
         }
     }
 
-    // Global Aggregate Summary Info Nodes
-    if agg_total > 0 {
-        let used_bytes = agg_upload + agg_download;
-        let used_str = format_bytes_human(used_bytes);
-        let total_str = format_bytes_human(agg_total);
-        let pct = if agg_total > 0 { ((used_bytes as f64 / agg_total as f64) * 100.0).round() as u32 } else { 0 };
-        let traffic_name = format!("📊 总流量: {} / {} ({}%)", used_str, total_str, pct);
-        let mut p = ProxyNode::default();
-        p.name = traffic_name.clone();
-        p.server = "127.0.0.1".into();
-        p.port = 80;
-        p.node_type = "ss".into();
-        p.cipher = Some("aes-128-gcm".into());
-        p.password = Some("0".into());
-        global_info_node_names.push(traffic_name);
-        all_info_nodes.push(p);
-    }
-
-    let expire_name = match min_expire {
-        Some(exp_sec) if exp_sec > 2500000000 => "⏰ 到期时间: 永久有效 (无限制)".to_string(),
-        Some(exp_sec) => {
-            chrono::DateTime::from_timestamp(exp_sec as i64, 0)
-                .map(|dt| format!("⏰ 到期时间: {} 到期", dt.format("%Y-%m-%d")))
-                .unwrap_or_else(|| "⏰ 到期时间: 永久有效 (无限制)".to_string())
-        }
-        None => "⏰ 到期时间: 永久有效 (无限制)".to_string(),
-    };
-    let mut p = ProxyNode::default();
-    p.name = expire_name.clone();
-    p.server = "127.0.0.1".into();
-    p.port = 80;
-    p.node_type = "ss".into();
-    p.cipher = Some("aes-128-gcm".into());
-    p.password = Some("0".into());
-    global_info_node_names.push(expire_name);
-    all_info_nodes.push(p);
-
     let all_node_names: Vec<String> = all_proxies.iter().map(|p| p.name.clone()).collect();
-    let mut active_proxies: Vec<ProxyNode> = Vec::new();
-    active_proxies.extend(all_info_nodes);
-    active_proxies.extend(all_proxies);
+    let active_proxies: Vec<ProxyNode> = all_proxies.clone();
 
     let main_proxy_group = config.custom_proxy_group_name
         .as_deref()
@@ -272,9 +231,6 @@ pub async fn aggregate_clash_yaml(
 
     // 3.1 🚀 节点选择 (Master Selector - 置顶展示)
     let mut master_selector_proxies = Vec::new();
-    for info_name in &global_info_node_names {
-        master_selector_proxies.push(info_name.clone());
-    }
     master_selector_proxies.push("⚡ 自动优选".to_string());
     for name in &all_node_names {
         master_selector_proxies.push(name.clone());
@@ -469,7 +425,7 @@ pub async fn aggregate_clash_yaml(
         "ipcidr": ["240.0.0.0/4"]
     }));
     dns_cfg.insert("nameserver-policy".into(), serde_json::json!({
-        "geosite:cn,private": serde_json::to_value(&config.nameservers).unwrap_or_default()
+        "+.cn": serde_json::to_value(&config.nameservers).unwrap_or_default()
     }));
     clash_map.insert("dns".into(), serde_json::Value::Object(dns_cfg));
 
@@ -487,15 +443,15 @@ pub async fn aggregate_clash_yaml(
 
     if config.enable_loyalsoldier {
         let rule_providers = serde_json::json!({
-            "applications": { "type": "http", "behavior": "classical", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt", "path": "./ruleset/loyalsoldier/applications.txt", "interval": 86400 },
-            "reject": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt", "path": "./ruleset/loyalsoldier/reject.txt", "interval": 86400 },
-            "proxy": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt", "path": "./ruleset/loyalsoldier/proxy.txt", "interval": 86400 },
-            "gfw": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt", "path": "./ruleset/loyalsoldier/gfw.txt", "interval": 86400 },
-            "tld-not-cn": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/tld-not-cn.txt", "path": "./ruleset/loyalsoldier/tld-not-cn.txt", "interval": 86400 },
-            "telegramcidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt", "path": "./ruleset/loyalsoldier/telegramcidr.txt", "interval": 86400 },
-            "direct": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt", "path": "./ruleset/loyalsoldier/direct.txt", "interval": 86400 },
-            "cncidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt", "path": "./ruleset/loyalsoldier/cncidr.txt", "interval": 86400 },
-            "lancidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt", "path": "./ruleset/loyalsoldier/lancidr.txt", "interval": 86400 }
+            "applications": { "type": "http", "behavior": "classical", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt", "path": "loyalsoldier-applications.txt", "interval": 86400 },
+            "reject": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt", "path": "loyalsoldier-reject.txt", "interval": 86400 },
+            "proxy": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt", "path": "loyalsoldier-proxy.txt", "interval": 86400 },
+            "gfw": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt", "path": "loyalsoldier-gfw.txt", "interval": 86400 },
+            "tld-not-cn": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/tld-not-cn.txt", "path": "loyalsoldier-tld-not-cn.txt", "interval": 86400 },
+            "telegramcidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt", "path": "loyalsoldier-telegramcidr.txt", "interval": 86400 },
+            "direct": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt", "path": "loyalsoldier-direct.txt", "interval": 86400 },
+            "cncidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt", "path": "loyalsoldier-cncidr.txt", "interval": 86400 },
+            "lancidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt", "path": "loyalsoldier-lancidr.txt", "interval": 86400 }
         });
         clash_map.insert("rule-providers".into(), rule_providers);
     }
@@ -719,9 +675,8 @@ mod tests {
         assert!(ui.contains("total=100000000000"));
         assert!(ui.contains("expire=1788060000"), "expire must be in seconds, not ms! got {}", ui);
 
-        // Check YAML contains global info nodes
-        assert!(res.yaml.contains("📊 总流量:"));
-        assert!(res.yaml.contains("⏰ 到期时间:"));
-        assert!(res.yaml.contains("type: ss"));
+        // Check YAML is valid and clean
+        assert!(res.yaml.contains("🚀 节点选择"));
+        assert!(res.yaml.contains("⚡ 自动优选"));
     }
 }

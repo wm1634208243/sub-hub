@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.8",
+            "tag": "v2.2.8",
+            "name": "SubHub v2.2.8 · 彻底修复 iOS VPN 开关秒退与沙盒读写异常",
+            "publishedAt": "2026-08-30T06:09:51.621Z",
+            "highlights": [
+                "🛡️ 彻底清除虚拟伪节点：彻底移除 127.0.0.1 伪节点，避免 iOS NetworkExtension 首选死节点导致崩溃秒退",
+                "📂 修复 iOS 沙盒规则集写入：将规则集路径优化为扁平文件，避免 iOS 报错 read-only file system",
+                "⚡ 首选真实可用节点 / 自动优选：启动即连通，VPN 状态稳定常驻"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.8 发布\n- **修复 iOS VPN 秒退**：移除了作为占位符的 127.0.0.1 伪节点，修复了 iOS 网络扩展因首选死节点或子目录权限而导致的进程崩溃秒关；\n- **流量与到期时间标准下发**：通过 HTTP `Subscription-Userinfo` 头部标准展示，客户端原生完美支持。"
+        }),
+        serde_json::json!({
             "version": "2.2.7",
             "tag": "v2.2.7",
             "name": "SubHub v2.2.7 · 彻底修复 Hysteria2 非法指纹与内核解析中断",
