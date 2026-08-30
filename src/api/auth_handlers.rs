@@ -250,11 +250,23 @@ pub async fn change_password_handler(
         ));
     }
 
+    // 1. Load user config with the OLD secret BEFORE updating hash!
+    let user_cfg = crate::api::config_handlers::load_user_config(&state.config_dir, &curr_user.username, &curr_user.password_hash).await;
+
+    let new_hash = bcrypt::hash(&payload.new_password, 10).unwrap();
+
     let mut users = state.users.write().await;
     if let Some(u) = users.iter_mut().find(|u| u.username.to_lowercase() == curr_user.username.to_lowercase()) {
-        u.password_hash = bcrypt::hash(&payload.new_password, 10).unwrap();
+        u.password_hash = new_hash;
     }
     save_users_to_disk(&state.config_dir, &users).await;
+
+    // 2. Persist the user config immediately so it's safely updated and plaintext!
+    save_user_config_to_disk(&state.config_dir, &curr_user.username, &user_cfg).await;
+
+    // 3. Invalidate existing sessions for this user
+    let mut sessions = state.sessions.write().await;
+    sessions.retain(|_, u| u.to_lowercase() != curr_user.username.to_lowercase());
 
     Ok(Json(serde_json::json!({ "success": true, "message": "密码修改成功" })))
 }
@@ -477,8 +489,13 @@ pub async fn reset_password_handler(
         )
     })?;
 
+    let old_hash = user.password_hash.clone();
+    let user_cfg = crate::api::config_handlers::load_user_config(&state.config_dir, &target_username, &old_hash).await;
+
     user.password_hash = bcrypt::hash(&payload.new_password, 10).unwrap();
     save_users_to_disk(&state.config_dir, &users).await;
+
+    save_user_config_to_disk(&state.config_dir, &target_username, &user_cfg).await;
 
     Ok(Json(serde_json::json!({
         "success": true,

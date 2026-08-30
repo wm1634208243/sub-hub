@@ -527,30 +527,84 @@ pub async fn admin_backup_restore_handler(
 // ── Multi-Path User Config Loader ─────────────────────────────────────────────
 
 pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &str) -> UserConfig {
-    let candidates = [
-        FilePath::new(config_dir).join("configs").join(format!("{}.json", username)),
-        FilePath::new(config_dir).join(format!("user_{}.json", username.to_lowercase())),
-        FilePath::new(config_dir).join(format!("{}.json", username)),
-        FilePath::new(config_dir).join("../data/configs").join(format!("{}.json", username)),
-        FilePath::new(config_dir).join("../data/config.json"),
-        FilePath::new(config_dir).join("config.json"),
+    let mut candidate_secrets = vec![
+        user_secret.to_string(),
+        "subhub_master_secret_fallback_v1".to_string(),
+        "admin".to_string(),
     ];
 
-    for file in candidates {
-        if file.exists() {
-            if let Ok(content) = tokio::fs::read_to_string(&file).await {
-                if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
-                    let decrypted_val = decrypt_user_config_bundle(&json_val, user_secret, username)
-                        .or_else(|_| decrypt_user_config_bundle(&json_val, "subhub_master_secret_fallback_v1", username))
-                        .unwrap_or(json_val);
-
-                    if let Ok(cfg) = serde_json::from_value::<UserConfig>(decrypted_val) {
-                        return cfg;
+    // Collect all known user hashes from users.json files
+    let users_files = [
+        FilePath::new(config_dir).join("users.json"),
+        FilePath::new(config_dir).join("../data/users.json"),
+        FilePath::new("data/users.json").to_path_buf(),
+    ];
+    for uf in users_files {
+        if let Ok(content) = tokio::fs::read_to_string(&uf).await {
+            if let Ok(users) = serde_json::from_str::<Vec<User>>(&content) {
+                for u in users {
+                    if !candidate_secrets.contains(&u.password_hash) {
+                        candidate_secrets.push(u.password_hash);
                     }
                 }
             }
         }
     }
 
-    UserConfig::default()
+    let candidates = [
+        FilePath::new(config_dir).join(format!("user_{}.json", username.to_lowercase())),
+        FilePath::new(config_dir).join("configs").join(format!("{}.json", username)),
+        FilePath::new(config_dir).join(format!("{}.json", username)),
+        FilePath::new(config_dir).join("user_admin.json"),
+        FilePath::new(config_dir).join("configs/admin.json"),
+        FilePath::new(config_dir).join("admin.json"),
+        FilePath::new(config_dir).join("../data/configs").join(format!("{}.json", username)),
+        FilePath::new(config_dir).join("../data/configs/admin.json"),
+        FilePath::new(config_dir).join("../data/config.json"),
+        FilePath::new(config_dir).join("config.json"),
+        FilePath::new("data/config.json").to_path_buf(),
+        FilePath::new("data/configs/admin.json").to_path_buf(),
+    ];
+
+    let mut best_fallback: Option<UserConfig> = None;
+
+    for file in candidates {
+        if file.exists() {
+            if let Ok(content) = tokio::fs::read_to_string(&file).await {
+                if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
+                    // Check if it's already an unencrypted UserConfig
+                    if json_val.get("_encrypted").and_then(|v| v.as_bool()) != Some(true) {
+                        if let Ok(cfg) = serde_json::from_value::<UserConfig>(json_val.clone()) {
+                            if !cfg.subscriptions.is_empty() {
+                                return cfg;
+                            }
+                            if best_fallback.is_none() {
+                                best_fallback = Some(cfg);
+                            }
+                        }
+                    } else {
+                        // It is encrypted, try all candidate secrets
+                        for sec in &candidate_secrets {
+                            if let Ok(decrypted_val) = decrypt_user_config_bundle(&json_val, sec, username)
+                                .or_else(|_| decrypt_user_config_bundle(&json_val, sec, "admin"))
+                            {
+                                if let Ok(cfg) = serde_json::from_value::<UserConfig>(decrypted_val) {
+                                    if !cfg.subscriptions.is_empty() {
+                                        // Save unencrypted copy for future smooth access
+                                        save_user_config_to_disk(config_dir, username, &cfg).await;
+                                        return cfg;
+                                    }
+                                    if best_fallback.is_none() {
+                                        best_fallback = Some(cfg);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    best_fallback.unwrap_or_default()
 }

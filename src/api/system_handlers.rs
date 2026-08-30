@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.9",
+            "tag": "v2.0.9",
+            "name": "SubHub v2.0.9 · 修复修改密码后用户配置解密与多密钥自动迁移恢复",
+            "publishedAt": "2026-08-30T01:13:12.711Z",
+            "highlights": [
+                "🛡️ 彻底修复修改密码后历史订阅数据解密丢失的问题",
+                "🔑 增加多版本/历史哈希密钥智能多路尝试与无损自动恢复",
+                "💾 修改密码时自动重新加密并无缝回写用户配置"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.9 发布\n- **数据解密与持久化强化**：修复因修改密码导致密码哈希变更后，历史零知识加密配置包解密失败显示为空配置的缺陷；\n- **智能多路自动恢复**：增加对历史密钥与候选路径的无损自动发现与明文安全持久化。"
+        }),
+        serde_json::json!({
             "version": "2.0.8",
             "tag": "v2.0.8",
             "name": "SubHub v2.0.8 · 修复用户修改密码参数反序列化与字段兼容",
