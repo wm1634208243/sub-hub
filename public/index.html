@@ -915,6 +915,26 @@
                   </div>
                 </div>
 
+                <!-- 自建单节点 / 无上游流量接口展示 -->
+                <div v-else class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-1.5">
+                  <div class="flex items-center justify-between text-[11px]">
+                    <div class="flex items-center gap-1.5 text-slate-400">
+                      <span class="text-xs">⚡</span>
+                      <span>流量配额:</span>
+                      <span class="text-cyan-300 font-mono font-medium">无上限限制 (独享 VPS 宽带)</span>
+                    </div>
+                    <span class="text-[10px] bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded-md font-mono">
+                      自建节点
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-900">
+                    <span>📡 独立协议直连</span>
+                    <span :class="getSubExpireInfo(sub).isPermanent ? 'text-emerald-400' : 'text-amber-400'" class="font-medium">
+                      {{ getSubExpireInfo(sub).text }} ({{ getSubExpireInfo(sub).date }})
+                    </span>
+                  </div>
+                </div>
+
                 <!-- 卡片底部操作栏 (左侧地区选择+同步，右侧操作按钮) -->
                 <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs gap-2 flex-wrap">
                   <div class="flex items-center gap-2 text-[10px] text-slate-500 min-w-0">
@@ -6175,8 +6195,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.4.7',
-          latestVersion: '2.4.7',
+          currentVersion: '2.4.8',
+          latestVersion: '2.4.8',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',

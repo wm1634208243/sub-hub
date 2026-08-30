@@ -58,6 +58,17 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.8",
+            "tag": "v2.4.8",
+            "name": "SubHub v2.4.8 · 自建单节点独立卡片视觉重构，专属流量与到期看板",
+            "publishedAt": "2026-08-30T13:37:49.224Z",
+            "highlights": [
+                "💎 自建单节点 (VLESS/VMESS/Trojan/SS) 专属卡片视觉补齐：直观展示无上限带宽与自定义到期日",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.8 发布\n- **自建单节点视觉与状态看板补齐**：自动展示 VPS 独享流量与到期状态；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.7",
             "tag": "v2.4.7",
             "name": "SubHub v2.4.7 · 订阅源列表响应式智能排序，已启用订阅自动前置展示",
