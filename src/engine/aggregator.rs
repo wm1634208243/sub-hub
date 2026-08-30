@@ -436,6 +436,39 @@ pub async fn aggregate_clash_yaml(
     }
 
     let cleaned_proxies: Vec<serde_json::Value> = active_proxies.iter().map(sanitize_proxy_node_for_clash).collect();
+
+    // Collect all valid proxy names strictly from cleaned_proxies and proxy_groups
+    let mut valid_target_names: HashSet<String> = HashSet::new();
+    valid_target_names.insert("DIRECT".to_string());
+    valid_target_names.insert("REJECT".to_string());
+    valid_target_names.insert("GLOBAL".to_string());
+    for p in &cleaned_proxies {
+        if let Some(n) = p.get("name").and_then(|v| v.as_str()) {
+            valid_target_names.insert(n.to_string());
+        }
+    }
+    for g in &proxy_groups {
+        if let Some(n) = g.get("name").and_then(|v| v.as_str()) {
+            valid_target_names.insert(n.to_string());
+        }
+    }
+
+    // Filter all proxy-groups to guarantee 100% referential integrity
+    for g in &mut proxy_groups {
+        if let Some(p_arr) = g.get_mut("proxies").and_then(|v| v.as_array_mut()) {
+            p_arr.retain(|item| {
+                if let Some(target) = item.as_str() {
+                    valid_target_names.contains(target)
+                } else {
+                    false
+                }
+            });
+            if p_arr.is_empty() {
+                p_arr.push(serde_json::json!("DIRECT"));
+            }
+        }
+    }
+
     clash_map.insert("proxies".into(), serde_json::Value::Array(cleaned_proxies));
     clash_map.insert("proxy-groups".into(), serde_json::Value::Array(proxy_groups));
     clash_map.insert("rules".into(), serde_json::to_value(rules).unwrap_or_default());
@@ -660,5 +693,19 @@ mod tests {
         // Check YAML is valid and clean
         assert!(res.yaml.contains("🚀 节点选择"));
         assert!(res.yaml.contains("⚡ 自动优选"));
+
+        // If mihomo binary is available on system, execute live kernel syntax test
+        if std::path::Path::new("/tmp/mihomo").exists() {
+            let tmp_path = format!("/tmp/unit_test_{}.yaml", std::process::id());
+            std::fs::write(&tmp_path, &res.yaml).unwrap();
+            let output = std::process::Command::new("/tmp/mihomo")
+                .args(&["-t", "-f", &tmp_path])
+                .output()
+                .expect("failed to execute mihomo test");
+            let _ = std::fs::remove_file(&tmp_path);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(output.status.success(), "mihomo kernel validation failed!\nSTDOUT:\n{}\nSTDERR:\n{}", stdout, stderr);
+        }
     }
 }
