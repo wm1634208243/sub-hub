@@ -1,4 +1,5 @@
 mod api;
+pub mod backup;
 mod engine;
 mod models;
 pub mod security;
@@ -6,12 +7,14 @@ mod static_files;
 
 use api::auth_handlers::{
     admin_get_system_settings_handler, admin_save_system_settings_handler, change_password_handler,
-    create_user_handler, delete_user_handler, list_users_handler, login_handler, me_handler,
+    create_user_handler, delete_user_handler, list_users_handler, login_handler, logout_handler, me_handler,
     public_system_settings_handler, register_handler, reset_password_handler, user_role_handler,
     user_status_handler, AppState,
 };
 use api::config_handlers::{
-    admin_backup_export_handler, admin_backup_restore_handler, clear_access_logs_handler,
+    admin_backup_export_handler, admin_backup_restore_handler, admin_create_backup_archive_handler,
+    admin_delete_backup_archive_handler, admin_download_backup_archive_handler, admin_get_backups_handler,
+    admin_restore_backup_archive_handler, admin_save_backup_settings_handler, clear_access_logs_handler,
     compile_transient_handler, get_access_logs_handler, get_config_handler, inspect_nodes_handler,
     nodes_health_handler, preview_config_handler, preview_rename_handler, purge_config_handler,
     refresh_subscriptions_handler, regenerate_token_handler, save_config_handler, serve_rules_js_handler,
@@ -47,10 +50,6 @@ struct Args {
 
     #[arg(short, long, default_value = "./config")]
     config_dir: String,
-}
-
-async fn logout_handler() -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "success": true, "message": "已成功登出" }))
 }
 
 #[tokio::main]
@@ -196,6 +195,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/system/update", post(system_update_handler))
         .route("/api/admin/backup/export", get(admin_backup_export_handler))
         .route("/api/admin/backup/restore", post(admin_backup_restore_handler))
+        .route("/api/admin/backups", get(admin_get_backups_handler))
+        .route("/api/admin/backup/settings", post(admin_save_backup_settings_handler))
+        .route("/api/admin/backup/create", post(admin_create_backup_archive_handler))
+        .route("/api/admin/backup/restore-file", post(admin_restore_backup_archive_handler))
+        .route("/api/admin/backups/:filename", delete(admin_delete_backup_archive_handler))
+        .route("/api/admin/backups/download/:filename", get(admin_download_backup_archive_handler))
         .route("/api/admin/system/settings", get(admin_get_system_settings_handler).post(admin_save_system_settings_handler))
         .route("/api/system/public-settings", get(public_system_settings_handler))
         .route("/api/admin/system/domain/test", post(domain_test_handler))
@@ -209,7 +214,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(axum::extract::DefaultBodyLimit::max(4 * 1024 * 1024))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
-        .with_state(state);
+        .with_state(state.clone());
+
+    // Spawn Auto-Backup Scheduler Worker
+    backup::spawn_backup_scheduler(args.config_dir.clone(), state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], args.port));
     println!("====================================================");

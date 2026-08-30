@@ -321,6 +321,19 @@ pub async fn me_handler(
     })))
 }
 
+pub async fn logout_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let auth_header = headers.get("authorization").and_then(|v| v.to_str().ok()).unwrap_or_default();
+    let token = auth_header.strip_prefix("Bearer ").unwrap_or_default().trim();
+    if !token.is_empty() {
+        let mut sessions = state.sessions.write().await;
+        sessions.remove(token);
+    }
+    Ok(Json(serde_json::json!({ "success": true, "message": "已成功退出登录" })))
+}
+
 pub async fn change_password_handler(
     State(state): State<AppState>,
     headers: HeaderMap,

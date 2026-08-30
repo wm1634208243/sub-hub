@@ -3902,6 +3902,184 @@
               </div>
             </div>
 
+            <!-- ⚙️ 自动定时备份策略 (仅管理员) -->
+            <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 flex-wrap gap-2">
+                <div class="flex items-center gap-2.5">
+                  <span class="text-lg">⏰</span>
+                  <div>
+                    <div class="text-sm font-bold text-white flex items-center gap-2">
+                      <span>自动定时备份策略 (Auto-Backup Scheduler)</span>
+                      <span :class="backupSettings.enable_auto_backup ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'" class="px-2 py-0.5 rounded-full text-[10px] font-semibold border">
+                        {{ backupSettings.enable_auto_backup ? '● 调度运行中' : '○ 已停用' }}
+                      </span>
+                    </div>
+                    <div class="text-xs text-slate-400">后台定时守护进程无感创建全站快照，自动清理过期文件</div>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  @click="saveBackupSettingsHandler" 
+                  :disabled="savingBackupSettings"
+                  class="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20"
+                >
+                  <span>{{ savingBackupSettings ? '保存中...' : '💾 保存备份策略' }}</span>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1 text-xs">
+                <!-- 开关 -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between">
+                  <div>
+                    <div class="font-semibold text-white">开启自动定时备份</div>
+                    <div class="text-[11px] text-slate-400">定期在服务器生成快照</div>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" v-model="backupSettings.enable_auto_backup" class="sr-only peer">
+                    <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
+                <!-- 备份周期 -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <div class="font-semibold text-white flex items-center justify-between">
+                    <span>备份周期</span>
+                    <span class="text-cyan-400 font-mono">每 {{ backupSettings.interval_hours }} 小时</span>
+                  </div>
+                  <select 
+                    v-model.number="backupSettings.interval_hours"
+                    class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-sans"
+                  >
+                    <option :value="6">每 6 小时 (高频热备)</option>
+                    <option :value="12">每 12 小时 (半天一次)</option>
+                    <option :value="24">每 24 小时 (每日定时 · 推荐)</option>
+                    <option :value="72">每 3 天 (72 小时)</option>
+                    <option :value="168">每周一次 (168 小时)</option>
+                  </select>
+                </div>
+
+                <!-- 最大保留份数 -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+                  <div class="font-semibold text-white flex items-center justify-between">
+                    <span>最大保留份数</span>
+                    <span class="text-amber-400 font-mono">最多 {{ backupSettings.max_retention }} 份</span>
+                  </div>
+                  <select 
+                    v-model.number="backupSettings.max_retention"
+                    class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-sans"
+                  >
+                    <option :value="5">保留最近 5 份</option>
+                    <option :value="10">保留最近 10 份 (推荐)</option>
+                    <option :value="20">保留最近 20 份</option>
+                    <option :value="30">保留最近 30 份</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 上次备份状态 -->
+              <div class="flex items-center justify-between text-[11px] text-slate-400 bg-slate-900/40 px-3 py-2 rounded-lg">
+                <span>🕒 上次备份触发时间：<strong class="text-slate-200 font-mono">{{ backupSettings.last_backup_time ? new Date(backupSettings.last_backup_time).toLocaleString() : '暂无历史备份记录' }}</strong></span>
+                <span class="text-slate-400">存储路径：<code class="text-cyan-400">./data/backups/</code></span>
+              </div>
+            </div>
+
+            <!-- 🗄️ 服务器端历史快照归档矩阵 -->
+            <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 flex-wrap gap-2">
+                <div class="flex items-center gap-2.5">
+                  <span class="text-lg">🗄️</span>
+                  <div>
+                    <div class="text-sm font-bold text-white flex items-center gap-2">
+                      <span>服务器历史快照归档</span>
+                      <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-cyan-300 border border-slate-700">
+                        共 {{ serverBackups.length }} 份快照
+                      </span>
+                    </div>
+                    <div class="text-xs text-slate-400">支持一键即时无损还原到任意历史时间点，或下载到本地留存</div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button 
+                    type="button" 
+                    @click="fetchServerBackups" 
+                    :disabled="loadingBackups"
+                    class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>🔄 刷新列表</span>
+                  </button>
+                  <button 
+                    type="button" 
+                    @click="createServerBackupNow" 
+                    :disabled="creatingBackup"
+                    class="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>{{ creatingBackup ? '生成中...' : '⚡ 立即生成快照' }}</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 快照列表 -->
+              <div v-if="loadingBackups" class="py-8 text-center text-xs text-slate-400">
+                正在加载快照矩阵...
+              </div>
+              <div v-else-if="serverBackups.length === 0" class="py-8 text-center text-xs text-slate-500 bg-slate-900/30 rounded-xl border border-dashed border-slate-800">
+                暂无服务器快照，点击上方「⚡ 立即生成快照」创建第一份归档
+              </div>
+              <div v-else class="space-y-2.5">
+                <div 
+                  v-for="b in serverBackups" 
+                  :key="b.filename"
+                  class="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap transition-all"
+                >
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm" :class="b.trigger_type === 'auto' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-cyan-500/10 text-cyan-400'">
+                      {{ b.trigger_type === 'auto' ? '⏰' : '⚡' }}
+                    </div>
+                    <div>
+                      <div class="text-xs font-semibold text-white font-mono flex items-center gap-2">
+                        <span>{{ b.filename }}</span>
+                        <span :class="b.trigger_type === 'auto' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'" class="px-1.5 py-0.5 rounded text-[9px] font-sans border">
+                          {{ b.trigger_type === 'auto' ? '定时自动' : '手动生成' }}
+                        </span>
+                      </div>
+                      <div class="text-[11px] text-slate-400 flex items-center gap-3 mt-0.5">
+                        <span>时间：{{ new Date(b.created_at).toLocaleString() }}</span>
+                        <span>大小：{{ formatFileSize(b.size_bytes) }}</span>
+                        <span>用户数：{{ b.users_count }} 个</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      @click="downloadServerBackup(b.filename)"
+                      class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                      title="下载到本地"
+                    >
+                      <span>📥 下载</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="restoreServerBackup(b.filename)"
+                      class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer font-semibold"
+                      title="一键还原至此快照"
+                    >
+                      <span>🔄 一键还原</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="deleteServerBackup(b.filename)"
+                      class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs rounded-lg transition-all cursor-pointer"
+                      title="删除此快照"
+                    >
+                      <span>🗑️</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- 零知识隐私保护提示条 -->
             <div class="bg-slate-950/90 border border-emerald-500/20 rounded-xl p-3.5 flex items-center gap-3 text-xs">
               <span class="text-base shrink-0">🛡️</span>
@@ -5684,8 +5862,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.1.1',
-          latestVersion: '2.1.1',
+          currentVersion: '2.1.2',
+          latestVersion: '2.1.2',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -7120,6 +7298,154 @@ function main(config, profileName) {
           event.target.value = '';
         };
 
+        // ── Admin: 定时备份与服务器快照矩阵 ──
+        const backupSettings = ref({
+          enable_auto_backup: true,
+          interval_hours: 24,
+          max_retention: 10,
+          last_backup_time: null,
+        });
+        const serverBackups = ref([]);
+        const loadingBackups = ref(false);
+        const savingBackupSettings = ref(false);
+        const creatingBackup = ref(false);
+
+        const fetchServerBackups = async () => {
+          if (userRole.value !== 'admin') return;
+          loadingBackups.value = true;
+          try {
+            const res = await fetch('/api/admin/backups', {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data.settings) backupSettings.value = data.settings;
+              if (data.archives) serverBackups.value = data.archives;
+            }
+          } catch (e) {
+            console.error('Failed to fetch server backups:', e);
+          } finally {
+            loadingBackups.value = false;
+          }
+        };
+
+        const saveBackupSettingsHandler = async () => {
+          savingBackupSettings.value = true;
+          try {
+            const res = await fetch('/api/admin/backup/settings', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token.value}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(backupSettings.value)
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast('💾 自动定时备份策略已成功更新并生效！');
+            } else {
+              showToast(data.error || '保存备份设置失败', 'error');
+            }
+          } catch (e) {
+            showToast('保存备份设置异常: ' + e.message, 'error');
+          } finally {
+            savingBackupSettings.value = false;
+          }
+        };
+
+        const createServerBackupNow = async () => {
+          creatingBackup.value = true;
+          try {
+            const res = await fetch('/api/admin/backup/create', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast('⚡ 服务器端快照生成成功！');
+              await fetchServerBackups();
+            } else {
+              showToast(data.error || '创建备份失败', 'error');
+            }
+          } catch (e) {
+            showToast('创建备份异常: ' + e.message, 'error');
+          } finally {
+            creatingBackup.value = false;
+          }
+        };
+
+        const restoreServerBackup = async (filename) => {
+          if (!confirm(`⚠️ 确认从服务器端快照【${filename}】还原全站数据？\n\n还原后将立即加载该快照中的所有账号与配置！`)) {
+            return;
+          }
+          try {
+            const res = await fetch('/api/admin/backup/restore-file', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token.value}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ filename })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast('🎉 系统数据已成功从快照完整还原！');
+              await fetchConfig();
+            } else {
+              showToast(data.error || '还原快照失败', 'error');
+            }
+          } catch (e) {
+            showToast('还原快照异常: ' + e.message, 'error');
+          }
+        };
+
+        const deleteServerBackup = async (filename) => {
+          if (!confirm(`确定删除备份文件【${filename}】吗？删除后不可恢复。`)) return;
+          try {
+            const res = await fetch(`/api/admin/backups/${encodeURIComponent(filename)}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast('备份快照已删除');
+              await fetchServerBackups();
+            } else {
+              showToast(data.error || '删除失败', 'error');
+            }
+          } catch (e) {
+            showToast('删除异常: ' + e.message, 'error');
+          }
+        };
+
+        const downloadServerBackup = async (filename) => {
+          try {
+            const res = await fetch(`/api/admin/backups/download/${encodeURIComponent(filename)}`, {
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            if (!res.ok) {
+              return showToast('下载快照失败', 'error');
+            }
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            window.URL.revokeObjectURL(url);
+          } catch (e) {
+            showToast('下载快照异常: ' + e.message, 'error');
+          }
+        };
+
+        const formatFileSize = (bytes) => {
+          if (!bytes || bytes === 0) return '0 B';
+          const k = 1024;
+          const sizes = ['B', 'KB', 'MB', 'GB'];
+          const i = Math.floor(Math.log(bytes) / Math.log(k));
+          return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        };
+
         // 访问与审计日志
         const loadLogs = async () => {
           try {
@@ -8170,7 +8496,19 @@ function main(config, profileName) {
           caddyConfigPreview,
           nginxConfigPreview,
           copyCaddyConfig,
-          copyNginxConfig
+          copyNginxConfig,
+          backupSettings,
+          serverBackups,
+          loadingBackups,
+          savingBackupSettings,
+          creatingBackup,
+          fetchServerBackups,
+          saveBackupSettingsHandler,
+          createServerBackupNow,
+          restoreServerBackup,
+          deleteServerBackup,
+          downloadServerBackup,
+          formatFileSize
         };
       }
     });

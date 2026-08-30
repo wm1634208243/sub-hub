@@ -524,6 +524,93 @@ pub async fn admin_backup_restore_handler(
     Ok(Json(serde_json::json!({ "success": true, "message": "系统数据已成功从备份快照完全还原！" })))
 }
 
+pub async fn admin_get_backups_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    let settings = crate::backup::load_backup_settings(&state.config_dir).await;
+    let archives = crate::backup::list_backup_archives(&state.config_dir).await;
+    Ok(Json(serde_json::json!({
+        "settings": settings,
+        "archives": archives
+    })))
+}
+
+pub async fn admin_save_backup_settings_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::backup::BackupSettings>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::backup::save_backup_settings(&state.config_dir, &payload).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))))?;
+    Ok(Json(serde_json::json!({ "success": true, "settings": payload })))
+}
+
+pub async fn admin_create_backup_archive_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    let info = crate::backup::create_backup_archive(&state.config_dir, &state, "manual").await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))))?;
+    Ok(Json(serde_json::json!({ "success": true, "archive": info })))
+}
+
+pub async fn admin_restore_backup_archive_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    let filename = payload.get("filename").and_then(|v| v.as_str())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "缺少 filename 参数" }))))?;
+
+    crate::backup::restore_backup_archive(&state.config_dir, &state, filename).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))))?;
+
+    Ok(Json(serde_json::json!({ "success": true, "message": format!("已成功从快照 {} 完整还原系统数据！", filename) })))
+}
+
+pub async fn admin_delete_backup_archive_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(filename): Path<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::backup::delete_backup_archive(&state.config_dir, &filename).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))))?;
+    Ok(Json(serde_json::json!({ "success": true, "message": "备份快照已成功删除" })))
+}
+
+pub async fn admin_download_backup_archive_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(filename): Path<String>,
+) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    let clean = filename.trim();
+    if clean.contains("..") || clean.contains('/') || clean.contains('\\') || !clean.ends_with(".json") {
+        return Err((StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "非法文件名" }))));
+    }
+    let target = FilePath::new(&state.config_dir).join("backups").join(clean);
+    if !target.exists() {
+        return Err((StatusCode::NOT_FOUND, Json(serde_json::json!({ "error": "文件不存在" }))));
+    }
+    let bytes = tokio::fs::read(&target).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))))?;
+
+    let res = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", clean))
+        .body(axum::body::Body::from(bytes))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))))?;
+
+    Ok(res)
+}
+
 // ── Multi-Path User Config Loader ─────────────────────────────────────────────
 
 pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &str) -> UserConfig {
