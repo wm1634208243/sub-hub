@@ -17,6 +17,7 @@ pub struct SubQuery {
 
 pub async fn unified_sub_handler(
     State(state): State<AppState>,
+    uri: axum::http::Uri,
     headers: HeaderMap,
     Query(query): Query<SubQuery>,
 ) -> Response {
@@ -134,8 +135,21 @@ pub async fn unified_sub_handler(
         }
     }
 
-    // Determine target format
-    let target = query.target.as_deref().unwrap_or_else(|| detect_client_target(ua));
+    // Determine target format from path, query or user-agent auto-negotiation
+    let path = uri.path().to_lowercase();
+    let target = query.target.as_deref().unwrap_or_else(|| {
+        if path.contains("singbox") || path.contains("sing-box") || path.contains("sb.json") {
+            "singbox"
+        } else if path.contains("surge") {
+            "surge"
+        } else if path.contains("base64") || path.contains("sub.txt") || path.contains("nodes.txt") {
+            "base64"
+        } else if path.contains("clash") {
+            "clash"
+        } else {
+            detect_client_target(ua)
+        }
+    });
 
     match aggregate_clash_yaml(&cfg, &state.fetcher).await {
         Ok(agg) => {
