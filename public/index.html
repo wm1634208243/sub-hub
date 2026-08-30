@@ -5684,8 +5684,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.0.7',
-          latestVersion: '2.0.7',
+          currentVersion: '2.0.8',
+          latestVersion: '2.0.8',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -6934,7 +6934,10 @@ function main(config, profileName) {
                 newPassword: pwdForm.value.newPassword
               })
             });
-            const data = await res.json();
+            let data = {};
+            try {
+              data = await res.json();
+            } catch (err) {}
             if (res.ok) {
               showToast('密码修改成功！1.2 秒后强制退出，请使用新密码重新登录');
               pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
@@ -6946,11 +6949,11 @@ function main(config, profileName) {
               }, 1200);
               return true;
             } else {
-              showToast(data.error || '修改密码失败', 'error');
+              showToast(data.error || data.message || '修改密码失败', 'error');
               return false;
             }
           } catch (e) {
-            showToast('请求失败', 'error');
+            showToast('请求失败: ' + (e.message || '网络异常'), 'error');
             return false;
           }
         };

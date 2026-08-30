@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.0.8",
+            "tag": "v2.0.8",
+            "name": "SubHub v2.0.8 · 修复用户修改密码参数反序列化与字段兼容",
+            "publishedAt": "2026-08-30T01:07:40.761Z",
+            "highlights": [
+                "🔐 彻底修复个人中心修改密码接口报错「请求失败」",
+                "✨ 增加 camelCase (oldPassword / newPassword) 跨端字段反序列化兼容",
+                "🛡️ 增加 /api/auth/* 全路由无缝兼容别名"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.0.8 发布\n- **修复修改密码失败**：解决 Rust 后端 ChangePwdPayload 缺失 camelCase 别名导致反序列化失败报 422/请求失败 的问题；\n- **路由兼容增强**：完善认证相关 API 别名与更细粒度的错误提示。"
+        }),
+        serde_json::json!({
             "version": "2.0.7",
             "tag": "v2.0.7",
             "name": "SubHub v2.0.7 · 优化策略组展示顺序置顶主节点选择",

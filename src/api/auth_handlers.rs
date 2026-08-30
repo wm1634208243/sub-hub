@@ -42,7 +42,9 @@ fn default_role() -> String {
 
 #[derive(Deserialize)]
 pub struct ChangePwdPayload {
+    #[serde(alias = "oldPassword", alias = "old_password")]
     pub old_password: String,
+    #[serde(alias = "newPassword", alias = "new_password")]
     pub new_password: String,
 }
 
@@ -249,7 +251,7 @@ pub async fn change_password_handler(
     }
 
     let mut users = state.users.write().await;
-    if let Some(u) = users.iter_mut().find(|u| u.username == curr_user.username) {
+    if let Some(u) = users.iter_mut().find(|u| u.username.to_lowercase() == curr_user.username.to_lowercase()) {
         u.password_hash = bcrypt::hash(&payload.new_password, 10).unwrap();
     }
     save_users_to_disk(&state.config_dir, &users).await;

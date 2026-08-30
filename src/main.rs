@@ -128,10 +128,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         // Auth APIs
         .route("/api/login", post(login_handler))
+        .route("/api/auth/login", post(login_handler))
         .route("/api/register", post(register_handler))
+        .route("/api/auth/register", post(register_handler))
         .route("/api/me", get(me_handler))
+        .route("/api/auth/me", get(me_handler))
         .route("/api/logout", post(logout_handler))
+        .route("/api/auth/logout", post(logout_handler))
         .route("/api/change-password", post(change_password_handler))
+        .route("/api/auth/change-password", post(change_password_handler))
         // Admin User Management APIs
         .route("/api/admin/users", get(list_users_handler).post(create_user_handler))
         .route("/api/admin/users/:username", delete(delete_user_handler))
