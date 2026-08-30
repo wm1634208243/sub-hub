@@ -373,21 +373,7 @@ pub async fn aggregate_clash_yaml(
         if !dom.trim().is_empty() { rules.push(format!("DOMAIN-SUFFIX,{},DIRECT", dom.trim())); }
     }
 
-    // High priority proxy
-    for ip in &config.proxy_ips {
-        if !ip.trim().is_empty() { rules.push(format!("IP-CIDR,{},{}{}", ip.trim(), main_proxy_group, no_resolve)); }
-    }
-    for proc in &config.proxy_processes {
-        if !proc.trim().is_empty() { rules.push(format!("PROCESS-NAME,{},{}", proc.trim(), main_proxy_group)); }
-    }
-    for kw in &config.proxy_keywords {
-        if !kw.trim().is_empty() { rules.push(format!("DOMAIN-KEYWORD,{},{}", kw.trim(), main_proxy_group)); }
-    }
-    for dom in &config.proxy_domains {
-        if !dom.trim().is_empty() { rules.push(format!("DOMAIN-SUFFIX,{},{}", dom.trim(), main_proxy_group)); }
-    }
-
-    // Scenario rules
+    // Scenario rules (Dedicated application routes take precedence over generic proxy rules)
     if config.enable_ai_group {
         for d in &["openai.com", "chatgpt.com", "anthropic.com", "claude.ai", "oaistatic.com", "oaiusercontent.com", "gemini.google.com", "x.ai", "grok.com", "mistral.ai", "copilot.microsoft.com", "perplexity.ai"] {
             rules.push(format!("DOMAIN-SUFFIX,{},🤖 AI 专线", d));
@@ -415,6 +401,20 @@ pub async fn aggregate_clash_yaml(
         for d in &["apple.com", "icloud.com", "itunes.com", "apple-cloudkit.com", "microsoft.com", "windowsupdate.com", "office.com", "live.com", "azure.com"] {
             rules.push(format!("DOMAIN-SUFFIX,{},🍎 Apple / 微软", d));
         }
+    }
+
+    // High priority user custom proxy rules
+    for ip in &config.proxy_ips {
+        if !ip.trim().is_empty() { rules.push(format!("IP-CIDR,{},{}{}", ip.trim(), main_proxy_group, no_resolve)); }
+    }
+    for proc in &config.proxy_processes {
+        if !proc.trim().is_empty() { rules.push(format!("PROCESS-NAME,{},{}", proc.trim(), main_proxy_group)); }
+    }
+    for kw in &config.proxy_keywords {
+        if !kw.trim().is_empty() { rules.push(format!("DOMAIN-KEYWORD,{},{}", kw.trim(), main_proxy_group)); }
+    }
+    for dom in &config.proxy_domains {
+        if !dom.trim().is_empty() { rules.push(format!("DOMAIN-SUFFIX,{},{}", dom.trim(), main_proxy_group)); }
     }
 
     // 3.5 Domestic common domains directly to DIRECT (Zero-delay, zero-download, instantaneous startup)

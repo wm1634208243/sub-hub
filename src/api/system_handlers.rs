@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.0",
+            "tag": "v2.4.0",
+            "name": "SubHub v2.4.0 · 规则优先级重构，场景分流绝对优先与流量精准路由",
+            "publishedAt": "2026-08-30T07:40:50.915Z",
+            "highlights": [
+                "🎯 规则优先级重构：AI专线/流媒体/TG/游戏等场景规则置于泛代理规则之前，避免规则被覆盖",
+                "🛡️ 直连白名单/国内大厂域名 40+ 极速直连，漏网之鱼兜底保护",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.0 发布\n- **规则优先级重构**：确保各场景分流策略组（AI专线、国际流媒体、Telegram等）享有绝对高优先级分流匹配；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.3.9",
             "tag": "v2.3.9",
             "name": "SubHub v2.3.9 · 订阅源高质感独立启用/停用开关与视觉状态增强",
