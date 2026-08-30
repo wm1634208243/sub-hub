@@ -33,14 +33,27 @@ pub async fn aggregate_clash_yaml(
         let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
         match fetcher.fetch(&sub.url, prefix, false).await {
             Ok(res) => {
-                // Aggregated userinfo
-                if let Some(ui) = &res.user_info {
+                // Aggregated userinfo from fetch result or fallback to stored sub.user_info
+                let ui_opt = res.user_info.as_ref().or(sub.user_info.as_ref());
+                if let Some(ui) = ui_opt {
                     if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { agg_upload += up; }
                     if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { agg_download += down; }
                     if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { agg_total += tot; }
                     if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
                         if exp > 0 {
-                            min_expire = Some(min_expire.map_or(exp, |m| m.min(exp)));
+                            let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
+                            min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
+                        }
+                    }
+                }
+                if let Some(exp_str) = &sub.custom_expire {
+                    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(exp_str) {
+                        let sec = dt.timestamp() as u64;
+                        if sec > 0 { min_expire = Some(min_expire.map_or(sec, |m| m.min(sec))); }
+                    } else if let Ok(dt) = chrono::NaiveDate::parse_from_str(exp_str, "%Y-%m-%d") {
+                        if let Some(ndt) = dt.and_hms_opt(23, 59, 59) {
+                            let sec = ndt.and_utc().timestamp() as u64;
+                            if sec > 0 { min_expire = Some(min_expire.map_or(sec, |m| m.min(sec))); }
                         }
                     }
                 }
@@ -77,12 +90,74 @@ pub async fn aggregate_clash_yaml(
             }
             Err(e) => {
                 tracing::warn!("Failed to fetch subscription {}: {}", sub.name, e);
+                if let Some(ui) = &sub.user_info {
+                    if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { agg_upload += up; }
+                    if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { agg_download += down; }
+                    if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { agg_total += tot; }
+                    if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
+                        if exp > 0 {
+                            let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
+                            min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
+                        }
+                    }
+                }
             }
         }
     }
 
-    let active_proxies = all_proxies;
-    let all_node_names: Vec<String> = active_proxies.iter().map(|p| p.name.clone()).collect();
+    if let Some(exp_str) = &config.token_expires_at {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(exp_str) {
+            let sec = dt.timestamp() as u64;
+            if sec > 0 { min_expire = Some(min_expire.map_or(sec, |m| m.min(sec))); }
+        } else if let Ok(dt) = chrono::NaiveDate::parse_from_str(exp_str, "%Y-%m-%d") {
+            if let Some(ndt) = dt.and_hms_opt(23, 59, 59) {
+                let sec = ndt.and_utc().timestamp() as u64;
+                if sec > 0 { min_expire = Some(min_expire.map_or(sec, |m| m.min(sec))); }
+            }
+        }
+    }
+
+    let mut info_nodes: Vec<ProxyNode> = Vec::new();
+    let mut info_node_names: Vec<String> = Vec::new();
+
+    if agg_total > 0 {
+        let used_bytes = agg_upload + agg_download;
+        let used_str = format_bytes_human(used_bytes);
+        let total_str = format_bytes_human(agg_total);
+        let pct = if agg_total > 0 { ((used_bytes as f64 / agg_total as f64) * 100.0).round() as u32 } else { 0 };
+        let traffic_name = format!("📊 流量: {} / {} ({}%)", used_str, total_str, pct);
+        let mut p = ProxyNode::default();
+        p.name = traffic_name.clone();
+        p.server = "127.0.0.1".into();
+        p.port = 80;
+        p.node_type = "compatible".into();
+        info_node_names.push(traffic_name);
+        info_nodes.push(p);
+    }
+
+    if let Some(exp_sec) = min_expire {
+        let exp_str = if exp_sec > 2500000000 {
+            "永久有效".to_string()
+        } else {
+            chrono::DateTime::from_timestamp(exp_sec as i64, 0)
+                .map(|dt| dt.format("%Y-%m-%d").to_string())
+                .unwrap_or_else(|| "永久有效".to_string())
+        };
+        let expire_name = format!("⏰ 到期: {}", exp_str);
+        let mut p = ProxyNode::default();
+        p.name = expire_name.clone();
+        p.server = "127.0.0.1".into();
+        p.port = 80;
+        p.node_type = "compatible".into();
+        info_node_names.push(expire_name);
+        info_nodes.push(p);
+    }
+
+    let all_node_names: Vec<String> = all_proxies.iter().map(|p| p.name.clone()).collect();
+    let mut active_proxies: Vec<ProxyNode> = Vec::new();
+    active_proxies.extend(info_nodes);
+    active_proxies.extend(all_proxies);
+
     let main_proxy_group = config.custom_proxy_group_name
         .as_deref()
         .map(|s| s.trim())
@@ -154,6 +229,9 @@ pub async fn aggregate_clash_yaml(
     let mut proxy_groups: Vec<serde_json::Value> = Vec::new();
     // 3.1 🚀 节点选择 (Master Selector - 放在首位作为主控)
     let mut master_selector_proxies = Vec::new();
+    for info_name in &info_node_names {
+        master_selector_proxies.push(info_name.clone());
+    }
     master_selector_proxies.push("⚡ 自动优选 (全部源)".to_string());
     master_selector_proxies.push("🛡️ 故障转移 (全部源)".to_string());
     for (auto_name, _, _) in &region_groups {
@@ -451,10 +529,11 @@ pub async fn aggregate_clash_yaml(
     let yaml_string = serde_yaml::to_string(&clash_map).map_err(|e| format!("YAML 序列化失败: {}", e))?;
 
     let mut userinfo_header = None;
-    if agg_total > 0 || agg_upload > 0 || agg_download > 0 {
+    if agg_total > 0 || agg_upload > 0 || agg_download > 0 || min_expire.is_some() {
         let mut s = format!("upload={}; download={}; total={}", agg_upload, agg_download, agg_total);
         if let Some(exp) = min_expire {
-            s.push_str(&format!("; expire={}", exp));
+            let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
+            s.push_str(&format!("; expire={}", exp_sec));
         }
         userinfo_header = Some(s);
     }
@@ -465,6 +544,25 @@ pub async fn aggregate_clash_yaml(
         total_nodes: active_proxies.len(),
         proxies: active_proxies,
     })
+}
+
+pub fn format_bytes_human(bytes: u64) -> String {
+    if bytes == 0 {
+        return "0 B".to_string();
+    }
+    let k = 1024.0;
+    let b = bytes as f64;
+    if b < k {
+        format!("{} B", bytes)
+    } else if b < k * k {
+        format!("{:.1} KB", b / k)
+    } else if b < k * k * k {
+        format!("{:.2} MB", b / (k * k))
+    } else if b < k * k * k * k {
+        format!("{:.2} GB", b / (k * k * k))
+    } else {
+        format!("{:.2} TB", b / (k * k * k * k))
+    }
 }
 
 pub async fn batch_test_proxies_health(proxies: &[ProxyNode], timeout_ms: u64) -> Vec<serde_json::Value> {
@@ -577,5 +675,48 @@ mod tests {
         assert!(!yaml.contains("cipher:"));
         assert!(!yaml.contains("alter_id:"));
         assert!(!yaml.contains("password:"));
+    }
+
+    #[tokio::test]
+    async fn test_aggregation_user_info_and_compatible_nodes() {
+        use crate::models::SubscriptionItem;
+
+        let mut config = UserConfig::default();
+        config.subscriptions = vec![SubscriptionItem {
+            id: "sub-1".into(),
+            name: "DMIT".into(),
+            url: "https://example.com/sub".into(),
+            prefix: None,
+            default_region: None,
+            custom_expire: None,
+            enabled: true,
+            auto_refresh_interval: 60,
+            status: None,
+            error: None,
+            nodes_count: None,
+            source_type: None,
+            user_info: Some(serde_json::json!({
+                "upload": 1000000000_u64,
+                "download": 2000000000_u64,
+                "total": 100000000000_u64,
+                "expire": 1788060000000_u64
+            })),
+            updated_at: None,
+        }];
+
+        let fetcher = SubscriptionFetcher::new();
+        let res = aggregate_clash_yaml(&config, &fetcher).await.unwrap();
+
+        assert!(res.user_info.is_some(), "user_info header must be produced");
+        let ui = res.user_info.unwrap();
+        assert!(ui.contains("upload=1000000000"));
+        assert!(ui.contains("download=2000000000"));
+        assert!(ui.contains("total=100000000000"));
+        assert!(ui.contains("expire=1788060000"), "expire must be in seconds, not ms! got {}", ui);
+
+        // Check YAML contains info nodes
+        assert!(res.yaml.contains("📊 流量:"));
+        assert!(res.yaml.contains("⏰ 到期:"));
+        assert!(res.yaml.contains("type: compatible"));
     }
 }

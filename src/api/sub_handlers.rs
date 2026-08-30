@@ -145,8 +145,10 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
-                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"sing-box.json\"")
+                        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}-singbox.json\"", username))
                         .header("profile-update-interval", "24")
+                        .header("profile-title", format!("SubHub ({})", username))
+                        .header("profile-web-page-url", "https://github.com/wm1634208243/sub-hub")
                         .body(axum::body::Body::from(json_str))
                         .unwrap()
                 }
@@ -155,8 +157,10 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"surge.list\"")
+                        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}-surge.conf\"", username))
                         .header("profile-update-interval", "24")
+                        .header("profile-title", format!("SubHub ({})", username))
+                        .header("profile-web-page-url", "https://github.com/wm1634208243/sub-hub")
                         .body(axum::body::Body::from(list_str))
                         .unwrap()
                 }
@@ -165,8 +169,10 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"nodes.txt\"")
+                        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}-nodes.txt\"", username))
                         .header("profile-update-interval", "24")
+                        .header("profile-title", format!("SubHub ({})", username))
+                        .header("profile-web-page-url", "https://github.com/wm1634208243/sub-hub")
                         .body(axum::body::Body::from(b64_str))
                         .unwrap()
                 }
@@ -175,17 +181,19 @@ pub async fn unified_sub_handler(
                     Response::builder()
                         .status(StatusCode::OK)
                         .header(header::CONTENT_TYPE, "text/yaml; charset=utf-8")
-                        .header(header::CONTENT_DISPOSITION, "attachment; filename=\"config.yaml\"")
+                        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}.yaml\"", username))
                         .header("profile-update-interval", "24")
+                        .header("profile-title", format!("SubHub ({})", username))
                         .header("profile-web-page-url", "https://github.com/wm1634208243/sub-hub")
                         .body(axum::body::Body::from(agg.yaml))
                         .unwrap()
                 }
             };
 
-            if let Some(ui) = agg.user_info {
-                if let Ok(val) = HeaderValue::from_str(&ui) {
-                    res.headers_mut().insert("subscription-userinfo", val);
+            if let Some(ui) = &agg.user_info {
+                if let Ok(val) = HeaderValue::from_str(ui) {
+                    res.headers_mut().insert("subscription-userinfo", val.clone());
+                    res.headers_mut().insert("Subscription-Userinfo", val);
                 }
             }
 

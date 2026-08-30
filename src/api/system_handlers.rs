@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.1.8",
+            "tag": "v2.1.8",
+            "name": "SubHub v2.1.8 · 客户端订阅流量与到期时间全协议标准化透传",
+            "publishedAt": "2026-08-30T03:37:00.583Z",
+            "highlights": [
+                "📊 标准 Subscription-Userinfo 响应头透传：修复到期时间戳秒级规范，支持全量客户端（ClashMi/Verge/CFW/Shadowrocket/Stash）识别总流量、剩余流量与到期时间",
+                "🚀 节点列表状态信息节点置顶：在代理选择列表中自动展示「📊 流量」与「⏰ 到期」状态节点，直观掌控全源配额",
+                "🛡️ 自动优选智能隔离：状态提示节点自动隔离于 URLTest 与 Fallback 测速池，确保测速与自动路由零干扰"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.1.8 发布\n- **客户端流量与到期全量适配**：标准化下发 `Subscription-Userinfo` 协议头，修复到期时间戳秒级转换，各客户端配置卡片均可精准读取已用/总流量与到期天数；\n- **代理列表状态节点展示**：自动在节点选择主列表中置顶呈现总聚合流量与到期状态节点；\n- **测速池隔离**：状态提示节点自动剔除于自动测速组，保障节点优选与故障转移稳定运行。"
+        }),
+        serde_json::json!({
             "version": "2.1.7",
             "tag": "v2.1.7",
             "name": "SubHub v2.1.7 · 服务器快照多选批量删除与一键清空机制",
