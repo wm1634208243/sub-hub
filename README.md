@@ -18,7 +18,7 @@
 
 <br><br>
 
-[⚡ 极速部署](#-10-秒极速一键部署-quick-start) • [🦀 v2.0 重大飞跃](#-subhub-v200-rust-原生重构重大飞跃) • [✨ 核心特性](#-核心功能特性) • [🖼️ 界面全景展示](#️-系统界面全景) • [⚖️ 双轨制架构](#️-双轨制架构纯本地-vs-云端托管) • [📊 对比 Sub-Store](#-subhub-vs-sub-store-深度对比) • [📱 客户端接入](#-全平台客户端接入指南)
+[⚡ 极速部署](#-10-秒极速一键部署-quick-start) • [🦀 v2.0 重大飞跃](#-subhub-v200-rust-原生重构重大飞跃) • [✨ 核心特性](#-核心功能特性) • [⚖️ 双轨制架构](#️-双轨制架构纯本地-vs-云端托管) • [📊 对比 Sub-Store](#-subhub-vs-sub-store-深度对比) • [📱 客户端接入](#-全平台客户端接入指南)
 
 </div>
 
@@ -44,14 +44,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/in
 
 ---
 
-## 🦀 SubHub v2.0.0 (Rust 原生重构重大飞跃)
+## 🦀 SubHub v2.0+ (Rust 原生重构重大飞跃)
 
-| 核心指标 | 旧版 Node.js 架构 | 🌟 全新 Rust 原生架构 (v2.0) | 提升幅度 |
+| 核心指标 | 旧版 Node.js 架构 | 🌟 全新 Rust 原生架构 (v2.4+) | 提升幅度 |
 | :--- | :--- | :--- | :--- |
 | **常驻内存 (RSS)** | 约 35MB ~ 50MB | **约 3MB ~ 5MB** | 💾 **内存占用骤降 85%+** |
 | **接口响应延迟** | 15ms ~ 35ms | **< 1ms (微秒级响应)** | ⚡ **速度提升 15~30 倍** |
 | **部署环境要求** | 必须安装 Node.js 20+ 及 node_modules | **0 依赖！单文件静态编译二进制** | 📦 **开箱即跑，极其纯净** |
-| **升级耗时** | 30s ~ 1min (git pull + npm i) | **1~2 秒 (秒级下载单文件替换)** | 🚀 **升级提速 90%+** |
+| **升级耗时** | 30s ~ 1min (git pull + npm i) | **1~2 秒 (秒级下载单文件热替换)** | 🚀 **升级提速 90%+** |
 
 ---
 
@@ -60,6 +60,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/in
 在日常网络代理与订阅管理中，我们常常面临以下痛点：
 - **订阅源碎片化**：手头有自建 VPS（3X-UI/X-UI）、多个商业机场订阅，每个客户端都要重复导入、维护多个订阅链接；
 - **流量/到期难以统揽**：无法直观知道哪个订阅快用完了、哪个 VPS 节点下个月要续费；
+- **国内 App 误走代理/卡顿**：抖音、B站、微信、网易云音乐等经常误走海外节点导致触发风控或黑屏缓冲；
 - **测速卡顿与重复测速**：传统配置在客户端批量测速时，同一个节点在不同策略组并发重复测速 5 次，导致带宽拥堵卡死；
 - **节点命名杂乱/死节点多**：上游机场常带有冗长的广告、倍率说明（如 `[1.5x]`、`剩余流量`），且经常有失效死节点导致网络卡顿；
 - **多客户端格式割裂**：Clash (YAML)、Sing-Box (JSON)、Surge (List)、Shadowrocket (Base64) 格式各异，管理成本极高；
@@ -69,35 +70,45 @@ bash <(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/in
 
 ---
 
-## 🖼️ 系统界面全景
+## ✨ 核心功能特性
 
-<div align="center">
-
-### 1. 📊 全局订阅聚合与实时流量大屏
-汇聚多个 VPS 及商业订阅，实时追踪总配额、已用流量、剩余可用量与最早到期倒计时。支持节点抽屉透视与逐节点勾选。
-
-<img src="./docs/images/preview-dashboard.png" alt="订阅聚合与流量大屏" width="90%" style="border-radius: 10px; margin-bottom: 24px;">
-
----
-
-### 2. 🎯 全局自动优选 (URLTest) 候选池深度定制
-支持逐个节点自由打勾/排除「⚡ 参与优选」，支持一键圈定港/日/新/美常用四国，支持包含/排除关键字过滤。
-
----
-
-### 3. 🎨 场景化专属分流策略组与多平台自适应
-专为 AI、国际流媒体、Telegram、游戏平台设计独立策略组；主控节点选择列表剔除冗余故障转移项，清爽纯净。
-
-<img src="./docs/images/preview-rules.png" alt="场景化分流与平台自适应" width="90%" style="border-radius: 10px; margin-bottom: 24px;">
+### 1. 🌐 通用智能客户端自适应（Smart Adaptive URL）
+对外提供唯一的终身固定订阅直链：
+```
+https://你的域名/api/sub?token=你的专属Token
+```
+- **智能嗅探**：服务端根据请求头的 `User-Agent` 自动识别客户端（Clash Verge、Mihomo Party、Sing-Box、Surge、Shadowrocket、Stash、Quantumult X 等），毫秒级下发完美匹配的配置格式；
+- **全格式支持**：
+  - 🐱 **Clash / Mihomo**：自动输出规范 YAML 配置（包含 Proxy-Groups、Rules、DNS 配置、`Content-Disposition` 协议头）；
+  - 📦 **Sing-Box**：自动生成 `sing-box.json` Outbounds 结构；
+  - ⚡ **Surge**：自动下发 `surge.list` 代理列表；
+  - 🚀 **Shadowrocket / v2rayN**：自动下发 Base64 统一节点直链。
 
 ---
 
-### 4. ⚙️ 企业级多租户用户管理、安全封禁与系统配置
-管理员零知识隐私（无法窥视普通用户节点），支持临时/永久封禁倒计时解禁、暗黑毛玻璃安全重置密码与独立域名 HTTPS 绑定。
+### 2. 🛡️ 工业级分流与万级 GeoSite / GeoIP 权威引擎
+- **万级 `GEOSITE:cn` 权威库原生集成**：收录中国大陆 **111,197+** 条全量域名，微信、抖音、B站、淘宝、拼多多、美团、原神等国内生态 **100% 自动走本地光纤直连**；
+- **五层金字塔式精准分流**：
+  1. 🟢 **强行直连白名单**：微信、WPS、百度网盘、ToDesk、局域网 IP、内网域名；
+  2. 🎯 **场景垂直专线**：`🤖 AI 专线` (ChatGPT/Claude/Gemini)、`🎬 国际流媒体` (YouTube/Netflix/Disney+/Spotify)、`📲 Telegram` (全网段锁定)、`🎮 游戏平台` (Steam/Epic/PS/Xbox)、`🍎 Apple / 微软`；
+  3. 🚀 **自定义代理站点**：GitHub、Twitter/X、Linux.do 等；
+  4. 🟢 **国内公共域名与大陆 IP**：40+ 国内大厂 CDN、`GEOSITE:cn`、`GEOIP:CN`；
+  5. 🐟 **漏网之鱼**：未知的海外小众网站走兜底出海。
 
-<img src="./docs/images/preview-settings.png" alt="系统设置与多租户管理" width="90%" style="border-radius: 10px;">
+---
 
-</div>
+### 3. ⚡ 彻底根治 TUN 环路死锁与 QUIC 智能降级
+- **`direct-nameserver` 独立直连解析池**：国内直连流量直连阿里（`223.5.5.5`）与腾讯（`119.29.29.29`）DoH，彻底杜绝 Fake-IP 递归死锁；
+- **TUN 自动路由侦测**：`auto-route` 与 `auto-detect-interface` 绕过虚拟网卡，直连流量 0 环路；
+- **智能 QUIC 降级防御**：0 毫秒将易丢包的 UDP 443 QUIC 降级为硬件加速的 HTTP/2 TCP，各大短视频与流媒体播放器起播 **0 秒秒开**。
+
+---
+
+### 4. 🔘 订阅源高质感独立启用/停用与全维优选
+- **独立胶囊开关**：卡片配备「`🟢 启用中` / `⏸️ 已停用`」互动开关，停用源智能半透明置灰，彻底从聚合池剔除；
+- **节点尾部无感流量透视**：每个节点后方自动标注该订阅的实时配额、已用比例及到期日（如 `🇺🇸 LAX [10.5GB/250GB (4%) · 永久]`），0 虚假占位节点；
+- **专属单订阅优选组**：每个订阅源自动生成专属的 `⚡ 优选 · 订阅名` 策略组，在二级菜单清爽调用；
+- **逐节点打勾排除与地区圈定**：在抽屉面板中为每个节点自由设置是否参与自动优选，支持一键圈定港/日/新/美四国。
 
 ---
 
@@ -123,36 +134,11 @@ SubHub 首创**双轨制设计**，用户可根据自身对「隐私安全」与
 | **运行架构与性能** | 🦀 **纯 Rust 原生单二进制**<br>常驻内存仅 ~5MB，微秒级延迟 | 依赖 Node.js 运行环境<br>内存占用 ~60MB+ | SubHub 在小内存 VPS 上运行更加极致轻巧 |
 | **上手门槛与定位** | ⭐️⭐️⭐️⭐️⭐️ **零门槛开箱即用**<br>现代化暗黑 Web GUI，全图形化配置 | ⭐️⭐️⭐️ 偏极客<br>需学习专有算子语法与脚本编程 | SubHub 无论是小白还是资深玩家均可 1 分钟上手 |
 | **全局多源流量看板** | ✅ **原生聚合大屏**<br>实时汇聚所有上游 `Subscription-Userinfo`，汇总总配额、已用量、最早到期日 | ❌ **无全局多源看板**<br>仅能单独展示单订阅信息 | SubHub 实时掌握所有资产的流量与续费状态 |
+| **分流与 GeoSite 体系** | ✅ **11 万+ 原生内置 GeoSite:cn**<br>五层金字塔专线 + TUN 防环路死锁 | ⚠️ 需手动编写复杂分流规则文件 | 国内外生态彻底分流，永不卡顿 |
 | **优选候选池深度定制** | ✅ **全维度定制工作台**<br>逐节点打勾排除 + 港日新美圈定 + 关键词过滤 | ⚠️ 需手动编写复杂正则算子 | 自由控制参与测速与故障转移的节点池 |
 | **惰性测速 (Lazy Test)** | ✅ **全面启用 `lazy: true`**<br>彻底消除跨组重复测速拥塞 | ⚠️ 视客户端与配置而定 | 客户端一键测速响应提升数倍 |
 | **通用智能客户端自适应** | ✅ **单一直链 (`/api/sub`)**<br>自动嗅探 User-Agent 智能下发对应格式 | ❌ 需在 URL 显式指定参数<br>`?target=clash` / `?target=sing-box` | 无论什么客户端，只需复制一个通用直链即可 |
-| **国旗注入与地区定位** | ✅ **全自动流水线**<br>关键字匹配 + 离线定位 + 广告倍率清洗 | ✅ 支持（需自行配置组合算子） | 即使节点名无任何地区信息，也能精准识别国旗 |
 | **多用户权限与隐私隔离** | ✅ **企业级 RBAC 多租户**<br>管理员**零知识隐私**（不可窥视普通用户节点） | ❌ 默认单用户模式<br>无细粒度多租户隔离与账号管理 | 适合多人/团队/家庭私有化共用部署 |
-
----
-
-## ✨ 核心功能特性
-
-### 1. 🌐 通用智能客户端自适应（Smart Adaptive URL）
-对外提供唯一的终身固定订阅直链：
-```
-https://你的域名/api/sub?token=你的专属Token
-```
-- **智能嗅探**：服务端根据请求头的 `User-Agent` 自动识别客户端（Clash Verge、Mihomo Party、Sing-Box、Surge、Shadowrocket、Stash、Quantumult X 等），毫秒级下发完美匹配的配置格式；
-- **全格式支持**：
-  - 🐱 **Clash / Mihomo**：自动输出规范 YAML 配置（包含 Proxy-Groups、Rules、DNS 配置、`Content-Disposition` 协议头）；
-  - 📦 **Sing-Box**：自动生成 `sing-box.json` Outbounds 结构；
-  - ⚡ **Surge**：自动下发 `surge.list` 代理列表；
-  - 🚀 **Shadowrocket / v2rayN**：自动下发 Base64 统一节点直链。
-
-### 2. 🎯 全局自动优选 (URLTest) 候选池深度定制
-- **逐节点打勾排除**：在「查看节点」列表中，为每个节点提供「⚡ 优选 / 🚫 排除」切换开关；
-- **按地区一键圈定**：一键限定仅在常用四国（**🇭🇰 港 / 🇯🇵 日 / 🇸🇬 新 / 🇺🇸 美**）节点中优选测速，排除冷门慢速节点；
-- **关键词智能包含/排除**：支持输入 `专线|高速|01` 包含规则或 `2x|3x|高倍率` 排除规则。
-
-### 3. 🧹 纯净主控选择与惰性测速优化
-- **纯净主控架构**：「🚀 节点选择」内部彻底移出冗余的故障转移项，仅保留自动优选、地区组、订阅源与具体节点；
-- **⚡ 全面开启 `lazy: true`**：杜绝客户端在多个策略组中对同一节点重复并发探测，测速秒级响应、不卡顿。
 
 ---
 
@@ -160,14 +146,15 @@ https://你的域名/api/sub?token=你的专属Token
 
 | 客户端类型 | 支持平台 | 推荐获取直链方式 | 特性说明 |
 | :--- | :--- | :--- | :--- |
-| **Clash Verge Rev / Mihomo Party** | macOS / Windows / Linux | 复制自适应直链 (`/api/sub?token=...`) | 完美支持场景分流、自动优选、DNS 防污染 |
-| **Clash Mi / Clash Nyanpasu** | macOS / Windows / Android | 复制自适应直链 (`/api/sub?token=...`) | 原生 YAML 配置解析 |
+| **Clash Verge Rev / Mihomo Party** | macOS / Windows / Linux | 复制自适应直链 (`/api/sub?token=...`) | 完美支持场景分流、自动优选、DoH 解析、TUN 防环路 |
+| **Clash Mi / Clash Nyanpasu** | iOS / Android / macOS / Windows | 复制自适应直链 (`/api/sub?token=...`) | 原生 YAML 配置解析，11 万+ 国内生态极速直连 |
 | **Sing-Box** | 全平台 (iOS / Android / PC) | `/api/sing-box.json` 或自适应直链 | 自动生成 Outbounds 节点池与分流模板 |
 | **Surge** | iOS / macOS | `/api/surge.list` 或自适应直链 | 自动导出标准 Surge Proxy List |
-| **Shadowrocket / Quantumult X** | iOS | `/api/base64` 或自适应直链 | 智能识别并下发 Base64 协议流 |
+| **Shadowrocket / Quantumult X** | iOS | `/api/base64` 或自适应直链 | 智能识别并下发 Base64 统一协议流 |
 
 ---
 
 ## 📄 开源许可证
 
 本项目基于 [MIT License](LICENSE) 协议开源。欢迎 Star ⭐️ 与提交 PR 贡献代码！
+
