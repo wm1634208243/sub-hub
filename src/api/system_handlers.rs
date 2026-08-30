@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.1.5",
+            "tag": "v2.1.5",
+            "name": "SubHub v2.1.5 · 服务器快照异常修复与自动同步载入机制",
+            "publishedAt": "2026-08-30T03:15:18.260Z",
+            "highlights": [
+                "🛡️ 修复快照创建异常：修复前端管理员身份鉴权变量引用异常（userRole is not defined）",
+                "⚡ 自动快照同步：进入设置页及管理员登录时自动异步拉取服务器端最新快照归档矩阵",
+                "📋 审计日志移动端流式卡片：全面适配各类手机屏幕，彻底解决文字竖排折行"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.1.5 发布\n- **修复快照创建/刷新异常**：修复前端状态中 `userRole` 引用错误，切换为 `currentUser.role`，彻底解决点击「立即生成快照」时提示 `userRole is not defined` 的问题；\n- **自动快照同步载入**：管理员登录与切换至设置 Tab 时，自动静默同步拉取云端快照矩阵并刷新留存数；\n- **移动端全场景排版深度优化**：日志卡片、快照列表与顶部水平滑动导航条全面支持小屏触控体验。"
+        }),
+        serde_json::json!({
             "version": "2.1.4",
             "tag": "v2.1.4",
             "name": "SubHub v2.1.4 · 审计日志移动端卡片式重构与静态优先机制",

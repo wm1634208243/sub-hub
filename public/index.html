@@ -6088,8 +6088,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.1.4',
-          latestVersion: '2.1.4',
+          currentVersion: '2.1.5',
+          latestVersion: '2.1.5',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -7537,7 +7537,7 @@ function main(config, profileName) {
         const creatingBackup = ref(false);
 
         const fetchServerBackups = async () => {
-          if (userRole.value !== 'admin') return;
+          if (currentUser.value?.role !== 'admin') return;
           loadingBackups.value = true;
           try {
             const res = await fetch('/api/admin/backups', {
@@ -8461,9 +8461,10 @@ function main(config, profileName) {
           } else if (newTab === 'logs') {
             loadLogs();
           } else if (newTab === 'users' || newTab === 'settings') {
-            if (currentUser.value.role === 'admin') {
+            if (currentUser.value?.role === 'admin') {
               loadAdminUsers();
               loadSystemSettings();
+              fetchServerBackups();
             }
           }
         });
@@ -8491,8 +8492,9 @@ function main(config, profileName) {
             }
             await loadConfig();
             loadSystemSettings();
-            if (currentUser.value.role === 'admin') {
+            if (currentUser.value?.role === 'admin') {
               loadAdminUsers();
+              fetchServerBackups();
             }
             fetchVersionInfo(true, false); // 仅加载本地版本元信息，不自动发起远端检查
           }
@@ -8511,6 +8513,7 @@ function main(config, profileName) {
                 if (data.role === 'admin') {
                   loadAdminUsers();
                   loadSystemSettings();
+                  fetchServerBackups();
                 }
               }
             } else if (res.status === 401 || res.status === 403) {
