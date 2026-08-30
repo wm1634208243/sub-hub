@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.3",
+            "tag": "v2.4.3",
+            "name": "SubHub v2.4.3 · 全网万级 GeoSite 规则库原生集成，国内 11 万+ 全域应用免配置自动直连",
+            "publishedAt": "2026-08-30T09:43:33.083Z",
+            "highlights": [
+                "🌐 原生集成 GEOSITE,cn 权威规则库（111,197+ 条国内全量域名/应用/CDN全覆盖）",
+                "🎯 场景专线与直连矩阵全面升级为 GeoSite + GeoIP + 进程深度协同引擎",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.3 发布\n- **万级 GeoSite 规则库原生集成**：一劳永逸接入 11 万+ 国内应用与网站完整分流数据库，再也无需手动修修补补；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.2",
             "tag": "v2.4.2",
             "name": "SubHub v2.4.2 · 字节/抖音全生态与国内流媒体全域直连，彻底解决抖音打不开",

@@ -387,16 +387,23 @@ pub async fn aggregate_clash_yaml(
 
     // Scenario rules (Dedicated application routes take precedence over generic proxy rules)
     if config.enable_ai_group {
+        rules.push("GEOSITE,openai,🤖 AI 专线".into());
+        rules.push("GEOSITE,anthropic,🤖 AI 专线".into());
         for d in &["openai.com", "chatgpt.com", "anthropic.com", "claude.ai", "oaistatic.com", "oaiusercontent.com", "gemini.google.com", "x.ai", "grok.com", "mistral.ai", "copilot.microsoft.com", "perplexity.ai"] {
             rules.push(format!("DOMAIN-SUFFIX,{},🤖 AI 专线", d));
         }
     }
     if config.enable_media_group {
+        rules.push("GEOSITE,youtube,🎬 国际流媒体".into());
+        rules.push("GEOSITE,netflix,🎬 国际流媒体".into());
+        rules.push("GEOSITE,disney,🎬 国际流媒体".into());
+        rules.push("GEOSITE,spotify,🎬 国际流媒体".into());
         for d in &["youtube.com", "googlevideo.com", "ytimg.com", "netflix.com", "nflxvideo.net", "disneyplus.com", "spotify.com", "hulu.com", "hbo.com", "max.com", "primevideo.com", "bilibili.tv", "bahamut.com.tw"] {
             rules.push(format!("DOMAIN-SUFFIX,{},🎬 国际流媒体", d));
         }
     }
     if config.enable_telegram_group {
+        rules.push("GEOSITE,telegram,📲 Telegram".into());
         for ip in &["91.108.4.0/22", "91.108.8.0/22", "91.108.12.0/22", "91.108.16.0/22", "91.108.20.0/22", "91.108.56.0/22", "149.154.160.0/20", "149.154.164.0/22", "149.154.168.0/22", "149.154.172.0/22"] {
             rules.push(format!("IP-CIDR,{},📲 Telegram{}", ip, no_resolve));
         }
@@ -405,11 +412,15 @@ pub async fn aggregate_clash_yaml(
         }
     }
     if config.enable_game_group {
+        rules.push("GEOSITE,steam,🎮 游戏平台".into());
+        rules.push("GEOSITE,epicgames,🎮 游戏平台".into());
         for d in &["steampowered.com", "steamcommunity.com", "steamgames.com", "epicgames.com", "ea.com", "origin.com", "playstation.com", "playstation.net", "xboxlive.com", "battle.net", "riotgames.com"] {
             rules.push(format!("DOMAIN-SUFFIX,{},🎮 游戏平台", d));
         }
     }
     if config.enable_apple_group {
+        rules.push("GEOSITE,apple,🍎 Apple / 微软".into());
+        rules.push("GEOSITE,microsoft,🍎 Apple / 微软".into());
         for d in &["apple.com", "icloud.com", "itunes.com", "apple-cloudkit.com", "microsoft.com", "windowsupdate.com", "office.com", "live.com", "azure.com"] {
             rules.push(format!("DOMAIN-SUFFIX,{},🍎 Apple / 微软", d));
         }
@@ -431,6 +442,8 @@ pub async fn aggregate_clash_yaml(
 
     // 3.5 Domestic common domains directly to DIRECT (Zero-delay, zero-download, instantaneous startup)
     if config.enable_geo_site_cn {
+        rules.push("GEOSITE,private,DIRECT".into());
+        rules.push("GEOSITE,cn,DIRECT".into());
         for d in &[
             "cn",
             // ByteDance / Douyin full ecosystem
