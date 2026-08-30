@@ -3011,16 +3011,16 @@
         <!-- Tab 4: 访问与运行审计日志 (Access & Audit Logs) -->
         <!-- ========================================== -->
         <div v-show="activeTab === 'logs'" class="space-y-4">
-          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-800">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-slate-800">
               <div class="space-y-0.5">
-                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2 flex-wrap">
                   <span>📋 平台访问与运行审计日志</span>
-                  <span class="text-[10px] bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-2 py-0.5 rounded-full font-mono font-normal">持久化留存 · {{ logs.length }} 条记录</span>
+                  <span class="text-[10px] bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 px-2 py-0.5 rounded-full font-mono font-normal">留存 · {{ logs.length }} 条记录</span>
                 </h3>
-                <p class="text-xs text-slate-400">实时记录客户端订阅/脚本拉取、后台节点定时同步、配置发布与登录安全事件</p>
+                <p class="text-[11px] sm:text-xs text-slate-400">实时记录客户端订阅拉取、后台节点同步、配置发布与登录安全事件</p>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <button 
                   @click="loadLogs" 
                   class="bg-slate-800 hover:bg-slate-700 text-xs text-cyan-400 px-3.5 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
@@ -3048,86 +3048,165 @@
               </p>
             </div>
 
-            <!-- 日志列表表格 -->
-            <div v-else class="overflow-x-auto">
-              <table class="w-full text-left text-xs font-sans">
-                <thead>
-                  <tr class="text-slate-400 border-b border-slate-800 pb-2">
-                    <th class="py-3 px-3 font-semibold whitespace-nowrap">时间</th>
-                    <th class="py-3 px-3 font-semibold whitespace-nowrap">事件 / 接口类型</th>
-                    <th class="py-3 px-3 font-semibold whitespace-nowrap">状态</th>
-                    <th class="py-3 px-3 font-semibold whitespace-nowrap">客户端 IP</th>
-                    <th class="py-3 px-3 font-semibold">详细说明与客户端标识 (UA)</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-800/60 font-mono">
-                  <tr v-for="item in logs" :key="item.id || item.time" class="hover:bg-slate-800/30 transition-colors">
-                    <!-- 时间 -->
-                    <td class="py-3 px-3 text-cyan-300 whitespace-nowrap text-[11px]">
-                      {{ formatFullTime(item.time) }}
-                    </td>
-
-                    <!-- 类型 Badge -->
-                    <td class="py-3 px-3 whitespace-nowrap font-sans text-xs">
-                      <span v-if="(item.type || '').includes('JS')" class="bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-md font-medium">
+            <!-- 日志列表 (桌面端大表格 + 移动端自适应卡片) -->
+            <div v-else>
+              <!-- 移动端专属日志卡片列表 (block md:hidden) -->
+              <div class="space-y-3 block md:hidden">
+                <div 
+                  v-for="item in logs" 
+                  :key="item.id || item.time" 
+                  class="bg-slate-950/80 rounded-2xl border border-slate-800/80 p-3.5 space-y-2.5 shadow-sm"
+                >
+                  <!-- 顶部信息栏：类型、状态与时间 -->
+                  <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <!-- 类型 Badge -->
+                      <span v-if="(item.type || '').includes('JS')" class="bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else-if="(item.type || '').includes('Clash')" class="bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else-if="(item.type || '').includes('Clash')" class="bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else-if="(item.type || '').includes('智能')" class="bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else-if="(item.type || '').includes('智能')" class="bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else-if="(item.type || '').includes('Base64')" class="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else-if="(item.type || '').includes('Base64')" class="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else-if="(item.type || '').includes('Sing-Box')" class="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else-if="(item.type || '').includes('Sing-Box')" class="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else-if="(item.type || '').includes('Surge')" class="bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else-if="(item.type || '').includes('Surge')" class="bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else-if="(item.type || '').includes('同步')" class="bg-teal-500/15 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else-if="(item.type || '').includes('同步')" class="bg-teal-500/15 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else-if="(item.type || '').includes('登录') || (item.type || '').includes('注册')" class="bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else-if="(item.type || '').includes('登录') || (item.type || '').includes('注册')" class="bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type }}
                       </span>
-                      <span v-else class="bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md font-medium">
+                      <span v-else class="bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md font-medium text-[11px]">
                         {{ item.type || '🌐 订阅拉取' }}
                       </span>
-                    </td>
 
-                    <!-- 状态 -->
-                    <td class="py-3 px-3 whitespace-nowrap">
-                      <span v-if="!item.status || item.status === 200" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[11px] font-semibold">
+                      <!-- 状态 Badge -->
+                      <span v-if="!item.status || item.status === 200" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.2 rounded text-[10px] font-semibold font-mono">
                         200 OK
                       </span>
-                      <span v-else-if="item.status === 403" class="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded text-[11px] font-semibold">
+                      <span v-else-if="item.status === 403" class="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1.5 py-0.2 rounded text-[10px] font-semibold font-mono">
                         403 拒绝
                       </span>
-                      <span v-else class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[11px] font-semibold">
+                      <span v-else class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.2 rounded text-[10px] font-semibold font-mono">
                         {{ item.status }} 异常
                       </span>
-                    </td>
+                    </div>
 
-                    <!-- IP -->
-                    <td class="py-3 px-3 text-emerald-400 font-semibold whitespace-nowrap text-xs">
-                      {{ item.ip }}
-                    </td>
+                    <!-- 时间 -->
+                    <span class="text-cyan-400 font-mono text-[10px] shrink-0">
+                      {{ formatFullTime(item.time) }}
+                    </span>
+                  </div>
 
-                    <!-- 详情与 UA -->
-                    <td class="py-3 px-3 max-w-md break-all font-sans">
-                      <div v-if="item.detail" class="text-slate-200 font-medium text-xs mb-0.5">
-                        {{ item.detail }}
-                      </div>
-                      <div class="text-[11px] text-slate-400 font-mono break-all">
-                        {{ item.ua }}
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                  <!-- 客户端 IP -->
+                  <div class="flex items-center gap-1.5 text-xs">
+                    <span class="text-slate-500 text-[11px]">客户端 IP:</span>
+                    <span class="font-mono font-semibold text-emerald-400 text-xs">{{ item.ip }}</span>
+                  </div>
+
+                  <!-- 详细说明 -->
+                  <div v-if="item.detail" class="text-slate-200 text-xs font-medium leading-relaxed bg-slate-900/80 p-2.5 rounded-xl border border-slate-800/80">
+                    {{ item.detail }}
+                  </div>
+
+                  <!-- 客户端标识 UA -->
+                  <div v-if="item.ua" class="text-[10px] text-slate-400 font-mono break-all bg-black/40 p-2 rounded-xl border border-slate-800/50 leading-relaxed">
+                    <span class="text-slate-500 select-none block mb-0.5 font-sans text-[9px]">客户端标识 (UA):</span>
+                    {{ item.ua }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- 桌面端宽表格 (hidden md:block) -->
+              <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-left text-xs font-sans">
+                  <thead>
+                    <tr class="text-slate-400 border-b border-slate-800 pb-2">
+                      <th class="py-3 px-3 font-semibold whitespace-nowrap">时间</th>
+                      <th class="py-3 px-3 font-semibold whitespace-nowrap">事件 / 接口类型</th>
+                      <th class="py-3 px-3 font-semibold whitespace-nowrap">状态</th>
+                      <th class="py-3 px-3 font-semibold whitespace-nowrap">客户端 IP</th>
+                      <th class="py-3 px-3 font-semibold">详细说明与客户端标识 (UA)</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-800/60 font-mono">
+                    <tr v-for="item in logs" :key="item.id || item.time" class="hover:bg-slate-800/30 transition-colors">
+                      <!-- 时间 -->
+                      <td class="py-3 px-3 text-cyan-300 whitespace-nowrap text-[11px]">
+                        {{ formatFullTime(item.time) }}
+                      </td>
+
+                      <!-- 类型 Badge -->
+                      <td class="py-3 px-3 whitespace-nowrap font-sans text-xs">
+                        <span v-if="(item.type || '').includes('JS')" class="bg-purple-500/15 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else-if="(item.type || '').includes('Clash')" class="bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else-if="(item.type || '').includes('智能')" class="bg-blue-500/15 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else-if="(item.type || '').includes('Base64')" class="bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else-if="(item.type || '').includes('Sing-Box')" class="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else-if="(item.type || '').includes('Surge')" class="bg-rose-500/15 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else-if="(item.type || '').includes('同步')" class="bg-teal-500/15 text-teal-300 border border-teal-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else-if="(item.type || '').includes('登录') || (item.type || '').includes('注册')" class="bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type }}
+                        </span>
+                        <span v-else class="bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded-md font-medium">
+                          {{ item.type || '🌐 订阅拉取' }}
+                        </span>
+                      </td>
+
+                      <!-- 状态 -->
+                      <td class="py-3 px-3 whitespace-nowrap">
+                        <span v-if="!item.status || item.status === 200" class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[11px] font-semibold">
+                          200 OK
+                        </span>
+                        <span v-else-if="item.status === 403" class="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded text-[11px] font-semibold">
+                          403 拒绝
+                        </span>
+                        <span v-else class="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-[11px] font-semibold">
+                          {{ item.status }} 异常
+                        </span>
+                      </td>
+
+                      <!-- IP -->
+                      <td class="py-3 px-3 text-emerald-400 font-semibold whitespace-nowrap text-xs">
+                        {{ item.ip }}
+                      </td>
+
+                      <!-- 详情与 UA -->
+                      <td class="py-3 px-3 max-w-md break-all font-sans">
+                        <div v-if="item.detail" class="text-slate-200 font-medium text-xs mb-0.5">
+                          {{ item.detail }}
+                        </div>
+                        <div class="text-[11px] text-slate-400 font-mono break-all">
+                          {{ item.ua }}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -6009,8 +6088,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.1.3',
-          latestVersion: '2.1.3',
+          currentVersion: '2.1.4',
+          latestVersion: '2.1.4',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
