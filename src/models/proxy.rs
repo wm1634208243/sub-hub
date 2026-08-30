@@ -45,6 +45,8 @@ pub struct ProxyNode {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flow: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub insecure: Option<bool>,
     // Internal metadata
     #[serde(skip)]
@@ -80,6 +82,7 @@ impl Default for ProxyNode {
             h2_opts: None,
             http_opts: None,
             auth: None,
+            flow: None,
             insecure: None,
             default_region: None,
             raw_name: None,

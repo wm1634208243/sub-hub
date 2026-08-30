@@ -58,6 +58,19 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.0",
+            "tag": "v2.2.0",
+            "name": "SubHub v2.2.0 · 四大操作系统（iOS/Android/macOS/Windows）多端全内核深度兼容体系",
+            "publishedAt": "2026-08-30T03:53:08.479Z",
+            "highlights": [
+                "🍏 iOS / macOS 深度兼容：彻底适配 iOS ClashMi (libclash.go)、Surge、Shadowrocket、Stash、Quantumult X 与 Loon",
+                "🤖 Android 深度兼容：完美支持 Clash for Android、Sing-box SFA、NekoBox、Karing、Flclash",
+                "💻 Windows / Linux 深度兼容：深度适配 Clash Verge Rev、Clash Nyanpasu、Mihomo Party、v2rayN 与 ShellCrash",
+                "🌐 智能 UA 内容协商与协议转换：全协议（Clash YAML / Sing-box JSON / Surge List / Base64）毫秒级自适应下发"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.0 发布\n- **四大系统深度适配**：全面重构协议转换层与节点兼容规范，完美覆盖 iOS、Android、macOS、Windows 各类内核（libclash、Mihomo、Clash.Meta、Sing-box、Surge、Shadowrocket）；\n- **Sing-Box 原生配置升级**：支持 VLESS Reality、WS/gRPC 传输、自动测速组与国内分流规则全套标准 JSON 输出；\n- **Surge 策略列表完善**：支持 VLESS、Trojan、Shadowsocks、VMess 策略规范；\n- **流量状态全平台透传**：标准 `Subscription-Userinfo` 协议头 + 通用状态提示节点置顶，跨平台无缝掌握配额。"
+        }),
+        serde_json::json!({
             "version": "2.1.9",
             "tag": "v2.1.9",
             "name": "SubHub v2.1.9 · 修复 iOS libclash 客户端兼容性与通用状态节点",
