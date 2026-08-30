@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.6",
+            "tag": "v2.3.6",
+            "name": "SubHub v2.3.6 · 自动优选按地区圈定与节点明细一键排除/加入深度打通",
+            "publishedAt": "2026-08-30T07:02:36.943Z",
+            "highlights": [
+                "🎯 自动优选地区圈定与单节点精细化排除全链路打通",
+                "📋 节点明细抽屉实时呈现带国旗与清洗后的完整名称",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.6 发布\n- **自动优选精细化控制**：完善了 Web 抽屉单节点排除与地区限定的匹配容错，支持任意灵活组合；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.3.5",
             "tag": "v2.3.5",
             "name": "SubHub v2.3.5 · 每个真实节点无缝内嵌所属订阅源流量与到期状态",

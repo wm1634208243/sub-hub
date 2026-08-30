@@ -196,10 +196,19 @@ pub async fn aggregate_clash_yaml(
     }
 
     // 2. Candidate Pool Filtering for URLTest & Fallback
-    let excluded_set: HashSet<String> = config.excluded_auto_test_nodes.iter().cloned().collect();
+    let excluded_list: Vec<String> = config.excluded_auto_test_nodes.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+    let is_excluded = |candidate: &str| -> bool {
+        for exc in &excluded_list {
+            if exc == candidate || candidate.starts_with(exc) || exc.starts_with(candidate) || candidate.contains(exc) {
+                return true;
+            }
+        }
+        false
+    };
+
     let mut auto_test_candidates: Vec<String> = all_node_names
         .iter()
-        .filter(|name| !excluded_set.contains(*name))
+        .filter(|name| !is_excluded(name))
         .cloned()
         .collect();
 

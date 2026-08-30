@@ -161,14 +161,22 @@ pub async fn inspect_nodes_handler(
 
     let mut nodes_json = Vec::new();
     for node in &res.nodes {
-        let region = crate::engine::renamer::detect_node_primary_region(&node.name, &node.server, sub.default_region.as_deref());
+        let formatted = crate::engine::renamer::format_node_name(
+            &node.name,
+            &node.server,
+            cfg.enable_auto_flags,
+            cfg.enable_clean_ad_and_rate,
+            &cfg.custom_rename_rules,
+            sub.default_region.as_deref(),
+        );
+        let region = crate::engine::renamer::detect_node_primary_region(&formatted, &node.server, sub.default_region.as_deref());
         let (country_code, country_name, country_flag) = match region {
             Some(r) => (r.code.to_string(), r.name.to_string(), r.flag.to_string()),
             None => ("UN".into(), "其它".into(), "🌐".into()),
         };
 
         nodes_json.push(serde_json::json!({
-            "name": node.name,
+            "name": formatted,
             "type": node.node_type.to_uppercase(),
             "server": node.server,
             "port": node.port,
