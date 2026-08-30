@@ -85,6 +85,19 @@
       cursor: pointer;
       z-index: 5;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @media (max-width: 640px) {
+      .CodeMirror {
+        height: 420px;
+        font-size: 12px;
+      }
+    }
     [v-cloak] {
       display: none !important;
     }
@@ -272,24 +285,24 @@
     <div v-else class="flex-1 flex flex-col">
       <!-- 顶部导航栏 -->
       <header class="bg-slate-900/95 backdrop-blur border-b border-slate-800/80 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           <!-- Logo & 品牌版本区 -->
-          <div class="flex items-center gap-2.5 shrink-0">
-            <div class="w-10 h-10 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-md shadow-cyan-500/25 shrink-0">
-              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-md shadow-cyan-500/25 shrink-0">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             </div>
-            <div class="hidden sm:flex flex-col justify-center">
+            <div class="flex flex-col justify-center">
               <div class="flex items-center gap-1.5">
-                <span class="font-bold text-white tracking-wide text-sm leading-none whitespace-nowrap">Sub Hub</span>
+                <span class="font-bold text-white tracking-wide text-xs sm:text-sm leading-none whitespace-nowrap">Sub Hub</span>
                 <button 
                   @click="openVersionModal" 
-                  class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
+                  class="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 font-mono transition-all cursor-pointer leading-tight flex items-center gap-1"
                   title="点击查看版本与手动检查更新"
                 >
                   <span>v{{ versionInfo.currentVersion || '2.0.0' }}</span>
                 </button>
               </div>
-              <div class="flex items-center gap-1 mt-1">
+              <div class="hidden sm:flex items-center gap-1 mt-1">
                 <a 
                   :href="versionInfo.repoUrl || 'https://github.com/wm1634208243/sub-hub'" 
                   target="_blank" 
@@ -297,14 +310,14 @@
                   title="⭐️ 前往 GitHub 仓库并 Star 支持"
                 >
                   <svg class="w-3 h-3 text-slate-500 group-hover:text-cyan-300 transition-colors" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
-                  <span class="font-mono">GitHub 仓库</span>
+                  <span class="font-mono">GitHub</span>
                 </a>
               </div>
             </div>
           </div>
 
-          <!-- 导航 Tabs (精简文案 + 始终单行防折行) -->
-          <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto custom-scrollbar shrink min-w-0">
+          <!-- 桌面端导航 Tabs (md 及以上显示在 Header) -->
+          <div class="hidden md:flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto custom-scrollbar shrink min-w-0">
             <button 
               @click="activeTab = 'subs'" 
               :class="activeTab === 'subs' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-slate-400 hover:text-white'"
@@ -356,11 +369,11 @@
           <!-- 右侧操作栏 (防折行，精简排版) -->
           <div class="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
 
-            <!-- 导入/导出 工具胶囊 -->
-            <div class="hidden md:flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 gap-1 shrink-0">
+            <!-- 导入/导出 工具胶囊 (桌面端) -->
+            <div class="hidden lg:flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1 gap-1 shrink-0">
               <button 
                 @click="openJsImportModal" 
-                class="px-2.5 py-1 text-cyan-400 hover:text-cyan-300 hover:bg-slate-900 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all cursor-pointer"
+                class="px-2 py-1 text-cyan-400 hover:text-cyan-300 hover:bg-slate-900 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1 transition-all cursor-pointer"
                 title="从外部 JS 脚本提取规则导入 GUI"
               >
                 <span>📥 导入 JS</span>
@@ -386,62 +399,108 @@
             <button 
               v-if="currentUser.isGuest"
               @click="showPromoteModal = true"
-              class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
+              class="hidden sm:flex items-center gap-1 px-2.5 py-1.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-sm"
               title="将当前本地配置一键升级为云端账号"
             >
-              <span>☁️</span>
-              <span>注册并同步至云端</span>
+              <span>☁️ 同步云端</span>
             </button>
 
             <!-- 用户身份胶囊 / 离线访客胶囊 -->
-            <div v-if="currentUser.isGuest" class="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs whitespace-nowrap shrink-0">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span class="font-semibold text-emerald-300">纯离线访客</span>
-              <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 font-mono">0云存储</span>
+            <div v-if="currentUser.isGuest" class="flex items-center gap-1.5 px-2 py-1 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-xs whitespace-nowrap shrink-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="font-semibold text-emerald-300 text-xs">访客</span>
             </div>
             <button 
               v-else
               @click="openPwdModal" 
-              class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-xs whitespace-nowrap shrink-0 transition-all cursor-pointer"
+              class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl text-xs whitespace-nowrap shrink-0 transition-all cursor-pointer"
               title="点击修改当前账户密码"
             >
               <span class="w-2 h-2 rounded-full" :class="currentUser.role === 'admin' ? 'bg-amber-400' : 'bg-cyan-400'"></span>
-              <span class="font-semibold text-slate-200">{{ currentUser.username }}</span>
-              <span class="text-[10px] text-cyan-300 bg-cyan-500/10 px-1.5 py-0.2 rounded border border-cyan-500/20 font-medium">🔑 改密</span>
+              <span class="font-semibold text-slate-200 text-xs truncate max-w-[65px] sm:max-w-[120px]">{{ currentUser.username }}</span>
             </button>
 
             <!-- 放弃修改按钮 (仅在有未保存修改时展示) -->
             <button 
               v-if="isDirty"
               @click="discardUnsavedChanges" 
-              class="text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 font-medium px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
+              class="text-slate-400 hover:text-rose-400 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 font-medium px-2 sm:px-3 py-1 sm:py-2 rounded-xl text-xs flex items-center gap-1 transition-all whitespace-nowrap shrink-0 cursor-pointer"
               title="放弃当前未保存的修改，恢复到上一次保存的设置"
             >
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2m0 0l-4-4m4 4l4-4M3 10l4-4m-4 4l4 4"/></svg>
-              <span>放弃修改</span>
+              <span class="hidden sm:inline">放弃</span>
             </button>
 
             <!-- 保存并发布按钮 -->
             <button 
               @click="saveConfig()" 
               :disabled="saving"
-              class="relative bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-60 text-white font-semibold px-3.5 sm:px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all whitespace-nowrap shrink-0 cursor-pointer"
+              class="relative bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-60 text-white font-semibold px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 transition-all whitespace-nowrap shrink-0 cursor-pointer"
             >
               <span v-if="isDirty" class="w-2 h-2 rounded-full bg-amber-400 absolute -top-0.5 -right-0.5 animate-ping"></span>
               <span v-if="isDirty" class="w-2 h-2 rounded-full bg-amber-400 absolute -top-0.5 -right-0.5"></span>
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-              <span>{{ saving ? (storageMode === 'local' ? '本地保存中...' : '发布中...') : (storageMode === 'local' ? '保存本地' : '保存发布') }}</span>
+              <span>{{ saving ? '保存中' : (storageMode === 'local' ? '保存' : '保存发布') }}</span>
             </button>
 
             <!-- 退出登录 / 退出离线工作台 -->
             <button 
               @click="logout" 
-              class="text-slate-400 hover:text-rose-400 p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+              class="text-slate-400 hover:text-rose-400 p-1.5 sm:p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
               :title="currentUser.isGuest ? '退出离线工作台' : '退出登录'"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
             </button>
           </div>
+        </div>
+
+        <!-- 移动端专属二级平滑水平滚动 Tab 导航条 (md:hidden) -->
+        <div class="md:hidden flex items-center bg-slate-950/90 border-t border-slate-800/80 px-2 py-1.5 overflow-x-auto no-scrollbar gap-1.5 scroll-smooth">
+          <button 
+            @click="activeTab = 'subs'" 
+            :class="activeTab === 'subs' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm' : 'text-slate-400 bg-slate-900 border border-slate-800/80'"
+            class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+          >
+            <span>🛰️ 订阅聚合</span>
+            <span v-if="(config.subscriptions || []).length > 0" class="text-[9px] bg-cyan-500/30 text-cyan-200 px-1 rounded-full font-mono">
+              {{ (config.subscriptions || []).length }}
+            </span>
+          </button>
+          <button 
+            @click="activeTab = 'gui'" 
+            :class="activeTab === 'gui' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm' : 'text-slate-400 bg-slate-900 border border-slate-800/80'"
+            class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all cursor-pointer shrink-0"
+          >
+            🎨 规则分流
+          </button>
+          <button 
+            @click="activeTab = 'editor'" 
+            :class="activeTab === 'editor' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm' : 'text-slate-400 bg-slate-900 border border-slate-800/80'"
+            class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all cursor-pointer shrink-0"
+          >
+            💻 JS 脚本
+          </button>
+          <button 
+            @click="activeTab = 'clients'" 
+            :class="activeTab === 'clients' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm' : 'text-slate-400 bg-slate-900 border border-slate-800/80'"
+            class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all cursor-pointer shrink-0"
+          >
+            📱 客户端接入
+          </button>
+          <button 
+            @click="activeTab = 'logs'" 
+            :class="activeTab === 'logs' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm' : 'text-slate-400 bg-slate-900 border border-slate-800/80'"
+            class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all cursor-pointer shrink-0"
+          >
+            📋 日志
+          </button>
+          <button 
+            @click="activeTab = 'settings'" 
+            :class="activeTab === 'settings' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40 shadow-sm' : 'text-slate-400 bg-slate-900 border border-slate-800/80'"
+            class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all cursor-pointer shrink-0"
+          >
+            ⚙️ 设置
+          </button>
         </div>
       </header>
 
@@ -3333,7 +3392,8 @@
                 </button>
               </div>
 
-              <div class="overflow-x-auto">
+              <!-- 桌面端表格视图 (md 及以上) -->
+              <div class="hidden md:block overflow-x-auto">
                 <table class="w-full text-left text-xs">
                   <thead>
                     <tr class="text-slate-400 border-b border-slate-800 font-medium">
@@ -3430,6 +3490,93 @@
                     </tr>
                   </tbody>
                 </table>
+              </div>
+
+              <!-- 移动端专属用户卡片列表 (md:hidden) -->
+              <div class="block md:hidden space-y-3">
+                <div v-if="adminUsers.length === 0" class="py-6 text-center text-slate-500 text-xs">
+                  <div v-if="loadingUsers" class="inline-flex items-center gap-2 text-cyan-400">
+                    <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <span>正在加载用户列表...</span>
+                  </div>
+                  <div v-else>暂无平台用户数据</div>
+                </div>
+
+                <div 
+                  v-for="u in adminUsers" 
+                  :key="u.username" 
+                  class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2.5"
+                  :class="{ 'opacity-70 border-rose-500/30 bg-rose-950/10': u.disabled }"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      <span class="font-bold text-white text-xs truncate">{{ u.username }}</span>
+                      <span v-if="u.username === currentUser.username" class="text-[9px] text-cyan-400 bg-cyan-500/10 px-1 py-0.2 rounded border border-cyan-500/20 shrink-0">当前</span>
+                      <span v-if="u.disabled" class="text-[9px] text-rose-400 bg-rose-500/10 px-1 py-0.2 rounded border border-rose-500/20 shrink-0">封禁</span>
+                    </div>
+
+                    <!-- 角色选择 -->
+                    <div>
+                      <select 
+                        v-if="u.username !== currentUser.username"
+                        v-model="u.role" 
+                        @change="updateUserRole(u)"
+                        class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan-500"
+                      >
+                        <option value="user">👤 普通用户</option>
+                        <option value="admin">👑 管理员</option>
+                      </select>
+                      <span v-else class="text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded text-xs">
+                        👑 管理员
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 状态与到期日 -->
+                  <div class="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-slate-900">
+                    <div>
+                      <span v-if="u.disabled" class="text-rose-400 text-[11px]">
+                        🔴 {{ u.disabledUntil ? '临时禁用 (' + formatBanCountdown(u.disabledUntil) + ')' : '永久禁用' }}
+                      </span>
+                      <span v-else class="text-emerald-400 text-[11px]">🟢 状态正常</span>
+                    </div>
+                    <div class="text-[11px]">
+                      <span v-if="u.tokenExpiresAt" class="text-amber-300">到期: {{ formatDate(u.tokenExpiresAt) }}</span>
+                      <span v-else class="text-emerald-400">永久有效</span>
+                    </div>
+                  </div>
+
+                  <!-- 操作按钮行 -->
+                  <div class="flex items-center gap-1.5 pt-2 border-t border-slate-900">
+                    <button 
+                      v-if="u.username !== currentUser.username && u.disabled"
+                      @click="unbanUser(u)" 
+                      class="flex-1 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold cursor-pointer text-center"
+                    >
+                      🟢 解禁
+                    </button>
+                    <button 
+                      v-if="u.username !== currentUser.username && !u.disabled"
+                      @click="openBanModal(u)" 
+                      class="flex-1 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-semibold cursor-pointer text-center"
+                    >
+                      🚫 禁用
+                    </button>
+                    <button 
+                      @click="openAdminResetPwdModal(u.username)" 
+                      class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-medium cursor-pointer text-center"
+                    >
+                      🔑 重置密码
+                    </button>
+                    <button 
+                      v-if="u.username !== currentUser.username"
+                      @click="deleteUser(u.username)" 
+                      class="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg text-xs cursor-pointer text-center"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -4155,8 +4302,8 @@
     </div>
 
     <!-- 访客一键升级云端同步账号模态框 (Promote Guest to Cloud Modal) -->
-    <div v-if="showPromoteModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4.5 relative overflow-hidden">
+    <div v-if="showPromoteModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4 relative overflow-hidden">
         <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-cyan-500/25">
@@ -4234,21 +4381,21 @@
     </div>
 
     <!-- 纯本地模式 vs 账号云端模式 功能边界对照弹窗 (Mode Boundary Modal) -->
-    <div v-if="showBoundaryModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-3xl w-full shadow-2xl space-y-4.5 relative overflow-hidden flex flex-col max-h-[90vh]">
+    <div v-if="showBoundaryModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-3xl w-full shadow-2xl space-y-4 relative overflow-hidden flex flex-col max-h-[90vh]">
         <div class="flex items-center justify-between pb-3.5 border-b border-slate-800 shrink-0">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xl font-bold shadow-lg shadow-cyan-500/10">
               ⚖️
             </div>
             <div>
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <span>纯本地模式 vs 账号云端模式 功能边界对照表</span>
+              <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <span>功能边界对照表</span>
                 <span class="text-[10px] font-mono bg-slate-950 text-cyan-400 px-2 py-0.5 rounded-full border border-slate-800 font-normal">
-                  Boundary Guide
+                  Matrix
                 </span>
               </h3>
-              <p class="text-[11px] text-slate-400">帮助您根据对“自动同步便利性”与“极致隐私零存储”的需求选择最佳模式</p>
+              <p class="text-[10px] sm:text-[11px] text-slate-400">帮助您根据对“自动同步”与“极致隐私”的需求选择模式</p>
             </div>
           </div>
           <button @click="showBoundaryModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
@@ -4319,61 +4466,61 @@
             @click="showBoundaryModal = false"
             class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
           >
-            知道了，关闭对照表
+            关闭
           </button>
         </div>
       </div>
     </div>
 
     <!-- 多版本归档管理与更新中心模态框 (Multi-Version Release Hub Modal) -->
-    <div v-if="showVersionModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4.5 relative overflow-hidden flex flex-col max-h-[90vh]">
+    <div v-if="showVersionModal" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-2xl w-full shadow-2xl space-y-4 relative overflow-hidden flex flex-col max-h-[90vh]">
         <!-- 弹窗顶部标题 -->
         <div class="flex items-center justify-between pb-3.5 border-b border-slate-800 shrink-0">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-base font-bold shadow-lg shadow-cyan-500/25">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-sm sm:text-base font-bold shadow-lg shadow-cyan-500/25 shrink-0">
               🚀
             </div>
             <div>
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <span>SubHub 多版本归档与发布中心</span>
-                <span class="text-[10px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+              <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                <span>SubHub 发布中心</span>
+                <span class="text-[9px] sm:text-[10px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-500/30 px-1.5 py-0.2 rounded-full">
                   Release Hub
                 </span>
               </h3>
-              <p class="text-[11px] text-slate-400">历史版本全览 · 详尽中文更新日志 · 支持一键部署/平滑升级/指定版本回退</p>
+              <p class="text-[10px] sm:text-[11px] text-slate-400">历史版本全览 · 详尽更新日志 · 一键平滑升级/回退</p>
             </div>
           </div>
           <button @click="showVersionModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
         </div>
 
         <!-- 本地当前版本状态条与刷新按钮 -->
-        <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
-          <div class="flex items-center gap-3">
+        <div class="bg-slate-950 p-3 sm:p-3.5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0 text-xs">
+          <div class="flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
             <div>
-              <span class="text-[11px] text-slate-500 block">当前运行版本</span>
+              <span class="text-[10px] sm:text-[11px] text-slate-500 block">当前版本</span>
               <span class="font-mono font-extrabold text-cyan-400 text-xs">
                 v{{ versionInfo.currentVersion || '2.0.0' }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
             <div>
-              <span class="text-[11px] text-slate-500 block">部署模式</span>
+              <span class="text-[10px] sm:text-[11px] text-slate-500 block">部署模式</span>
               <span class="text-slate-300 font-semibold text-xs">
-                {{ versionInfo.isDocker ? '🐳 Docker 容器' : (versionInfo.isGit ? '💻 Git 源码 / PM2' : '📦 Node.js 原生') }}
+                {{ versionInfo.isDocker ? '🐳 Docker' : (versionInfo.isGit ? '💻 Git' : '📦 Node') }}
               </span>
             </div>
             <div class="h-6 w-px bg-slate-800"></div>
             <div>
-              <span class="text-[11px] text-slate-500 block">Git 提交</span>
-              <span class="text-slate-400 font-mono text-[11px]">{{ versionInfo.commitHash ? '#' + versionInfo.commitHash : 'Release 稳定版' }}</span>
+              <span class="text-[10px] sm:text-[11px] text-slate-500 block">Git 提交</span>
+              <span class="text-slate-400 font-mono text-[10px] sm:text-[11px]">{{ versionInfo.commitHash ? '#' + versionInfo.commitHash : 'Release' }}</span>
             </div>
           </div>
 
           <button 
             @click="fetchVersionInfo(false, true)" 
             :disabled="checkingVersion"
-            class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-cyan-300 border border-slate-800 hover:border-cyan-500/40 rounded-xl font-semibold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
+            class="w-full sm:w-auto justify-center px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-cyan-300 border border-slate-800 hover:border-cyan-500/40 rounded-xl font-semibold flex items-center gap-1.5 transition-all cursor-pointer text-xs"
           >
             <span v-if="checkingVersion" class="animate-spin text-xs">⏳</span>
             <span v-else>⚡</span>
@@ -4499,11 +4646,11 @@
     </div>
 
     <!-- 在线版本切换/升级/回退确认与日志弹窗 (Modal) -->
-    <div v-if="showUpdateModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4">
+    <div v-if="showUpdateModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-xl w-full shadow-2xl space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-md shrink-0">
               {{ targetUpdateType === 'rollback' ? '🔄' : '🚀' }}
             </div>
             <div>
@@ -4515,7 +4662,7 @@
               </p>
             </div>
           </div>
-          <button v-if="!updatingSystem" @click="showUpdateModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none">&times;</button>
+          <button v-if="!updatingSystem" @click="showUpdateModal = false" class="text-slate-400 hover:text-white text-xl p-1 leading-none cursor-pointer">&times;</button>
         </div>
 
         <div v-if="targetUpdateType === 'rollback'" class="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-xs text-amber-300 flex items-center gap-2">
@@ -4559,8 +4706,8 @@
     </div>
 
     <!-- 一键申请 SSL 证书与自动化反代模态框 (SSL Provisioning Modal) -->
-    <div v-if="showSslModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-xl w-full shadow-2xl space-y-4 relative overflow-hidden">
+    <div v-if="showSslModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-xl w-full shadow-2xl space-y-4 relative overflow-hidden">
         <!-- 弹窗顶部标题 -->
         <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
           <div class="flex items-center gap-3">
@@ -4775,8 +4922,8 @@
     </div>
 
     <!-- 禁用/封禁用户时长设置模态框 (Ban User Modal) -->
-    <div v-if="showBanModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+    <div v-if="showBanModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4">
         <!-- 弹窗标题 -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2.5">
@@ -4915,8 +5062,8 @@
     </div>
 
     <!-- 管理员重置用户密码模态框 (Admin Reset User Password Modal) -->
-    <div v-if="showAdminResetPwdModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+    <div v-if="showAdminResetPwdModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4">
         <!-- 弹窗标题 -->
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2.5">
@@ -5011,8 +5158,8 @@
     </div>
 
     <!-- 修改自身密码模态框 (Modal) -->
-    <div v-if="showPwdModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+    <div v-if="showPwdModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <h3 class="text-base font-bold text-white flex items-center gap-2">
             <span>🔐 修改【{{ currentUser.username }}】登录密码</span>
@@ -5107,8 +5254,8 @@
     </div>
 
     <!-- 添加/编辑 订阅源模态框 (Modal) -->
-    <div v-if="showSubModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div v-if="showSubModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-lg w-full shadow-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
           <h3 class="text-base font-bold text-white flex items-center gap-2">
             <span>{{ subForm.id ? '✏️ 编辑订阅源' : '➕ 添加上游订阅源' }}</span>
@@ -5372,8 +5519,8 @@
     </div>
 
     <!-- JS 脚本逆向导入弹窗 -->
-    <div v-if="showJsImportModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+    <div v-if="showJsImportModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2">
             <span class="text-cyan-400 text-lg">📥</span>
@@ -5862,8 +6009,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.1.2',
-          latestVersion: '2.1.2',
+          currentVersion: '2.1.3',
+          latestVersion: '2.1.3',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
