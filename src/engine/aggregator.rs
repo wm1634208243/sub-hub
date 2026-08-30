@@ -135,23 +135,22 @@ pub async fn aggregate_clash_yaml(
         info_nodes.push(p);
     }
 
-    if let Some(exp_sec) = min_expire {
-        let exp_str = if exp_sec > 2500000000 {
-            "永久有效".to_string()
-        } else {
+    let expire_name = match min_expire {
+        Some(exp_sec) if exp_sec > 2500000000 => "⏰ 到期: 永久有效 (无限制)".to_string(),
+        Some(exp_sec) => {
             chrono::DateTime::from_timestamp(exp_sec as i64, 0)
-                .map(|dt| dt.format("%Y-%m-%d").to_string())
-                .unwrap_or_else(|| "永久有效".to_string())
-        };
-        let expire_name = format!("⏰ 到期: {}", exp_str);
-        let mut p = ProxyNode::default();
-        p.name = expire_name.clone();
-        p.server = "127.0.0.1".into();
-        p.port = 80;
-        p.node_type = "compatible".into();
-        info_node_names.push(expire_name);
-        info_nodes.push(p);
-    }
+                .map(|dt| format!("⏰ 到期: {} 到期", dt.format("%Y-%m-%d")))
+                .unwrap_or_else(|| "⏰ 到期: 永久有效 (无限制)".to_string())
+        }
+        None => "⏰ 到期: 永久有效 (无限制)".to_string(),
+    };
+    let mut p = ProxyNode::default();
+    p.name = expire_name.clone();
+    p.server = "127.0.0.1".into();
+    p.port = 80;
+    p.node_type = "compatible".into();
+    info_node_names.push(expire_name);
+    info_nodes.push(p);
 
     let all_node_names: Vec<String> = all_proxies.iter().map(|p| p.name.clone()).collect();
     let mut active_proxies: Vec<ProxyNode> = Vec::new();
