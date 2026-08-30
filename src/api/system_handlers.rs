@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.2",
+            "tag": "v2.2.2",
+            "name": "SubHub v2.2.2 · 订阅源名称无缝内嵌流量与到期信息",
+            "publishedAt": "2026-08-30T04:15:35.806Z",
+            "highlights": [
+                "📦 订阅源名称无缝内嵌：将每个订阅源的流量进度与到期状态直接融合至分组名称中（如「📦 订阅源 · DMIT [9.27G/250G · 永久]」）",
+                "✨ 列表极简清爽：彻底消除冗余的占位伪装节点，界面更紧凑直观",
+                "⚡ 全协议秒级直连同步：优化配置解析与下发效率"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.2 发布\n- **订阅源名称内嵌流量/到期**：将各订阅源自身的已用/总流量与到期时间直接拼接融合在订阅源名称中，彻底消除列表中占位的冗余伪装节点；\n- **极简清爽排版**：主选择器与子分组更加紧凑美观。"
+        }),
+        serde_json::json!({
             "version": "2.2.1",
             "tag": "v2.2.1",
             "name": "SubHub v2.2.1 · 单个订阅源专属流量与到期时间精细化展示",
