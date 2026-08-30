@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.2",
+            "tag": "v2.3.2",
+            "name": "SubHub v2.3.2 · 彻底清除 extra 字段属性遮蔽与强刷缓存支持",
+            "publishedAt": "2026-08-30T06:28:44.521Z",
+            "highlights": [
+                "🛡️ 彻底清除 extra 属性遮蔽：重命名节点时立即清除 extra 中的历史旧名，保证序列化后名称绝对一致",
+                "⚡ 支持 force=true 强制击穿缓存：订阅请求携带 force/refresh 参数时自动清理节点缓存并重新拉取",
+                "🍏 本地 Mihomo 内核严苛校验通过，秒级稳定启动"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.2 发布\n- **解决属性覆盖与名称漂移**：彻底排除了 Rust 结构体 flatten extra 中潜藏的旧名称字段对节点重命名的遮蔽影响；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.3.1",
             "tag": "v2.3.1",
             "name": "SubHub v2.3.1 · 策略组引用完整性强校验与本地内核实机秒开",

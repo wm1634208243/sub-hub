@@ -92,6 +92,7 @@ pub async fn aggregate_clash_yaml(
                     }
 
                     node.name = formatted.clone();
+                    node.extra.remove("name");
                     current_sub_nodes.push(formatted);
                     all_proxies.push(node);
                 }

@@ -13,6 +13,8 @@ use serde::Deserialize;
 pub struct SubQuery {
     pub token: Option<String>,
     pub target: Option<String>,
+    pub force: Option<bool>,
+    pub refresh: Option<bool>,
 }
 
 pub async fn unified_sub_handler(
@@ -150,6 +152,10 @@ pub async fn unified_sub_handler(
             detect_client_target(ua)
         }
     });
+
+    if query.force.unwrap_or(false) || query.refresh.unwrap_or(false) {
+        state.fetcher.clear_cache(None).await;
+    }
 
     match aggregate_clash_yaml(&cfg, &state.fetcher).await {
         Ok(agg) => {
