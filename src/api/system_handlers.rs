@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.2",
+            "tag": "v2.4.2",
+            "name": "SubHub v2.4.2 · 字节/抖音全生态与国内流媒体全域直连，彻底解决抖音打不开",
+            "publishedAt": "2026-08-30T09:39:17.748Z",
+            "highlights": [
+                "📱 抖音/字节跳动全生态进程、域名(20+)与关键词全面纳入 DIRECT，杜绝海外风控卡死",
+                "🎵 快手/网易云/QQ音乐/优酷/爱奇艺/小红书等国内应用全矩阵直连加速",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.2 发布\n- **抖音与国内媒体全域直连**：补齐字节跳动/抖音所有 CDN 视频分片与 API 域名，避免误走代理导致风控转圈；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.1",
             "tag": "v2.4.1",
             "name": "SubHub v2.4.1 · 修复 Fake-IP 排除名单污染，极速 DoH 彻底解决 B站/国内网站 NXDOMAIN 报错",

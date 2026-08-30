@@ -363,8 +363,20 @@ pub async fn aggregate_clash_yaml(
     for proc in &config.direct_processes {
         if !proc.trim().is_empty() { rules.push(format!("PROCESS-NAME,{},DIRECT", proc.trim())); }
     }
+    // High-priority domestic app desktop processes
+    for proc in &["Douyin", "抖音", "Douyin-Darwin", "NeteaseMusic", "QQMusic", "KugouMusic", "WeChat", "企业微信", "DingTalk", "Feishu", "bilibili"] {
+        rules.push(format!("PROCESS-NAME,{},DIRECT", proc));
+    }
     for kw in &config.direct_keywords {
         if !kw.trim().is_empty() { rules.push(format!("DOMAIN-KEYWORD,{},DIRECT", kw.trim())); }
+    }
+    // High-priority domestic keyword matches
+    for kw in &[
+        "douyin", "bytedance", "byteimg", "bytetos", "pstatp", "snssdk", "zijieapi", "iesdouyin",
+        "kuaishou", "bilibili", "bilivideo", "hdslb", "alipay", "alicdn", "taobao", "tencent",
+        "qqmusic", "netease", "123pan", "wps", "kingsoft", "todesk"
+    ] {
+        rules.push(format!("DOMAIN-KEYWORD,{},DIRECT", kw));
     }
     // SubHub server domain & LAN always DIRECT
     rules.push("DOMAIN-SUFFIX,wmxhub.com,DIRECT".into());
@@ -420,13 +432,38 @@ pub async fn aggregate_clash_yaml(
     // 3.5 Domestic common domains directly to DIRECT (Zero-delay, zero-download, instantaneous startup)
     if config.enable_geo_site_cn {
         for d in &[
-            "cn", "baidu.com", "baidupcs.com", "qq.com", "weixin.qq.com", "tencent.com",
-            "aliyun.com", "aliyuncs.com", "taobao.com", "tmall.com", "jd.com", "bilibili.com",
-            "bilivideo.com", "hdslb.com", "163.com", "126.net", "zhihu.com", "douyin.com",
-            "xiaohongshu.com", "weibo.com", "sina.com.cn", "sohu.com", "meituan.com", "amap.com",
-            "autonavi.com", "123pan.com", "wps.com", "wps.cn", "wpscdn.com", "kingsoft.com",
-            "todesk.com", "feishu.cn", "dingtalk.com", "mi.com", "xiaomi.com", "mifile.cn",
-            "gitee.com", "csdn.net"
+            "cn",
+            // ByteDance / Douyin full ecosystem
+            "douyin.com", "douyincdn.com", "douyinpic.com", "douyinstatic.com", "douyinvod.com", "iesdouyin.com",
+            "bytedance.com", "bytegoofy.com", "byteimg.com", "bytescm.com", "bytetos.com", "bytedns.net", "bytednsdoc.com",
+            "pstatp.com", "snssdk.com", "toutiao.com", "toutiaocdn.com", "toutiaopage.com", "zijieapi.com", "volces.com",
+            "volccdn.com", "amemv.com", "feiliao.com", "ixigua.com", "pangle.cn", "oceanengine.com", "ecombdapi.com", "ecombdimg.com",
+            // Kuaishou
+            "kuaishou.com", "yximgs.com", "ksapisvr.com", "gifshow.com",
+            // Tencent / WeChat
+            "qq.com", "weixin.qq.com", "tencent.com", "gtimg.com", "gtimg.cn", "qlogo.cn", "qpic.cn", "servicewechat.com", "tenpay.com",
+            // Alibaba / Taobao / Alipay
+            "aliyun.com", "aliyuncs.com", "taobao.com", "tmall.com", "alipay.com", "alipayobjects.com", "alicdn.com", "tbcdn.cn", "ele.me",
+            // JD
+            "jd.com", "jd.hk", "360buyimg.com", "jdpay.com",
+            // Bilibili
+            "bilibili.com", "bilivideo.com", "hdslb.com", "biliapi.net",
+            // NetEase
+            "163.com", "126.net", "netease.com", "ydstatic.com", "music.163.com", "music.126.net",
+            // Baidu
+            "baidu.com", "baidupcs.com", "bdimg.com", "bdstatic.com", "baidubce.com",
+            // Video / Streaming (Domestic)
+            "iqiyi.com", "iqiyipic.com", "qy.net", "youku.com", "ykimg.com", "mgtv.com", "hunantv.com", "cctv.com",
+            // Social / Content
+            "zhihu.com", "zhimg.com", "xiaohongshu.com", "xhscdn.com", "xhscdn.net", "weibo.com", "weibocdn.com", "sinaimg.cn", "sina.com.cn", "sohu.com",
+            // Life / Travel
+            "meituan.com", "meituan.net", "dianping.com", "dpfile.com", "amap.com", "autonavi.com", "ctrip.com", "qunar.com", "12306.cn",
+            // Productivity / Tools
+            "123pan.com", "123pan.cn", "wps.com", "wps.cn", "wpscdn.com", "kingsoft.com", "ksosoft.com", "todesk.com", "feishu.cn", "dingtalk.com",
+            // Hardware / Cloud
+            "mi.com", "xiaomi.com", "mifile.cn", "huawei.com", "dbankcdn.com", "honor.com", "oppo.com", "vivo.com",
+            // Tech Community
+            "gitee.com", "csdn.net", "juejin.cn", "segmentfault.com", "oschina.net", "v2ex.com"
         ] {
             rules.push(format!("DOMAIN-SUFFIX,{},DIRECT", d));
         }
@@ -519,6 +556,12 @@ pub async fn aggregate_clash_yaml(
             && !trimmed.contains("taobao")
             && !trimmed.contains("jd.com")
             && !trimmed.contains("wps")
+            && !trimmed.contains("douyin")
+            && !trimmed.contains("bytedance")
+            && !trimmed.contains("pstatp")
+            && !trimmed.contains("snssdk")
+            && !trimmed.contains("zijieapi")
+            && !trimmed.contains("bytetos")
             && !trimmed.contains(".cn")
             && !clean_fake_ip_filter.contains(&trimmed) {
             clean_fake_ip_filter.push(item.trim().to_string());
@@ -540,7 +583,7 @@ pub async fn aggregate_clash_yaml(
         "119.29.29.29"
     ]);
     ns_policy.insert("+.cn".into(), domestic_doh.clone());
-    ns_policy.insert("+.bilibili.com,+.bilivideo.com,+.hdslb.com,+.baidu.com,+.baidupcs.com,+.qq.com,+.weixin.qq.com,+.tencent.com,+.taobao.com,+.aliyun.com,+.aliyuncs.com,+.jd.com,+.163.com,+.126.net,+.zhihu.com,+.douyin.com,+.xiaohongshu.com,+.weibo.com,+.sina.com.cn,+.sohu.com,+.meituan.com,+.amap.com,+.autonavi.com,+.123pan.com,+.wps.com,+.wps.cn,+.wpscdn.com,+.kingsoft.com,+.todesk.com,+.feishu.cn,+.dingtalk.com,+.mi.com,+.xiaomi.com,+.mifile.cn,+.gitee.com,+.csdn.net".into(), domestic_doh);
+    ns_policy.insert("+.bilibili.com,+.bilivideo.com,+.hdslb.com,+.baidu.com,+.baidupcs.com,+.qq.com,+.weixin.qq.com,+.tencent.com,+.taobao.com,+.aliyun.com,+.aliyuncs.com,+.jd.com,+.163.com,+.126.net,+.zhihu.com,+.douyin.com,+.douyincdn.com,+.douyinvod.com,+.iesdouyin.com,+.bytedance.com,+.byteimg.com,+.bytetos.com,+.pstatp.com,+.snssdk.com,+.zijieapi.com,+.kuaishou.com,+.xiaohongshu.com,+.weibo.com,+.sina.com.cn,+.sohu.com,+.meituan.com,+.amap.com,+.autonavi.com,+.123pan.com,+.wps.com,+.wps.cn,+.wpscdn.com,+.kingsoft.com,+.todesk.com,+.feishu.cn,+.dingtalk.com,+.mi.com,+.xiaomi.com,+.mifile.cn,+.gitee.com,+.csdn.net".into(), domestic_doh);
     dns_cfg.insert("nameserver-policy".into(), serde_json::Value::Object(ns_policy));
     clash_map.insert("dns".into(), serde_json::Value::Object(dns_cfg));
 
