@@ -329,6 +329,13 @@
               </span>
             </button>
             <button 
+              @click="activeTab = 'converter'" 
+              :class="activeTab === 'converter' ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-white'"
+              class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer shrink-0"
+            >
+              🔄 订阅转换
+            </button>
+            <button 
               @click="activeTab = 'gui'" 
               :class="activeTab === 'gui' ? 'bg-slate-800 text-cyan-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-white'"
               class="px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer shrink-0"
@@ -465,6 +472,13 @@
             <span v-if="(config.subscriptions || []).length > 0" class="text-[9px] bg-cyan-500/30 text-cyan-200 px-1 rounded-full font-mono">
               {{ (config.subscriptions || []).length }}
             </span>
+          </button>
+          <button 
+            @click="activeTab = 'converter'" 
+            :class="activeTab === 'converter' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm' : 'text-slate-400 bg-slate-900 border border-slate-800/80'"
+            class="px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition-all cursor-pointer shrink-0"
+          >
+            🔄 订阅转换
           </button>
           <button 
             @click="activeTab = 'gui'" 
@@ -1481,6 +1495,320 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- Tab: Universal SubConverter 通用订阅转换 -->
+        <!-- ========================================== -->
+        <div v-show="activeTab === 'converter'" class="space-y-6">
+          
+          <!-- 头部介绍 Banner -->
+          <div class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-2.5">
+                  <span class="text-2xl">🔄</span>
+                  <h2 class="text-lg sm:text-xl font-bold text-white tracking-wide">通用订阅格式转换 (Universal SubConverter)</h2>
+                  <span class="text-[10px] bg-cyan-500/10 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-500/25 font-semibold">全协议互转</span>
+                </div>
+                <p class="text-xs text-slate-400 max-w-3xl leading-relaxed">
+                  支持将各类商业机场、自建单节点 (VLESS/VMess/Trojan/SS/Hy2)、Base64、Clash YAML、Sing-Box JSON 任意互转，智能注入国旗 Emoji，并最大程度保留上游流量配额与到期信息。
+                </p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button 
+                  type="button" 
+                  @click="loadCurrentAggregatedIntoConverter" 
+                  class="px-3.5 py-2 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 text-cyan-300 text-xs rounded-xl font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-cyan-500/5"
+                  title="自动将当前后台已启用的节点与订阅作为源地址填入"
+                >
+                  <span>📥 载入当前聚合节点</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主转换控制面板 -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- 左侧：输入与转换配置 (7 cols) -->
+            <div class="lg:col-span-7 space-y-5">
+              
+              <!-- 1. 源订阅输入卡片 -->
+              <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-bold text-white flex items-center gap-2">
+                    <span class="text-cyan-400">1.</span>
+                    <span>源订阅链接 / 节点文本 / 规则配置 *</span>
+                  </label>
+                  <div class="flex items-center gap-2 text-xs">
+                    <button 
+                      type="button" 
+                      @click="converterForm.url = ''" 
+                      v-if="converterForm.url"
+                      class="text-slate-500 hover:text-slate-300 text-[11px] transition-colors cursor-pointer"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+
+                <div class="relative">
+                  <textarea 
+                    v-model="converterForm.url" 
+                    rows="5"
+                    placeholder="支持粘贴以下任意格式（多链接支持换行或 | 分隔合并）：&#10;• 机场/自建 HTTP(S) 订阅直链 (如 https://domain/sub/...)&#10;• 自建单节点/多节点链接 (vless://, vmess://, trojan://, ss://, hy2://)&#10;• Base64 订阅文本&#10;• Clash YAML 源码 / Sing-Box JSON / Surge 代理列表"
+                    class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3.5 text-xs text-cyan-300 font-mono focus:outline-none focus:border-cyan-500 transition-colors custom-scrollbar leading-relaxed resize-y"
+                  ></textarea>
+                </div>
+                <p class="text-[11px] text-slate-500">💡 提示：输入多个订阅链接时，系统将自动并发拉取并智能去重合并为一个大节点池。</p>
+              </div>
+
+              <!-- 2. 目标格式选择矩阵 -->
+              <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                <label class="text-xs font-bold text-white flex items-center gap-2">
+                  <span class="text-cyan-400">2.</span>
+                  <span>选择目标客户端 / 输出格式 *</span>
+                </label>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <button 
+                    type="button" 
+                    v-for="fmt in converterTargetFormats" 
+                    :key="fmt.key"
+                    @click="converterForm.target = fmt.key"
+                    :class="converterForm.target === fmt.key ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-md shadow-cyan-500/10' : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'"
+                    class="border rounded-2xl p-3 text-left transition-all flex flex-col justify-between gap-1.5 cursor-pointer relative"
+                  >
+                    <div class="flex items-center justify-between w-full">
+                      <span class="text-base">{{ fmt.icon }}</span>
+                      <span v-if="converterForm.target === fmt.key" class="w-2 h-2 rounded-full bg-cyan-400 shadow-sm shadow-cyan-400"></span>
+                    </div>
+                    <div>
+                      <div class="text-xs font-bold text-white">{{ fmt.title }}</div>
+                      <div class="text-[10px] text-slate-500 line-clamp-1">{{ fmt.desc }}</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 3. 高级定制选项开关 -->
+              <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                <label class="text-xs font-bold text-white flex items-center gap-2">
+                  <span class="text-cyan-400">3.</span>
+                  <span>高级转换规则与节点处理</span>
+                </label>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <!-- 智能国旗与重命名 -->
+                  <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-white">🏷️ 自动国旗 Emoji</div>
+                      <div class="text-[10px] text-slate-500">智能识别地区并规范化节点名</div>
+                    </div>
+                    <input type="checkbox" v-model="converterForm.emoji" class="w-4 h-4 rounded text-cyan-500 focus:ring-0 bg-slate-900 border-slate-700 cursor-pointer" />
+                  </div>
+
+                  <!-- UDP 转发 -->
+                  <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-white">⚡ 开启 UDP 转发</div>
+                      <div class="text-[10px] text-slate-500">确保支持游戏加速与语音通话</div>
+                    </div>
+                    <input type="checkbox" v-model="converterForm.udp" class="w-4 h-4 rounded text-cyan-500 focus:ring-0 bg-slate-900 border-slate-700 cursor-pointer" />
+                  </div>
+
+                  <!-- 跳过证书验证 -->
+                  <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-white">🛡️ 跳过证书验证</div>
+                      <div class="text-[10px] text-slate-500">允许自签名或自建 VPS 证书</div>
+                    </div>
+                    <input type="checkbox" v-model="converterForm.skipCertVerify" class="w-4 h-4 rounded text-cyan-500 focus:ring-0 bg-slate-900 border-slate-700 cursor-pointer" />
+                  </div>
+
+                  <!-- 保留流量信息 -->
+                  <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 flex items-center justify-between">
+                    <div>
+                      <div class="text-xs font-semibold text-white">📊 透传上游流量与到期</div>
+                      <div class="text-[10px] text-slate-500">保留上游 UserInfo 响应头</div>
+                    </div>
+                    <input type="checkbox" v-model="converterForm.preserveUserInfo" class="w-4 h-4 rounded text-cyan-500 focus:ring-0 bg-slate-900 border-slate-700 cursor-pointer" />
+                  </div>
+                </div>
+
+                <!-- 正则过滤 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label class="text-[11px] text-slate-400 block mb-1 font-medium">🔍 包含节点正则 (选填)</label>
+                    <input 
+                      v-model="converterForm.include" 
+                      type="text" 
+                      placeholder="如 (香港|日本|US|广港)" 
+                      class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="text-[11px] text-slate-400 block mb-1 font-medium">🚫 排除节点正则 (选填)</label>
+                    <input 
+                      v-model="converterForm.exclude" 
+                      type="text" 
+                      placeholder="如 (官网|重置|过期|剩余)" 
+                      class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
+
+                <div class="pt-2">
+                  <button 
+                    type="button" 
+                    @click="executeConversion" 
+                    :disabled="converting || !converterForm.url"
+                    class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white text-sm font-bold rounded-2xl shadow-xl shadow-cyan-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span v-if="converting" class="animate-spin text-base">🔄</span>
+                    <span>{{ converting ? '正在拉取并极速转换中...' : '🚀 立即生成转换订阅 & 预览结果' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 右侧：转换结果、订阅直链与一键导入客户端 (5 cols) -->
+            <div class="lg:col-span-5 space-y-5">
+              
+              <!-- 1. 永久转换直链与客户端一键导入卡片 -->
+              <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-4">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-white flex items-center gap-2">
+                    <span>🔗 专属永久转换直链</span>
+                  </h3>
+                  <span v-if="convertResult" class="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">
+                    {{ convertResult.nodesCount }} 节点转换完成
+                  </span>
+                </div>
+
+                <!-- 直链输入框与复制 -->
+                <div>
+                  <div class="relative flex items-center">
+                    <input 
+                      :value="generatedConvertApiUrl" 
+                      readonly 
+                      placeholder="点击「立即生成转换订阅」后在此生成专属直链"
+                      class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-20 py-2.5 text-xs text-cyan-300 font-mono select-all focus:outline-none"
+                    />
+                    <button 
+                      type="button" 
+                      @click="copyTextToClipboard(generatedConvertApiUrl, '🎉 专属转换直链已复制！可直接填入各客户端配置订阅')" 
+                      :disabled="!generatedConvertApiUrl"
+                      class="absolute right-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-cyan-300 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    >
+                      复制直链
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 客户端一键导入按钮组 -->
+                <div class="space-y-2 pt-1">
+                  <div class="text-[11px] text-slate-400 font-semibold">🚀 一键唤起客户端导入订阅：</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button 
+                      type="button" 
+                      @click="importConvertedClient('clash')" 
+                      :disabled="!generatedConvertApiUrl"
+                      class="px-2.5 py-2 bg-slate-950 hover:bg-slate-800 disabled:opacity-40 border border-slate-800 rounded-xl text-xs text-slate-200 font-medium flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span>🌟</span>
+                      <span>导入 Clash / Verge</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="importConvertedClient('shadowrocket')" 
+                      :disabled="!generatedConvertApiUrl"
+                      class="px-2.5 py-2 bg-slate-950 hover:bg-slate-800 disabled:opacity-40 border border-slate-800 rounded-xl text-xs text-slate-200 font-medium flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span>🚀</span>
+                      <span>导入 Shadowrocket</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="importConvertedClient('singbox')" 
+                      :disabled="!generatedConvertApiUrl"
+                      class="px-2.5 py-2 bg-slate-950 hover:bg-slate-800 disabled:opacity-40 border border-slate-800 rounded-xl text-xs text-slate-200 font-medium flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span>📦</span>
+                      <span>导入 Sing-Box</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="importConvertedClient('surge')" 
+                      :disabled="!generatedConvertApiUrl"
+                      class="px-2.5 py-2 bg-slate-950 hover:bg-slate-800 disabled:opacity-40 border border-slate-800 rounded-xl text-xs text-slate-200 font-medium flex items-center gap-2 transition-all cursor-pointer"
+                    >
+                      <span>⚡</span>
+                      <span>导入 Surge</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 转换节点与流量看板 (若有) -->
+                <div v-if="convertResult && convertResult.userInfo" class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 space-y-1.5">
+                  <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                    <span>📊 聚合流量配额:</span>
+                    <span class="text-cyan-300 font-mono font-bold">{{ formatBytes(convertResult.userInfo.total) }} (已用 {{ formatBytes(convertResult.userInfo.used) }})</span>
+                  </div>
+                  <div v-if="convertResult.userInfo.expire" class="text-[10px] text-amber-400 font-mono">
+                    ⏳ 最近到期日: {{ formatDate(new Date(convertResult.userInfo.expire).toISOString()) }}
+                  </div>
+                </div>
+
+                <!-- 识别到的地区分布标签 -->
+                <div v-if="convertResult && convertResult.detectedCountries && convertResult.detectedCountries.length > 0" class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[11px] text-slate-500 font-medium">📍 识别地区:</span>
+                  <span 
+                    v-for="c in convertResult.detectedCountries" 
+                    :key="c.label"
+                    class="text-[10px] bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-lg text-slate-300"
+                  >
+                    {{ c.label }} <span class="text-cyan-400 font-mono">({{ c.count }})</span>
+                  </span>
+                </div>
+              </div>
+
+              <!-- 2. 转换配置源码实时预览与下载 -->
+              <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3 flex flex-col">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-xs font-bold text-white flex items-center gap-2">
+                    <span>💻 转换结果源码预览</span>
+                  </h3>
+                  <div class="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      @click="copyTextToClipboard(convertResult ? convertResult.content : '', '转换结果源码已复制！')" 
+                      :disabled="!convertResult || !convertResult.content"
+                      class="text-[11px] text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      复制代码
+                    </button>
+                    <button 
+                      type="button" 
+                      @click="downloadConvertedConfig" 
+                      :disabled="!convertResult || !convertResult.content"
+                      class="text-[11px] text-slate-400 hover:text-white disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      下载文件
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3 max-h-80 overflow-y-auto custom-scrollbar font-mono text-[11px] text-slate-300 leading-relaxed whitespace-pre select-all">
+                  {{ convertResult ? convertResult.content : '请在左侧输入源链接并点击「立即生成转换订阅」查看配置源码...' }}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
 
         <!-- ========================================== -->
@@ -6195,8 +6523,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.4.8',
-          latestVersion: '2.4.8',
+          currentVersion: '2.5.0',
+          latestVersion: '2.5.0',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -6336,6 +6664,32 @@ function main(config, profileName) {
         const provisioningSsl = ref(false);
         const sslProvisionLogs = ref('');
         const sslProvisionSuccess = ref(false);
+
+        // Universal SubConverter 订阅转换状态
+        const converterForm = ref({
+          url: '',
+          target: 'clash',
+          emoji: true,
+          udp: true,
+          skipCertVerify: false,
+          preserveUserInfo: true,
+          include: '',
+          exclude: '',
+          template: 'default'
+        });
+        const converting = ref(false);
+        const convertResult = ref(null);
+
+        const converterTargetFormats = [
+          { key: 'clash', icon: '🌟', title: 'Clash / Mihomo', desc: '完整聚合 YAML (含分流与DNS)' },
+          { key: 'clash_proxies', icon: '⚡', title: 'Clash 节点列表', desc: '仅生成 proxies: 纯节点片段' },
+          { key: 'singbox', icon: '📦', title: 'Sing-Box', desc: '标准 JSON (v1.10+ Outbounds)' },
+          { key: 'base64', icon: '🚀', title: 'Shadowrocket', desc: '小火箭 / V2Ray Base64 订阅' },
+          { key: 'surge', icon: '⚡', title: 'Surge', desc: 'Surge 4/5 代理与分流配置' },
+          { key: 'loon', icon: '🎈', title: 'Loon', desc: 'Loon 代理与分流配置' },
+          { key: 'quanx', icon: '🔮', title: 'Quantumult X', desc: 'Quantumult X 配置文件' },
+          { key: 'raw', icon: '📋', title: '纯节点明文', desc: '单行输出 vless/vmess/ss 原始链接' }
+        ];
 
         let editorInstance = null;
 
@@ -6803,6 +7157,121 @@ function main(config, profileName) {
         const copyCode = (code) => {
           const target = (typeof code === 'string' && code) ? code : (editorInstance ? editorInstance.getValue() : '');
           copyTextToClipboard(target, '源码/配置已复制到剪贴板！');
+        };
+
+        // Universal SubConverter 订阅转换计算属性与操作
+        const generatedConvertApiUrl = computed(() => {
+          if (!converterForm.value.url.trim()) return '';
+          const origin = publicOrigin.value || window.location.origin;
+          const params = new URLSearchParams();
+          params.set('url', converterForm.value.url.trim());
+          if (converterForm.value.target) params.set('target', converterForm.value.target);
+          if (!converterForm.value.emoji) params.set('emoji', 'false');
+          if (!converterForm.value.udp) params.set('udp', 'false');
+          if (converterForm.value.skipCertVerify) params.set('skip_cert_verify', 'true');
+          if (converterForm.value.include && converterForm.value.include.trim()) params.set('include', converterForm.value.include.trim());
+          if (converterForm.value.exclude && converterForm.value.exclude.trim()) params.set('exclude', converterForm.value.exclude.trim());
+          return `${origin}/api/convert?${params.toString()}`;
+        });
+
+        const loadCurrentAggregatedIntoConverter = () => {
+          if (!config.value || !config.value.subscriptions || config.value.subscriptions.length === 0) {
+            return showToast('当前暂无保存的订阅源', 'warning');
+          }
+          const activeUrls = config.value.subscriptions
+            .filter(s => s.enabled !== false && s.url && s.url.trim())
+            .map(s => s.url.trim());
+          if (activeUrls.length === 0) {
+            return showToast('当前没有已启用的订阅源', 'warning');
+          }
+          converterForm.value.url = activeUrls.join('\n');
+          showToast(`已载入当前 ${activeUrls.length} 个已启用订阅源！点击「立即生成转换订阅」即可转换`);
+        };
+
+        const executeConversion = async () => {
+          if (!converterForm.value.url.trim()) {
+            return showToast('请输入源订阅链接或节点内容', 'error');
+          }
+          converting.value = true;
+          convertResult.value = null;
+          try {
+            const res = await fetch('/api/convert/preview', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`
+              },
+              body: JSON.stringify({
+                url: converterForm.value.url,
+                target: converterForm.value.target,
+                emoji: converterForm.value.emoji,
+                udp: converterForm.value.udp,
+                skip_cert_verify: converterForm.value.skipCertVerify,
+                include: converterForm.value.include,
+                exclude: converterForm.value.exclude,
+                template: converterForm.value.template
+              })
+            });
+            const data = await res.json();
+            if (res.ok) {
+              convertResult.value = data;
+              showToast(`🎉 转换成功！共解析出 ${data.nodesCount} 个有效代理节点`);
+            } else {
+              showToast(data.error || '转换失败，请检查输入格式', 'error');
+            }
+          } catch (e) {
+            showToast('网络错误，转换请求失败', 'error');
+          } finally {
+            converting.value = false;
+          }
+        };
+
+        const importConvertedClient = (clientType) => {
+          const subUrl = generatedConvertApiUrl.value;
+          if (!subUrl) return showToast('请先生成转换订阅', 'error');
+          const encoded = encodeURIComponent(subUrl);
+          let link = '';
+          switch (clientType) {
+            case 'clash':
+              link = `clash://install-config?url=${encoded}&name=SubHub-Converted`;
+              break;
+            case 'shadowrocket':
+              link = `sub://${btoa(subUrl)}#SubHub-Converted`;
+              break;
+            case 'singbox':
+              link = `sing-box://import-remote-profile?url=${encoded}#SubHub-Converted`;
+              break;
+            case 'surge':
+              link = `surge:///install-config?url=${encoded}`;
+              break;
+            case 'quanx':
+              link = `quantumult-x:///update-configuration?remote-resource=${encoded}`;
+              break;
+            default:
+              link = subUrl;
+          }
+          window.location.href = link;
+          showToast(`正在唤起 ${clientType.toUpperCase()} 客户端导入...`);
+        };
+
+        const downloadConvertedConfig = () => {
+          if (!convertResult.value || !convertResult.value.content) return;
+          const target = converterForm.value.target || 'clash';
+          let ext = 'yaml';
+          let mime = 'text/yaml';
+          if (target.includes('singbox')) { ext = 'json'; mime = 'application/json'; }
+          else if (target === 'surge' || target === 'loon') { ext = 'conf'; mime = 'text/plain'; }
+          else if (target === 'quanx') { ext = 'conf'; mime = 'text/plain'; }
+          else if (target === 'base64' || target === 'raw') { ext = 'txt'; mime = 'text/plain'; }
+
+          const blob = new Blob([convertResult.value.content], { type: mime });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `SubHub-Converted-${target}.${ext}`;
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('配置文件已开始下载！');
         };
 
         // 订阅源管理
@@ -8926,6 +9395,15 @@ function main(config, profileName) {
           createServerBackupNow,
           restoreServerBackup,
           deleteServerBackup,
+          converterForm,
+          converting,
+          convertResult,
+          converterTargetFormats,
+          generatedConvertApiUrl,
+          loadCurrentAggregatedIntoConverter,
+          executeConversion,
+          importConvertedClient,
+          downloadConvertedConfig,
           downloadServerBackup,
           formatFileSize
         };

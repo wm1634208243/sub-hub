@@ -21,6 +21,7 @@ use api::config_handlers::{
     regenerate_token_handler, save_config_handler, serve_rules_js_handler, set_token_expiry_handler,
     test_subscription_handler,
 };
+use api::convert_handlers::{universal_convert_handler, universal_convert_preview_handler};
 use api::sub_handlers::unified_sub_handler;
 use api::system_handlers::{
     domain_test_handler, get_system_settings_handler, get_versions_handler, ssl_provision_handler,
@@ -184,6 +185,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/base64", get(unified_sub_handler))
         .route("/api/sub.txt", get(unified_sub_handler))
         .route("/api/nodes.txt", get(unified_sub_handler))
+        // Universal Subscription Converter APIs
+        .route("/api/convert", get(universal_convert_handler))
+        .route("/api/subconverter", get(universal_convert_handler))
+        .route("/api/convert/preview", post(universal_convert_preview_handler))
         // JavaScript Override Script & Transient Compilation APIs
         .route("/api/rules.js", get(serve_rules_js_handler))
         .route("/api/js", get(serve_rules_js_handler))

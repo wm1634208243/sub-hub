@@ -58,6 +58,19 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.0",
+            "tag": "v2.5.0",
+            "name": "SubHub v2.5.0 · 重磅上线独立通用订阅转换系统 (Universal SubConverter)",
+            "publishedAt": "2026-08-30T14:18:00.081Z",
+            "highlights": [
+                "🔄 全新独立「订阅转换」工作台：支持机场订阅、自建节点 (VLESS/VMess/Trojan/SS/Hy2)、Base64、Clash YAML、Sing-Box JSON 任意互转",
+                "📊 完整保留上游流量配额与到期信息 (Subscription-Userinfo)",
+                "🚀 专属永久转换直链 + 一键唤起客户端导入 (Clash / Shadowrocket / Sing-Box / Surge / Quantumult X)",
+                "⚡ 本地与线上全平台双向验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.0 重磅发布\n- **全新「通用订阅转换 (SubConverter)」独立页面**：市面全格式互转、保留流量/到期、一键导入客户端；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.8",
             "tag": "v2.4.8",
             "name": "SubHub v2.4.8 · 自建单节点独立卡片视觉重构，专属流量与到期看板",

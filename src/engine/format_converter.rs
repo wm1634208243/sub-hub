@@ -3,6 +3,121 @@ use base64::Engine;
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use url::Url;
 
+pub fn build_clash_yaml_from_nodes(nodes: &[ProxyNode], enable_udp: bool, _template: &str) -> String {
+    let mut cleaned_proxies = Vec::new();
+    let mut node_names = Vec::new();
+    let mut auto_test_names = Vec::new();
+
+    for p in nodes {
+        node_names.push(p.name.clone());
+        if !p.name.starts_with("📊") && !p.name.starts_with("⏰") && p.server != "127.0.0.1" {
+            auto_test_names.push(p.name.clone());
+        }
+        if let Ok(val) = serde_json::to_value(p) {
+            if let serde_json::Value::Object(mut map) = val {
+                map.remove("extra");
+                if enable_udp {
+                    map.insert("udp".into(), serde_json::json!(true));
+                }
+                cleaned_proxies.push(serde_json::Value::Object(map));
+            }
+        }
+    }
+
+    let mut auto_test_proxies = auto_test_names.clone();
+    if auto_test_proxies.is_empty() {
+        auto_test_proxies.push("DIRECT".into());
+    }
+
+    let mut main_select_proxies = vec!["⚡ 自动优选".to_string(), "DIRECT".to_string()];
+    main_select_proxies.extend(node_names.clone());
+    main_select_proxies.dedup();
+
+    let proxy_groups = serde_json::json!([
+        {
+            "name": "🚀 节点选择",
+            "type": "select",
+            "proxies": main_select_proxies
+        },
+        {
+            "name": "⚡ 自动优选",
+            "type": "url-test",
+            "url": "http://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50,
+            "proxies": auto_test_proxies
+        },
+        {
+            "name": "🤖 AI 专线",
+            "type": "select",
+            "proxies": ["🚀 节点选择", "⚡ 自动优选", "DIRECT"]
+        },
+        {
+            "name": "🎬 国际流媒体",
+            "type": "select",
+            "proxies": ["🚀 节点选择", "⚡ 自动优选", "DIRECT"]
+        },
+        {
+            "name": "🐟 漏网之鱼",
+            "type": "select",
+            "proxies": ["🚀 节点选择", "DIRECT"]
+        }
+    ]);
+
+    let rules = serde_json::json!([
+        "AND,((NETWORK,udp),(DST-PORT,443)),REJECT",
+        "DOMAIN-SUFFIX,openai.com,🤖 AI 专线",
+        "DOMAIN-SUFFIX,chatgpt.com,🤖 AI 专线",
+        "DOMAIN-SUFFIX,claude.ai,🤖 AI 专线",
+        "DOMAIN-SUFFIX,anthropic.com,🤖 AI 专线",
+        "DOMAIN-SUFFIX,gemini.google.com,🤖 AI 专线",
+        "DOMAIN-SUFFIX,youtube.com,🎬 国际流媒体",
+        "DOMAIN-SUFFIX,googlevideo.com,🎬 国际流媒体",
+        "DOMAIN-SUFFIX,netflix.com,🎬 国际流媒体",
+        "DOMAIN-SUFFIX,disneyplus.com,🎬 国际流媒体",
+        "DOMAIN-SUFFIX,spotify.com,🎬 国际流媒体",
+        "GEOSITE,private,DIRECT",
+        "GEOSITE,cn,DIRECT",
+        "GEOIP,LAN,DIRECT,no-resolve",
+        "GEOIP,CN,DIRECT,no-resolve",
+        "GEOSITE,geolocation-!cn,🚀 节点选择",
+        "MATCH,🐟 漏网之鱼"
+    ]);
+
+    let clash_obj = serde_json::json!({
+        "mixed-port": 7890,
+        "allow-lan": true,
+        "mode": "rule",
+        "log-level": "info",
+        "ipv6": false,
+        "tun": {
+            "enable": true,
+            "stack": "mixed",
+            "dns-hijack": ["any:53", "tcp://any:53"],
+            "auto-route": true,
+            "auto-detect-interface": true,
+            "strict-route": true
+        },
+        "dns": {
+            "enable": true,
+            "ipv6": false,
+            "enhanced-mode": "fake-ip",
+            "fake-ip-range": "198.18.0.1/16",
+            "listen": "127.0.0.1:1053",
+            "direct-nameserver": ["223.5.5.5", "119.29.29.29", "180.76.76.76"],
+            "default-nameserver": ["223.5.5.5", "119.29.29.29", "180.76.76.76"],
+            "nameserver": ["223.5.5.5", "119.29.29.29", "180.76.76.76", "https://223.5.5.5/dns-query", "https://1.12.12.12/dns-query"],
+            "fallback": ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query", "https://dns.google/dns-query"],
+            "fallback-filter": { "geoip": true, "geoip-code": "CN", "ipcidr": ["240.0.0.0/4"] }
+        },
+        "proxies": cleaned_proxies,
+        "proxy-groups": proxy_groups,
+        "rules": rules
+    });
+
+    serde_yaml::to_string(&clash_obj).unwrap_or_else(|_| "proxies: []".into())
+}
+
 pub fn proxy_to_uri(proxy: &ProxyNode) -> Option<String> {
     let tag = utf8_percent_encode(&proxy.name, NON_ALPHANUMERIC).to_string();
 
@@ -181,6 +296,30 @@ pub fn convert_to_base64(proxies: &[ProxyNode]) -> String {
     base64::engine::general_purpose::STANDARD.encode(joined)
 }
 
+pub fn convert_to_raw_links(proxies: &[ProxyNode]) -> String {
+    let mut uris = Vec::new();
+    for p in proxies {
+        if let Some(uri) = proxy_to_uri(p) {
+            uris.push(uri);
+        }
+    }
+    uris.join("\n")
+}
+
+pub fn convert_to_clash_proxies_only(proxies: &[ProxyNode]) -> String {
+    let mut cleaned = Vec::new();
+    for p in proxies {
+        if let Ok(val) = serde_json::to_value(p) {
+            if let serde_json::Value::Object(mut map) = val {
+                map.remove("extra");
+                cleaned.push(serde_json::Value::Object(map));
+            }
+        }
+    }
+    let obj = serde_json::json!({ "proxies": cleaned });
+    serde_yaml::to_string(&obj).unwrap_or_else(|_| "proxies: []".into())
+}
+
 pub fn convert_to_surge_list(proxies: &[ProxyNode]) -> String {
     let mut lines = Vec::new();
     for p in proxies {
@@ -188,12 +327,12 @@ pub fn convert_to_surge_list(proxies: &[ProxyNode]) -> String {
             "ss" => {
                 let cipher = p.cipher.as_deref().unwrap_or("aes-256-gcm");
                 let pass = p.password.as_deref().unwrap_or("0");
-                lines.push(format!("{} = ss, {}, {}, encrypt-method={}, password={}", p.name, p.server, p.port, cipher, pass));
+                lines.push(format!("{} = ss, {}, {}, encrypt-method={}, password={}, udp-relay=true", p.name, p.server, p.port, cipher, pass));
             }
             "trojan" => {
                 let pass = p.password.as_deref().unwrap_or_default();
                 let sni = p.servername.as_deref().unwrap_or(&p.server);
-                let mut params = vec![format!("password={}", pass), format!("sni={}", sni)];
+                let mut params = vec![format!("password={}", pass), format!("sni={}", sni), "udp-relay=true".into()];
                 if p.skip_cert_verify.unwrap_or(false) {
                     params.push("skip-cert-verify=true".into());
                 }
@@ -201,7 +340,7 @@ pub fn convert_to_surge_list(proxies: &[ProxyNode]) -> String {
             }
             "vmess" => {
                 let uuid = p.uuid.as_deref().unwrap_or_default();
-                let mut params = vec![format!("username={}", uuid)];
+                let mut params = vec![format!("username={}", uuid), "udp-relay=true".into()];
                 if p.network.as_deref().unwrap_or("tcp") == "ws" {
                     params.push("ws=true".into());
                     if let Some(wo) = &p.ws_opts {
@@ -223,7 +362,7 @@ pub fn convert_to_surge_list(proxies: &[ProxyNode]) -> String {
             }
             "vless" => {
                 let uuid = p.uuid.as_deref().unwrap_or_default();
-                let mut params = vec![format!("username={}", uuid)];
+                let mut params = vec![format!("username={}", uuid), "udp-relay=true".into()];
                 if p.tls.unwrap_or(false) {
                     params.push("tls=true".into());
                     if let Some(sni) = &p.servername {
@@ -232,9 +371,215 @@ pub fn convert_to_surge_list(proxies: &[ProxyNode]) -> String {
                 }
                 lines.push(format!("{} = vless, {}, {}, {}", p.name, p.server, p.port, params.join(", ")));
             }
+            "hysteria2" | "hy2" => {
+                let pass = p.auth.as_deref().or(p.password.as_deref()).unwrap_or_default();
+                let sni = p.servername.as_deref().unwrap_or(&p.server);
+                lines.push(format!("{} = hysteria2, {}, {}, password={}, sni={}", p.name, p.server, p.port, pass, sni));
+            }
             _ => {}
         }
     }
+    lines.join("\n")
+}
+
+pub fn convert_to_surge_conf(proxies: &[ProxyNode]) -> String {
+    let mut lines = Vec::new();
+    lines.push("# Generated by SubHub Universal SubConverter".into());
+    lines.push("[General]".into());
+    lines.push("loglevel = notify".into());
+    lines.push("dns-server = 223.5.5.5, 119.29.29.29".into());
+    lines.push("skip-proxy = 127.0.0.1, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, localhost, *.local".into());
+    lines.push("".into());
+    lines.push("[Proxy]".into());
+    lines.push(convert_to_surge_list(proxies));
+    lines.push("".into());
+    lines.push("[Proxy Group]".into());
+    let proxy_names: Vec<String> = proxies.iter().map(|p| p.name.clone()).collect();
+    if !proxy_names.is_empty() {
+        lines.push(format!("🚀 节点选择 = select, ⚡ 自动优选, DIRECT, {}", proxy_names.join(", ")));
+        lines.push(format!("⚡ 自动优选 = url-test, {}, url=http://www.gstatic.com/generate_204, interval=300, tolerance=50", proxy_names.join(", ")));
+    } else {
+        lines.push("🚀 节点选择 = select, DIRECT".into());
+    }
+    lines.push("".into());
+    lines.push("[Rule]".into());
+    lines.push("DOMAIN-SUFFIX,cn,DIRECT".into());
+    lines.push("GEOIP,CN,DIRECT".into());
+    lines.push("FINAL,🚀 节点选择".into());
+    lines.join("\n")
+}
+
+pub fn convert_to_loon_conf(proxies: &[ProxyNode]) -> String {
+    let mut lines = Vec::new();
+    lines.push("# Generated by SubHub Universal SubConverter".into());
+    lines.push("[General]".into());
+    lines.push("ipv6 = false".into());
+    lines.push("dns-server = 223.5.5.5, 119.29.29.29".into());
+    lines.push("".into());
+    lines.push("[Proxy]".into());
+    
+    let mut proxy_names = Vec::new();
+    for p in proxies {
+        proxy_names.push(p.name.clone());
+        match p.node_type.to_lowercase().as_str() {
+            "ss" => {
+                let cipher = p.cipher.as_deref().unwrap_or("aes-256-gcm");
+                let pass = p.password.as_deref().unwrap_or("0");
+                lines.push(format!("{} = Shadowsocks,{},{},{},\"{}\",fast-open=false,udp=true", p.name, p.server, p.port, cipher, pass));
+            }
+            "vmess" => {
+                let uuid = p.uuid.as_deref().unwrap_or_default();
+                let mut parts = vec![format!("{} = vmess,{},{},auto,\"{}\"", p.name, p.server, p.port, uuid)];
+                if p.network.as_deref().unwrap_or("tcp") == "ws" {
+                    parts.push("transport=ws".into());
+                    if let Some(wo) = &p.ws_opts {
+                        if let Some(path) = wo.get("path").and_then(|v| v.as_str()) {
+                            parts.push(format!("path={}", path));
+                        }
+                        if let Some(host) = wo.get("headers").and_then(|h| h.get("Host")).and_then(|v| v.as_str()) {
+                            parts.push(format!("host={}", host));
+                        }
+                    }
+                }
+                if p.tls.unwrap_or(false) {
+                    parts.push("tls=true".into());
+                    if let Some(sni) = &p.servername {
+                        parts.push(format!("sni={}", sni));
+                    }
+                }
+                lines.push(parts.join(","));
+            }
+            "vless" => {
+                let uuid = p.uuid.as_deref().unwrap_or_default();
+                let mut parts = vec![format!("{} = vless,{},{},\"{}\"", p.name, p.server, p.port, uuid)];
+                if p.tls.unwrap_or(false) {
+                    parts.push("tls=true".into());
+                    if let Some(sni) = &p.servername {
+                        parts.push(format!("sni={}", sni));
+                    }
+                }
+                lines.push(parts.join(","));
+            }
+            "trojan" => {
+                let pass = p.password.as_deref().unwrap_or_default();
+                let sni = p.servername.as_deref().unwrap_or(&p.server);
+                lines.push(format!("{} = trojan,{},{},\"{}\",tls=true,sni={}", p.name, p.server, p.port, pass, sni));
+            }
+            "hysteria2" | "hy2" => {
+                let pass = p.auth.as_deref().or(p.password.as_deref()).unwrap_or_default();
+                let sni = p.servername.as_deref().unwrap_or(&p.server);
+                lines.push(format!("{} = Hysteria2,{},{},password=\"{}\",sni={}", p.name, p.server, p.port, pass, sni));
+            }
+            _ => {}
+        }
+    }
+
+    lines.push("".into());
+    lines.push("[Proxy Group]".into());
+    if !proxy_names.is_empty() {
+        lines.push(format!("🚀 节点选择 = select, ⚡ 自动优选, DIRECT, {}", proxy_names.join(", ")));
+        lines.push(format!("⚡ 自动优选 = url-test, {}, url=http://www.gstatic.com/generate_204, interval=300, tolerance=50", proxy_names.join(", ")));
+    } else {
+        lines.push("🚀 节点选择 = select, DIRECT".into());
+    }
+
+    lines.push("".into());
+    lines.push("[Rule]".into());
+    lines.push("DOMAIN-SUFFIX,cn,DIRECT".into());
+    lines.push("GEOIP,CN,DIRECT".into());
+    lines.push("FINAL,🚀 节点选择".into());
+
+    lines.join("\n")
+}
+
+pub fn convert_to_quanx_conf(proxies: &[ProxyNode]) -> String {
+    let mut lines = Vec::new();
+    lines.push("# Generated by SubHub Universal SubConverter".into());
+    lines.push("[general]".into());
+    lines.push("server_check_url=http://www.gstatic.com/generate_204".into());
+    lines.push("".into());
+    lines.push("[server_local]".into());
+
+    let mut proxy_names = Vec::new();
+    for p in proxies {
+        proxy_names.push(p.name.clone());
+        match p.node_type.to_lowercase().as_str() {
+            "ss" => {
+                let cipher = p.cipher.as_deref().unwrap_or("aes-256-gcm");
+                let pass = p.password.as_deref().unwrap_or("0");
+                lines.push(format!("shadowsocks={}:{}, method={}, password={}, tag={}", p.server, p.port, cipher, pass, p.name));
+            }
+            "vmess" => {
+                let uuid = p.uuid.as_deref().unwrap_or_default();
+                let mut parts = vec![
+                    format!("vmess={}:{}", p.server, p.port),
+                    "method=none".into(),
+                    format!("password={}", uuid),
+                ];
+                if p.network.as_deref().unwrap_or("tcp") == "ws" {
+                    parts.push("obfs=ws".into());
+                    if let Some(wo) = &p.ws_opts {
+                        if let Some(path) = wo.get("path").and_then(|v| v.as_str()) {
+                            parts.push(format!("obfs-uri={}", path));
+                        }
+                        if let Some(host) = wo.get("headers").and_then(|h| h.get("Host")).and_then(|v| v.as_str()) {
+                            parts.push(format!("obfs-host={}", host));
+                        }
+                    }
+                }
+                if p.tls.unwrap_or(false) {
+                    parts.push("tls13=true".into());
+                    if let Some(sni) = &p.servername {
+                        parts.push(format!("tls-host={}", sni));
+                    }
+                }
+                parts.push(format!("tag={}", p.name));
+                lines.push(parts.join(", "));
+            }
+            "vless" => {
+                let uuid = p.uuid.as_deref().unwrap_or_default();
+                let mut parts = vec![
+                    format!("vless={}:{}", p.server, p.port),
+                    "method=none".into(),
+                    format!("password={}", uuid),
+                ];
+                if p.tls.unwrap_or(false) {
+                    parts.push("tls13=true".into());
+                    if let Some(sni) = &p.servername {
+                        parts.push(format!("tls-host={}", sni));
+                    }
+                }
+                parts.push(format!("tag={}", p.name));
+                lines.push(parts.join(", "));
+            }
+            "trojan" => {
+                let pass = p.password.as_deref().unwrap_or_default();
+                let sni = p.servername.as_deref().unwrap_or(&p.server);
+                lines.push(format!("trojan={}:{}, password={}, over-tls=true, tls-host={}, tag={}", p.server, p.port, pass, sni, p.name));
+            }
+            "hysteria2" | "hy2" => {
+                let pass = p.auth.as_deref().or(p.password.as_deref()).unwrap_or_default();
+                let sni = p.servername.as_deref().unwrap_or(&p.server);
+                lines.push(format!("hysteria2={}:{}, password={}, tls-host={}, tag={}", p.server, p.port, pass, sni, p.name));
+            }
+            _ => {}
+        }
+    }
+
+    lines.push("".into());
+    lines.push("[policy]".into());
+    if !proxy_names.is_empty() {
+        lines.push(format!("static=🚀 节点选择, direct, ⚡ 自动优选, {}, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Rocket.png", proxy_names.join(", ")));
+        lines.push(format!("url-latency-benchmark=⚡ 自动优选, {}, check-interval=300, tolerance=50, img-url=https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Auto.png", proxy_names.join(", ")));
+    } else {
+        lines.push("static=🚀 节点选择, direct".into());
+    }
+
+    lines.push("".into());
+    lines.push("[filter_local]".into());
+    lines.push("geoip, cn, direct".into());
+    lines.push("final, 🚀 节点选择".into());
+
     lines.join("\n")
 }
 
@@ -477,5 +822,36 @@ mod tests {
         assert_eq!(detect_client_target("SFA/1.8.0 (Android 14)"), "singbox");
         assert_eq!(detect_client_target("Surge/5.0 (macOS 14.0)"), "surge");
         assert_eq!(detect_client_target("Shadowrocket/2.2.0 (iOS 17.0)"), "base64");
+
+        // 4. Clash full YAML test
+        let clash_yaml = build_clash_yaml_from_nodes(&list, true, "default");
+        assert!(clash_yaml.contains("mixed-port: 7890"));
+        assert!(clash_yaml.contains("🚀 节点选择"));
+        assert!(clash_yaml.contains("US-Node"));
+
+        // 5. Clash Proxies only test
+        let proxies_yaml = convert_to_clash_proxies_only(&list);
+        assert!(proxies_yaml.starts_with("proxies:"));
+        assert!(proxies_yaml.contains("US-Node"));
+
+        // 6. Surge conf test
+        let surge_conf = convert_to_surge_conf(&list);
+        assert!(surge_conf.contains("[Proxy]"));
+        assert!(surge_conf.contains("US-Node = vless, 1.2.3.4, 443"));
+
+        // 7. Loon conf test
+        let loon_conf = convert_to_loon_conf(&list);
+        assert!(loon_conf.contains("[Proxy]"));
+        assert!(loon_conf.contains("US-Node = vless,1.2.3.4,443"));
+
+        // 8. Quantumult X test
+        let qx_conf = convert_to_quanx_conf(&list);
+        assert!(qx_conf.contains("[server_local]"));
+        assert!(qx_conf.contains("vless=1.2.3.4:443"));
+
+        // 9. Raw links test
+        let raw = convert_to_raw_links(&list);
+        assert!(raw.starts_with("vless://"));
     }
 }
+
