@@ -584,6 +584,48 @@ pub async fn admin_delete_backup_archive_handler(
     Ok(Json(serde_json::json!({ "success": true, "message": "备份快照已成功删除" })))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct BatchDeleteBackupsPayload {
+    #[serde(default)]
+    pub filenames: Vec<String>,
+}
+
+pub async fn admin_batch_delete_backups_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<BatchDeleteBackupsPayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    let mut count = 0;
+    for filename in &payload.filenames {
+        if crate::backup::delete_backup_archive(&state.config_dir, filename).await.is_ok() {
+            count += 1;
+        }
+    }
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("已成功批量删除 {} 份快照", count),
+        "deletedCount": count
+    })))
+}
+
+pub async fn admin_clear_all_backups_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let _ = get_authenticated_user(&state, &headers).await?;
+    let list = crate::backup::list_backup_archives(&state.config_dir).await;
+    let total = list.len();
+    for b in list {
+        let _ = crate::backup::delete_backup_archive(&state.config_dir, &b.filename).await;
+    }
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("已清空全部 {} 份快照文件", total),
+        "clearedCount": total
+    })))
+}
+
 pub async fn admin_download_backup_archive_handler(
     State(state): State<AppState>,
     headers: HeaderMap,

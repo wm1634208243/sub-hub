@@ -4211,20 +4211,58 @@
 
             <!-- 🗄️ 服务器端历史快照归档矩阵 -->
             <div class="bg-slate-950/90 border border-slate-800 rounded-2xl p-5 space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 flex-wrap gap-2">
+              <div class="flex flex-col lg:flex-row lg:items-center justify-between border-b border-slate-800/80 pb-3 gap-3">
                 <div class="flex items-center gap-2.5">
                   <span class="text-lg">🗄️</span>
                   <div>
-                    <div class="text-sm font-bold text-white flex items-center gap-2">
+                    <div class="text-sm font-bold text-white flex items-center gap-2 flex-wrap">
                       <span>服务器历史快照归档</span>
                       <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-cyan-300 border border-slate-700">
                         共 {{ serverBackups.length }} 份快照
                       </span>
+                      <span v-if="selectedBackups.length > 0" class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono">
+                        已选 {{ selectedBackups.length }} 份
+                      </span>
                     </div>
-                    <div class="text-xs text-slate-400">支持一键即时无损还原到任意历史时间点，或下载到本地留存</div>
+                    <div class="text-xs text-slate-400">支持一键即时无损还原到任意历史时间点，多选批量删除或一键清空</div>
                   </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <!-- 全选 / 取消全选 -->
+                  <button 
+                    v-if="serverBackups.length > 0"
+                    type="button" 
+                    @click="toggleSelectAllBackups"
+                    class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded-xl border border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer"
+                    :title="selectedBackups.length === serverBackups.length ? '取消全选' : '全选所有快照'"
+                  >
+                    <span>{{ selectedBackups.length === serverBackups.length && serverBackups.length > 0 ? '☑️ 取消全选' : '◻️ 全选' }}</span>
+                  </button>
+
+                  <!-- 批量删除选中项 -->
+                  <button 
+                    v-if="selectedBackups.length > 0"
+                    type="button" 
+                    @click="batchDeleteSelectedBackups"
+                    :disabled="batchDeletingBackups"
+                    class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold rounded-xl transition-all flex items-center gap-1 cursor-pointer animate-pulse"
+                  >
+                    <span>🗑️ 批量删除 ({{ selectedBackups.length }})</span>
+                  </button>
+
+                  <!-- 一键清空所有快照 -->
+                  <button 
+                    v-if="serverBackups.length > 0"
+                    type="button" 
+                    @click="clearAllServerBackups"
+                    :disabled="batchDeletingBackups"
+                    class="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                    title="一键物理清空所有服务器快照"
+                  >
+                    <span>💥 清空全部</span>
+                  </button>
+
+                  <!-- 刷新列表 -->
                   <button 
                     type="button" 
                     @click="fetchServerBackups" 
@@ -4234,6 +4272,8 @@
                     <span :class="{'animate-spin inline-block': loadingBackups}">🔄</span>
                     <span>{{ loadingBackups ? '刷新中...' : '刷新列表' }}</span>
                   </button>
+
+                  <!-- 立即生成快照 -->
                   <button 
                     type="button" 
                     @click="createServerBackupNow" 
@@ -4256,28 +4296,36 @@
                 <div 
                   v-for="b in serverBackups" 
                   :key="b.filename"
-                  class="bg-slate-900/80 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap transition-all"
+                  :class="selectedBackups.includes(b.filename) ? 'border-cyan-500/50 bg-cyan-950/20 shadow-md shadow-cyan-500/10' : 'bg-slate-900/80 hover:bg-slate-900 border-slate-800 hover:border-slate-700'"
+                  class="border rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 transition-all"
                 >
                   <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm" :class="b.trigger_type === 'auto' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-cyan-500/10 text-cyan-400'">
+                    <!-- 多选 Checkbox -->
+                    <input 
+                      type="checkbox" 
+                      :value="b.filename" 
+                      v-model="selectedBackups"
+                      class="w-4 h-4 accent-cyan-500 rounded cursor-pointer shrink-0" 
+                    />
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0" :class="b.trigger_type === 'auto' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-cyan-500/10 text-cyan-400'">
                       {{ b.trigger_type === 'auto' ? '⏰' : '⚡' }}
                     </div>
-                    <div>
-                      <div class="text-xs font-semibold text-white font-mono flex items-center gap-2">
-                        <span>{{ b.filename }}</span>
-                        <span :class="b.trigger_type === 'auto' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'" class="px-1.5 py-0.5 rounded text-[9px] font-sans border">
+                    <div class="min-w-0 flex-1">
+                      <div class="text-xs font-semibold text-white font-mono flex items-center gap-2 flex-wrap">
+                        <span class="truncate">{{ b.filename }}</span>
+                        <span :class="b.trigger_type === 'auto' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30'" class="px-1.5 py-0.2 rounded text-[9px] font-sans border shrink-0">
                           {{ b.trigger_type === 'auto' ? '定时自动' : '手动生成' }}
                         </span>
                       </div>
-                      <div class="text-[11px] text-slate-400 flex items-center gap-3 mt-0.5">
-                        <span>时间：{{ new Date(b.created_at).toLocaleString() }}</span>
-                        <span>大小：{{ formatFileSize(b.size_bytes) }}</span>
-                        <span>用户数：{{ b.users_count }} 个</span>
+                      <div class="text-[10px] sm:text-[11px] text-slate-400 flex items-center gap-2 sm:gap-3 mt-0.5 flex-wrap">
+                        <span>🕒 {{ new Date(b.created_at).toLocaleString() }}</span>
+                        <span>💾 {{ formatFileSize(b.size_bytes) }}</span>
+                        <span>👤 {{ b.users_count }} 用户</span>
                       </div>
                     </div>
                   </div>
 
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1.5 sm:gap-2 justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/80">
                     <button 
                       type="button" 
                       @click="downloadServerBackup(b.filename)"
@@ -4292,12 +4340,12 @@
                       class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs rounded-lg transition-all flex items-center gap-1 cursor-pointer font-semibold"
                       title="一键还原至此快照"
                     >
-                      <span>🔄 一键还原</span>
+                      <span>🔄 还原</span>
                     </button>
                     <button 
                       type="button" 
                       @click="deleteServerBackup(b.filename)"
-                      class="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs rounded-lg transition-all cursor-pointer"
+                      class="px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 text-xs rounded-lg transition-all cursor-pointer"
                       title="删除此快照"
                     >
                       <span>🗑️</span>
@@ -6089,8 +6137,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.1.6',
-          latestVersion: '2.1.6',
+          currentVersion: '2.1.7',
+          latestVersion: '2.1.7',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
@@ -7536,6 +7584,68 @@ function main(config, profileName) {
         const loadingBackups = ref(false);
         const savingBackupSettings = ref(false);
         const creatingBackup = ref(false);
+        const selectedBackups = ref([]);
+        const batchDeletingBackups = ref(false);
+
+        const toggleSelectAllBackups = () => {
+          if (selectedBackups.value.length === serverBackups.value.length && serverBackups.value.length > 0) {
+            selectedBackups.value = [];
+          } else {
+            selectedBackups.value = serverBackups.value.map(b => b.filename);
+          }
+        };
+
+        const batchDeleteSelectedBackups = async () => {
+          if (selectedBackups.value.length === 0) return;
+          if (!confirm(`⚠️ 确认批量删除选中的【${selectedBackups.value.length}】份快照文件？删除后不可恢复！`)) return;
+          batchDeletingBackups.value = true;
+          try {
+            const res = await fetch('/api/admin/backups/batch-delete', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token.value}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ filenames: selectedBackups.value })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast(`🗑️ ${data.message || '批量删除快照成功'}`);
+              selectedBackups.value = [];
+              await fetchServerBackups();
+            } else {
+              showToast(data.error || '批量删除失败', 'error');
+            }
+          } catch (e) {
+            showToast('批量删除异常: ' + e.message, 'error');
+          } finally {
+            batchDeletingBackups.value = false;
+          }
+        };
+
+        const clearAllServerBackups = async () => {
+          if (serverBackups.value.length === 0) return;
+          if (!confirm(`🚨 危险操作：确认一键【清空全部 ${serverBackups.value.length} 份】服务器快照？\n\n清空后所有备份归档将被物理抹除且无法恢复！`)) return;
+          batchDeletingBackups.value = true;
+          try {
+            const res = await fetch('/api/admin/backups/clear-all', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token.value}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast(`💥 ${data.message || '已清空全部快照文件'}`);
+              selectedBackups.value = [];
+              await fetchServerBackups();
+            } else {
+              showToast(data.error || '清空快照失败', 'error');
+            }
+          } catch (e) {
+            showToast('清空快照异常: ' + e.message, 'error');
+          } finally {
+            batchDeletingBackups.value = false;
+          }
+        };
 
         let isFetchingBackups = false;
         const fetchServerBackups = async () => {
@@ -8736,6 +8846,11 @@ function main(config, profileName) {
           loadingBackups,
           savingBackupSettings,
           creatingBackup,
+          selectedBackups,
+          batchDeletingBackups,
+          toggleSelectAllBackups,
+          batchDeleteSelectedBackups,
+          clearAllServerBackups,
           fetchServerBackups,
           saveBackupSettingsHandler,
           createServerBackupNow,

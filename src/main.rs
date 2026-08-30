@@ -12,13 +12,14 @@ use api::auth_handlers::{
     user_status_handler, AppState,
 };
 use api::config_handlers::{
-    admin_backup_export_handler, admin_backup_restore_handler, admin_create_backup_archive_handler,
-    admin_delete_backup_archive_handler, admin_download_backup_archive_handler, admin_get_backups_handler,
-    admin_restore_backup_archive_handler, admin_save_backup_settings_handler, clear_access_logs_handler,
-    compile_transient_handler, get_access_logs_handler, get_config_handler, inspect_nodes_handler,
-    nodes_health_handler, preview_config_handler, preview_rename_handler, purge_config_handler,
-    refresh_subscriptions_handler, regenerate_token_handler, save_config_handler, serve_rules_js_handler,
-    set_token_expiry_handler, test_subscription_handler,
+    admin_backup_export_handler, admin_backup_restore_handler, admin_batch_delete_backups_handler,
+    admin_clear_all_backups_handler, admin_create_backup_archive_handler, admin_delete_backup_archive_handler,
+    admin_download_backup_archive_handler, admin_get_backups_handler, admin_restore_backup_archive_handler,
+    admin_save_backup_settings_handler, clear_access_logs_handler, compile_transient_handler,
+    get_access_logs_handler, get_config_handler, inspect_nodes_handler, nodes_health_handler,
+    preview_config_handler, preview_rename_handler, purge_config_handler, refresh_subscriptions_handler,
+    regenerate_token_handler, save_config_handler, serve_rules_js_handler, set_token_expiry_handler,
+    test_subscription_handler,
 };
 use api::sub_handlers::unified_sub_handler;
 use api::system_handlers::{
@@ -199,6 +200,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/admin/backup/settings", post(admin_save_backup_settings_handler))
         .route("/api/admin/backup/create", post(admin_create_backup_archive_handler))
         .route("/api/admin/backup/restore-file", post(admin_restore_backup_archive_handler))
+        .route("/api/admin/backups/batch-delete", post(admin_batch_delete_backups_handler))
+        .route("/api/admin/backups/clear-all", post(admin_clear_all_backups_handler))
         .route("/api/admin/backups/:filename", delete(admin_delete_backup_archive_handler))
         .route("/api/admin/backups/download/:filename", get(admin_download_backup_archive_handler))
         .route("/api/admin/system/settings", get(admin_get_system_settings_handler).post(admin_save_system_settings_handler))
