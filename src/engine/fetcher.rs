@@ -59,6 +59,27 @@ impl SubscriptionFetcher {
             return Err(msg.to_string());
         }
 
+        // Direct single/multiple node links (vless://, vmess://, trojan://, ss://, hy2://, tuic://, Base64)
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            let nodes = parse_subscription_content(url, prefix);
+            if nodes.is_empty() {
+                return Err("无法从输入的链接中解析出有效的代理节点，请检查节点链接格式是否正确".into());
+            }
+            let source_type = if nodes.len() == 1 {
+                format!("自建单节点 ({})", nodes[0].node_type.to_uppercase())
+            } else {
+                format!("自定义节点池 ({} 个节点)", nodes.len())
+            };
+            return Ok(FetchResult {
+                url: url.to_string(),
+                prefix: prefix.to_string(),
+                nodes,
+                user_info: None,
+                source_type,
+                updated_at: chrono::Utc::now().to_rfc3339(),
+            });
+        }
+
         if !force_refresh {
             let map = self.cache.read().await;
             if let Some(entry) = map.get(url) {

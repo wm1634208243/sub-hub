@@ -130,16 +130,30 @@ pub fn validate_username(username: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
-/// Validate subscription URL to prevent SSRF against internal services
+/// Validate subscription URL or raw node links
 pub fn validate_subscription_url(url: &str) -> Result<(), &'static str> {
     let u = url.trim();
-    if !u.starts_with("http://") && !u.starts_with("https://") {
-        return Err("订阅链接必须以 http:// 或 https:// 开头");
+    if u.is_empty() {
+        return Err("订阅链接或节点内容不能为空");
     }
-    if u.len() > 4096 {
-        return Err("订阅链接长度超出安全限制");
+    if u.starts_with("http://") || u.starts_with("https://")
+        || u.starts_with("vless://") || u.starts_with("vmess://")
+        || u.starts_with("trojan://") || u.starts_with("ss://")
+        || u.starts_with("hysteria2://") || u.starts_with("hy2://")
+        || u.starts_with("tuic://") || u.starts_with("socks5://") {
+        if u.len() > 65536 {
+            return Err("订阅链接长度超出安全限制");
+        }
+        return Ok(());
     }
-    Ok(())
+    // Also allow multi-line node links or raw base64 content
+    if u.lines().any(|l| l.trim().contains("://")) || u.len() > 20 {
+        if u.len() > 65536 {
+            return Err("节点内容长度超出安全限制");
+        }
+        return Ok(());
+    }
+    Err("请输入有效的 HTTP/HTTPS 订阅链接或单节点链接 (vless://, vmess://, trojan://, ss:// 等)")
 }
 
 // ── Client IP & UA Extractor ──────────────────────────────────────────────────

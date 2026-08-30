@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.6",
+            "tag": "v2.4.6",
+            "name": "SubHub v2.4.6 · 原生支持直接粘贴 vless/vmess/trojan/ss/hy2 单节点与多节点链接",
+            "publishedAt": "2026-08-30T13:25:23.762Z",
+            "highlights": [
+                "🚀 原生支持在订阅输入框直接粘贴 vless://, vmess://, trojan://, ss://, hy2:// 等单节点/多节点链接",
+                "⚡ 移除浏览器表单协议校验阻拦，支持离线 0 毫秒直接解析与聚合",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.6 发布\n- **原生支持直接粘贴单节点/多节点链接**：直接粘贴 vless://, vmess://, trojan://, ss://, hy2://，0 毫秒自动解析并入库；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.5",
             "tag": "v2.4.5",
             "name": "SubHub v2.4.5 · 全球非大陆 GeoSite 权威矩阵与极客开发者生态原生集成",

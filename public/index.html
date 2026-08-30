@@ -5421,15 +5421,15 @@
           </div>
 
           <div>
-            <label class="text-xs text-slate-400 block mb-1 font-semibold">订阅 URL 地址 *</label>
+            <label class="text-xs text-slate-400 block mb-1 font-semibold">订阅 URL 地址 / 单节点或多节点链接 *</label>
             <input 
               v-model="subForm.url" 
-              type="url" 
-              placeholder="https://... 或机场/VPS 订阅链接"
+              type="text" 
+              placeholder="https://... 订阅链接 或 vless://, vmess://, trojan://, ss://, hy2:// 单节点/多节点链接"
               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-cyan-300 font-mono focus:outline-none focus:border-cyan-500"
               required
             />
-            <p class="text-[11px] text-slate-500 mt-1">支持各类商业机场、V2Board、SSPanel、X-UI / 3X-UI、Marzban、Clash YAML 或 Base64 全类型订阅直链。</p>
+            <p class="text-[11px] text-slate-500 mt-1">支持各类商业机场、X-UI / 3X-UI、Clash YAML、Base64，以及直接粘贴 <code class="text-cyan-400">vless://</code>、<code class="text-cyan-400">vmess://</code>、<code class="text-cyan-400">trojan://</code>、<code class="text-cyan-400">ss://</code>、<code class="text-cyan-400">hy2://</code> 自建单节点或多节点链接。</p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -6175,8 +6175,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.4.5',
-          latestVersion: '2.4.5',
+          currentVersion: '2.4.6',
+          latestVersion: '2.4.6',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
