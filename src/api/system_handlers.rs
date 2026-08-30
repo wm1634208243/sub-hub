@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.1",
+            "tag": "v2.2.1",
+            "name": "SubHub v2.2.1 · 单个订阅源专属流量与到期时间精细化展示",
+            "publishedAt": "2026-08-30T04:05:15.872Z",
+            "highlights": [
+                "📦 单个订阅源专属状态节点：在订阅源分组与主选择器中紧随其后展示该订阅源的独立已用/总流量与到期时间",
+                "📊 全局总流量与单源流量双层透视：主节点选择列表顶部展示全站汇总，各源组内精准呈现独立源配额",
+                "🛡️ 智能测速隔离与全内核完美兼容：所有状态节点均自动排除于 URLTest / 延迟测试池外"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.1 发布\n- **单个订阅源流量与到期透视**：各订阅源（如「良心云」、「DMIT」、「US.LA」）在客户端主选择器及订阅源子分组（`📦 订阅源 · XXX`）内均提供专属「📊 [源名称] 流量」与「⏰ [源名称] 到期」状态节点；\n- **双层配额掌控**：既能一眼掌控全站 3TB+ 总配额，也能精准查看每个独立上游订阅源的消耗进度与到期倒计时。"
+        }),
+        serde_json::json!({
             "version": "2.2.0",
             "tag": "v2.2.0",
             "name": "SubHub v2.2.0 · 四大操作系统（iOS/Android/macOS/Windows）多端全内核深度兼容体系",

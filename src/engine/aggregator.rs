@@ -16,7 +16,9 @@ pub async fn aggregate_clash_yaml(
     fetcher: &SubscriptionFetcher,
 ) -> Result<AggregatedResult, String> {
     let mut all_proxies: Vec<ProxyNode> = Vec::new();
-    let mut sub_group_map: Vec<(String, Vec<String>)> = Vec::new();
+    let mut sub_group_map: Vec<(String, Vec<String>, Vec<String>)> = Vec::new();
+    let mut all_info_nodes: Vec<ProxyNode> = Vec::new();
+    let mut global_info_node_names: Vec<String> = Vec::new();
 
     let mut agg_upload: u64 = 0;
     let mut agg_download: u64 = 0;
@@ -30,18 +32,27 @@ pub async fn aggregate_clash_yaml(
             continue;
         }
 
+        let mut sub_upload: u64 = 0;
+        let mut sub_download: u64 = 0;
+        let mut sub_total: u64 = 0;
+        let mut sub_min_expire: Option<u64> = None;
+
         let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
-        match fetcher.fetch(&sub.url, prefix, false).await {
+        let fetched_res = fetcher.fetch(&sub.url, prefix, false).await;
+
+        let mut current_sub_nodes = Vec::new();
+
+        match fetched_res {
             Ok(res) => {
-                // Aggregated userinfo from fetch result or fallback to stored sub.user_info
                 let ui_opt = res.user_info.as_ref().or(sub.user_info.as_ref());
                 if let Some(ui) = ui_opt {
-                    if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { agg_upload += up; }
-                    if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { agg_download += down; }
-                    if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { agg_total += tot; }
+                    if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
+                    if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
+                    if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
                     if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
                         if exp > 0 {
                             let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
+                            sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                             min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                         }
                     }
@@ -49,16 +60,21 @@ pub async fn aggregate_clash_yaml(
                 if let Some(exp_str) = &sub.custom_expire {
                     if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(exp_str) {
                         let sec = dt.timestamp() as u64;
-                        if sec > 0 { min_expire = Some(min_expire.map_or(sec, |m| m.min(sec))); }
+                        if sec > 0 {
+                            sub_min_expire = Some(sub_min_expire.map_or(sec, |m| m.min(sec)));
+                            min_expire = Some(min_expire.map_or(sec, |m| m.min(sec)));
+                        }
                     } else if let Ok(dt) = chrono::NaiveDate::parse_from_str(exp_str, "%Y-%m-%d") {
                         if let Some(ndt) = dt.and_hms_opt(23, 59, 59) {
                             let sec = ndt.and_utc().timestamp() as u64;
-                            if sec > 0 { min_expire = Some(min_expire.map_or(sec, |m| m.min(sec))); }
+                            if sec > 0 {
+                                sub_min_expire = Some(sub_min_expire.map_or(sec, |m| m.min(sec)));
+                                min_expire = Some(min_expire.map_or(sec, |m| m.min(sec)));
+                            }
                         }
                     }
                 }
 
-                let mut current_sub_nodes = Vec::new();
                 for mut node in res.nodes {
                     let mut formatted = format_node_name(
                         &node.name,
@@ -81,27 +97,65 @@ pub async fn aggregate_clash_yaml(
                     current_sub_nodes.push(formatted);
                     all_proxies.push(node);
                 }
-
-                // Optimization: only create sub-group if sub has more than 1 node
-                if current_sub_nodes.len() > 1 {
-                    let sub_group_name = format!("📦 订阅源 · {}", sub.name);
-                    sub_group_map.push((sub_group_name, current_sub_nodes));
-                }
             }
             Err(e) => {
                 tracing::warn!("Failed to fetch subscription {}: {}", sub.name, e);
                 if let Some(ui) = &sub.user_info {
-                    if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { agg_upload += up; }
-                    if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { agg_download += down; }
-                    if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { agg_total += tot; }
+                    if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
+                    if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
+                    if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
                     if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
                         if exp > 0 {
                             let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
+                            sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                             min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                         }
                     }
                 }
             }
+        }
+
+        // Generate per-subscription traffic and expiry info nodes
+        let mut sub_info_node_names = Vec::new();
+        if sub_total > 0 {
+            let sub_used = sub_upload + sub_download;
+            let sub_used_str = format_bytes_human(sub_used);
+            let sub_total_str = format_bytes_human(sub_total);
+            let sub_pct = if sub_total > 0 { ((sub_used as f64 / sub_total as f64) * 100.0).round() as u32 } else { 0 };
+            let sub_traffic_name = format!("📊 [{}] 流量: {} / {} ({}%)", sub.name, sub_used_str, sub_total_str, sub_pct);
+            let mut p = ProxyNode::default();
+            p.name = sub_traffic_name.clone();
+            p.server = "127.0.0.1".into();
+            p.port = 80;
+            p.node_type = "ss".into();
+            p.cipher = Some("aes-128-gcm".into());
+            p.password = Some("0".into());
+            sub_info_node_names.push(sub_traffic_name);
+            all_info_nodes.push(p);
+        }
+
+        let sub_expire_name = match sub_min_expire {
+            Some(exp_sec) if exp_sec > 2500000000 => format!("⏰ [{}] 到期: 永久有效 (无限制)", sub.name),
+            Some(exp_sec) => {
+                chrono::DateTime::from_timestamp(exp_sec as i64, 0)
+                    .map(|dt| format!("⏰ [{}] 到期: {} 到期", sub.name, dt.format("%Y-%m-%d")))
+                    .unwrap_or_else(|| format!("⏰ [{}] 到期: 永久有效 (无限制)", sub.name))
+            }
+            None => format!("⏰ [{}] 到期: 永久有效 (无限制)", sub.name),
+        };
+        let mut p = ProxyNode::default();
+        p.name = sub_expire_name.clone();
+        p.server = "127.0.0.1".into();
+        p.port = 80;
+        p.node_type = "ss".into();
+        p.cipher = Some("aes-128-gcm".into());
+        p.password = Some("0".into());
+        sub_info_node_names.push(sub_expire_name);
+        all_info_nodes.push(p);
+
+        if !current_sub_nodes.is_empty() {
+            let sub_group_name = format!("📦 订阅源 · {}", sub.name);
+            sub_group_map.push((sub_group_name, sub_info_node_names, current_sub_nodes));
         }
     }
 
@@ -117,15 +171,13 @@ pub async fn aggregate_clash_yaml(
         }
     }
 
-    let mut info_nodes: Vec<ProxyNode> = Vec::new();
-    let mut info_node_names: Vec<String> = Vec::new();
-
+    // Global Aggregate Summary Info Nodes
     if agg_total > 0 {
         let used_bytes = agg_upload + agg_download;
         let used_str = format_bytes_human(used_bytes);
         let total_str = format_bytes_human(agg_total);
         let pct = if agg_total > 0 { ((used_bytes as f64 / agg_total as f64) * 100.0).round() as u32 } else { 0 };
-        let traffic_name = format!("📊 流量: {} / {} ({}%)", used_str, total_str, pct);
+        let traffic_name = format!("📊 [总] 流量: {} / {} ({}%)", used_str, total_str, pct);
         let mut p = ProxyNode::default();
         p.name = traffic_name.clone();
         p.server = "127.0.0.1".into();
@@ -133,18 +185,18 @@ pub async fn aggregate_clash_yaml(
         p.node_type = "ss".into();
         p.cipher = Some("aes-128-gcm".into());
         p.password = Some("0".into());
-        info_node_names.push(traffic_name);
-        info_nodes.push(p);
+        global_info_node_names.push(traffic_name);
+        all_info_nodes.push(p);
     }
 
     let expire_name = match min_expire {
-        Some(exp_sec) if exp_sec > 2500000000 => "⏰ 到期: 永久有效 (无限制)".to_string(),
+        Some(exp_sec) if exp_sec > 2500000000 => "⏰ [总] 到期: 永久有效 (无限制)".to_string(),
         Some(exp_sec) => {
             chrono::DateTime::from_timestamp(exp_sec as i64, 0)
-                .map(|dt| format!("⏰ 到期: {} 到期", dt.format("%Y-%m-%d")))
-                .unwrap_or_else(|| "⏰ 到期: 永久有效 (无限制)".to_string())
+                .map(|dt| format!("⏰ [总] 到期: {} 到期", dt.format("%Y-%m-%d")))
+                .unwrap_or_else(|| "⏰ [总] 到期: 永久有效 (无限制)".to_string())
         }
-        None => "⏰ 到期: 永久有效 (无限制)".to_string(),
+        None => "⏰ [总] 到期: 永久有效 (无限制)".to_string(),
     };
     let mut p = ProxyNode::default();
     p.name = expire_name.clone();
@@ -153,12 +205,12 @@ pub async fn aggregate_clash_yaml(
     p.node_type = "ss".into();
     p.cipher = Some("aes-128-gcm".into());
     p.password = Some("0".into());
-    info_node_names.push(expire_name);
-    info_nodes.push(p);
+    global_info_node_names.push(expire_name);
+    all_info_nodes.push(p);
 
     let all_node_names: Vec<String> = all_proxies.iter().map(|p| p.name.clone()).collect();
     let mut active_proxies: Vec<ProxyNode> = Vec::new();
-    active_proxies.extend(info_nodes);
+    active_proxies.extend(all_info_nodes);
     active_proxies.extend(all_proxies);
 
     let main_proxy_group = config.custom_proxy_group_name
@@ -232,7 +284,7 @@ pub async fn aggregate_clash_yaml(
     let mut proxy_groups: Vec<serde_json::Value> = Vec::new();
     // 3.1 🚀 节点选择 (Master Selector - 放在首位作为主控)
     let mut master_selector_proxies = Vec::new();
-    for info_name in &info_node_names {
+    for info_name in &global_info_node_names {
         master_selector_proxies.push(info_name.clone());
     }
     master_selector_proxies.push("⚡ 自动优选 (全部源)".to_string());
@@ -240,8 +292,11 @@ pub async fn aggregate_clash_yaml(
     for (auto_name, _, _) in &region_groups {
         master_selector_proxies.push(auto_name.clone());
     }
-    for (sg_name, _) in &sub_group_map {
+    for (sg_name, sub_info_names, _) in &sub_group_map {
         master_selector_proxies.push(sg_name.clone());
+        for sin in sub_info_names {
+            master_selector_proxies.push(sin.clone());
+        }
     }
     for name in &all_node_names {
         master_selector_proxies.push(name.clone());
@@ -300,8 +355,14 @@ pub async fn aggregate_clash_yaml(
     }
 
     // 3.4 Upstream Sub Groups
-    for (sg_name, node_names) in &sub_group_map {
-        let mut sg_proxies = node_names.clone();
+    for (sg_name, sub_info_names, node_names) in &sub_group_map {
+        let mut sg_proxies = Vec::new();
+        for sin in sub_info_names {
+            sg_proxies.push(sin.clone());
+        }
+        for n in node_names {
+            sg_proxies.push(n.clone());
+        }
         sg_proxies.push("DIRECT".to_string());
         sg_proxies.retain(|s| !s.trim().is_empty());
         sg_proxies.dedup();
@@ -321,7 +382,7 @@ pub async fn aggregate_clash_yaml(
     for (auto_name, _, _) in &region_groups {
         scenario_proxies.push(auto_name.clone());
     }
-    for (sg_name, _) in &sub_group_map {
+    for (sg_name, _, _) in &sub_group_map {
         scenario_proxies.push(sg_name.clone());
     }
     for name in &all_node_names {
@@ -339,7 +400,7 @@ pub async fn aggregate_clash_yaml(
     for (auto_name, _, _) in &region_groups {
         direct_first_proxies.push(auto_name.clone());
     }
-    for (sg_name, _) in &sub_group_map {
+    for (sg_name, _, _) in &sub_group_map {
         direct_first_proxies.push(sg_name.clone());
     }
     for name in &all_node_names {
@@ -718,8 +779,10 @@ mod tests {
         assert!(ui.contains("expire=1788060000"), "expire must be in seconds, not ms! got {}", ui);
 
         // Check YAML contains info nodes
-        assert!(res.yaml.contains("📊 流量:"));
-        assert!(res.yaml.contains("⏰ 到期:"));
+        assert!(res.yaml.contains("📊 [总] 流量:"));
+        assert!(res.yaml.contains("⏰ [总] 到期:"));
+        assert!(res.yaml.contains("📊 [DMIT] 流量:"));
+        assert!(res.yaml.contains("⏰ [DMIT] 到期:"));
         assert!(res.yaml.contains("type: ss"));
     }
 }
