@@ -459,22 +459,89 @@ pub async fn aggregate_clash_yaml(
     dns_cfg.insert("ipv6".into(), serde_json::json!(false));
     dns_cfg.insert("enhanced-mode".into(), serde_json::json!("fake-ip"));
     dns_cfg.insert("fake-ip-range".into(), serde_json::json!("198.18.0.1/16"));
-    dns_cfg.insert("default-nameserver".into(), serde_json::json!(["223.5.5.5", "119.29.29.29", "1.1.1.1"]));
-    dns_cfg.insert("nameserver".into(), serde_json::to_value(&config.nameservers).unwrap_or_default());
-    dns_cfg.insert("fallback".into(), serde_json::to_value(&config.fallback_dns).unwrap_or_default());
-    dns_cfg.insert("fake-ip-filter".into(), serde_json::to_value(if config.fake_ip_filter.is_empty() {
-        vec!["*.lan".to_string(), "*.local".to_string(), "+.wmxhub.com".to_string()]
+    dns_cfg.insert("default-nameserver".into(), serde_json::json!(["223.5.5.5", "119.29.29.29", "180.76.76.76"]));
+
+    let mut nameservers = config.nameservers.clone();
+    if nameservers.is_empty() {
+        nameservers = vec![
+            "https://223.5.5.5/dns-query".to_string(),
+            "https://doh.pub/dns-query".to_string(),
+            "223.5.5.5".to_string(),
+            "119.29.29.29".to_string(),
+        ];
     } else {
-        config.fake_ip_filter.clone()
-    }).unwrap_or_default());
+        if !nameservers.iter().any(|s| s.contains("doh.pub") || s.contains("223.5.5.5/dns-query")) {
+            nameservers.insert(0, "https://223.5.5.5/dns-query".to_string());
+            nameservers.insert(1, "https://doh.pub/dns-query".to_string());
+        }
+    }
+    dns_cfg.insert("nameserver".into(), serde_json::to_value(&nameservers).unwrap_or_default());
+
+    let mut fallback_dns = config.fallback_dns.clone();
+    if fallback_dns.is_empty() {
+        fallback_dns = vec![
+            "https://1.1.1.1/dns-query".to_string(),
+            "https://8.8.8.8/dns-query".to_string(),
+        ];
+    }
+    dns_cfg.insert("fallback".into(), serde_json::to_value(&fallback_dns).unwrap_or_default());
+
+    // Standard clean fake-ip-filter (Strip normal websites that break direct resolution)
+    let mut clean_fake_ip_filter = vec![
+        "*.lan".to_string(),
+        "*.local".to_string(),
+        "*.internal".to_string(),
+        "*.home.arpa".to_string(),
+        "time.*.com".to_string(),
+        "time.*.gov".to_string(),
+        "time.*.edu.cn".to_string(),
+        "time.*.apple.com".to_string(),
+        "time1.cloud.tencent.com".to_string(),
+        "*.ntp.org.cn".to_string(),
+        "ntp.*.com".to_string(),
+        "localhost.ptlogin2.qq.com".to_string(),
+        "*.srv.nintendo.net".to_string(),
+        "*.stun.*.*".to_string(),
+        "+.msftconnecttest.com".to_string(),
+        "+.msftncsi.com".to_string(),
+        "+.wmxhub.com".to_string(),
+    ];
+    for item in &config.fake_ip_filter {
+        let trimmed = item.trim().to_lowercase();
+        if !trimmed.is_empty() 
+            && !trimmed.contains("bilibili")
+            && !trimmed.contains("bilivideo")
+            && !trimmed.contains("hdslb")
+            && !trimmed.contains("baidu")
+            && !trimmed.contains("qq.com")
+            && !trimmed.contains("tencent")
+            && !trimmed.contains("aliyun")
+            && !trimmed.contains("taobao")
+            && !trimmed.contains("jd.com")
+            && !trimmed.contains("wps")
+            && !trimmed.contains(".cn")
+            && !clean_fake_ip_filter.contains(&trimmed) {
+            clean_fake_ip_filter.push(item.trim().to_string());
+        }
+    }
+    dns_cfg.insert("fake-ip-filter".into(), serde_json::to_value(&clean_fake_ip_filter).unwrap_or_default());
+
     dns_cfg.insert("fallback-filter".into(), serde_json::json!({
         "geoip": true,
         "geoip-code": "CN",
         "ipcidr": ["240.0.0.0/4"]
     }));
-    dns_cfg.insert("nameserver-policy".into(), serde_json::json!({
-        "+.cn": serde_json::to_value(&config.nameservers).unwrap_or_default()
-    }));
+
+    let mut ns_policy = serde_json::Map::new();
+    let domestic_doh = serde_json::json!([
+        "https://223.5.5.5/dns-query",
+        "https://doh.pub/dns-query",
+        "223.5.5.5",
+        "119.29.29.29"
+    ]);
+    ns_policy.insert("+.cn".into(), domestic_doh.clone());
+    ns_policy.insert("+.bilibili.com,+.bilivideo.com,+.hdslb.com,+.baidu.com,+.baidupcs.com,+.qq.com,+.weixin.qq.com,+.tencent.com,+.taobao.com,+.aliyun.com,+.aliyuncs.com,+.jd.com,+.163.com,+.126.net,+.zhihu.com,+.douyin.com,+.xiaohongshu.com,+.weibo.com,+.sina.com.cn,+.sohu.com,+.meituan.com,+.amap.com,+.autonavi.com,+.123pan.com,+.wps.com,+.wps.cn,+.wpscdn.com,+.kingsoft.com,+.todesk.com,+.feishu.cn,+.dingtalk.com,+.mi.com,+.xiaomi.com,+.mifile.cn,+.gitee.com,+.csdn.net".into(), domestic_doh);
+    dns_cfg.insert("nameserver-policy".into(), serde_json::Value::Object(ns_policy));
     clash_map.insert("dns".into(), serde_json::Value::Object(dns_cfg));
 
     if config.enable_sniffer {

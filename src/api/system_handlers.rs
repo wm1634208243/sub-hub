@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.1",
+            "tag": "v2.4.1",
+            "name": "SubHub v2.4.1 · 修复 Fake-IP 排除名单污染，极速 DoH 彻底解决 B站/国内网站 NXDOMAIN 报错",
+            "publishedAt": "2026-08-30T08:00:10.066Z",
+            "highlights": [
+                "🛡️ 彻底修复国内网站 (B站/百度/微信等) DNS_PROBE_FINISHED_NXDOMAIN 报错",
+                "⚡ 全面升级为阿里/腾讯高并发 DoH 极速解析通道，净化 fake-ip-filter",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.1 发布\n- **修复国内域名解析报错**：剔除 fake-ip-filter 中对普通域名的错误拦截，集成国内 DoH 解析池与精细化 nameserver-policy；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.0",
             "tag": "v2.4.0",
             "name": "SubHub v2.4.0 · 规则优先级重构，场景分流绝对优先与流量精准路由",
