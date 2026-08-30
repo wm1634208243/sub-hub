@@ -28,7 +28,12 @@ pub fn parse_node_link(link: &str, prefix: &str) -> Option<ProxyNode> {
 }
 
 fn build_name(raw_name: &str, prefix: &str) -> String {
-    let name = raw_name.trim();
+    let clean: String = raw_name
+        .replace('\u{FFFD}', "")
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect();
+    let name = clean.trim();
     if name.is_empty() {
         if prefix.is_empty() { "Node".to_string() } else { format!("[{}] Node", prefix) }
     } else if prefix.is_empty() {

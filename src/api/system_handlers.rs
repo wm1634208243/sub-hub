@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.4",
+            "tag": "v2.3.4",
+            "name": "SubHub v2.3.4 · 协议解析与重命名引擎全链路 UTF-8 深度净化",
+            "publishedAt": "2026-08-30T06:37:08.524Z",
+            "highlights": [
+                "🧹 全链路 UTF-8 深度净化：从底层协议解析（VLESS/Trojan/SS/Hy2）到重命名全局过滤不可见控制符与 \\u{FFFD}",
+                "🎯 彻底消除任何由于上游订阅特殊字符导致策略组找不到节点的可能",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.4 发布\n- **字符净化与名称一致性**：在所有协议链接解析时底层清除残损编码字符，从根源保证节点名称 100% 干净；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.3.3",
             "tag": "v2.3.3",
             "name": "SubHub v2.3.3 · 策略组自清洗直推引擎与字符深度净化",

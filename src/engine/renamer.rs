@@ -92,7 +92,12 @@ pub fn format_node_name(
     custom_rename_rules: &[CustomRenameRule],
     default_region: Option<&str>,
 ) -> String {
-    let mut name = raw_name.replace('\u{FFFD}', "").trim().to_string();
+    let mut name: String = raw_name
+        .replace('\u{FFFD}', "")
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect();
+    name = name.trim().to_string();
 
     // 1. Clean ads and multipliers
     if enable_clean_ad_and_rate {
@@ -122,12 +127,13 @@ pub fn format_node_name(
         if let Some(reg) = region {
             // Remove existing flags and stray regional indicators first to prevent corrupted/duplicate flags
             name = ALL_FLAGS_REGEX.replace_all(&name, "").to_string();
-            name = name.chars().filter(|c| !('\u{1F1E6}'..='\u{1F1FF}').contains(c)).collect::<String>().trim().to_string();
+            name = name.chars().filter(|c| !('\u{1F1E6}'..='\u{1F1FF}').contains(c)).collect::<String>();
+            name = name.trim().to_string();
             name = format!("{} {}", reg.flag, name);
         }
     }
 
-    name.trim().to_string()
+    name.replace('\u{FFFD}', "").trim().to_string()
 }
 
 pub fn is_announcement_node(name: &str, server: &str, port: u16) -> bool {

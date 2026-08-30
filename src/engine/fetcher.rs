@@ -170,6 +170,9 @@ pub fn parse_subscription_content(content: &str, prefix: &str) -> Vec<ProxyNode>
                         }
                     }
                 }
+                for n in &mut nodes {
+                    n.extra.remove("name");
+                }
                 if !nodes.is_empty() {
                     return nodes;
                 }
@@ -198,6 +201,10 @@ pub fn parse_subscription_content(content: &str, prefix: &str) -> Vec<ProxyNode>
                 }
             }
         }
+    }
+
+    for n in &mut nodes {
+        n.extra.remove("name");
     }
 
     nodes
