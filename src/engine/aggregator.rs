@@ -439,6 +439,16 @@ pub async fn aggregate_clash_yaml(
     for dom in &config.proxy_domains {
         if !dom.trim().is_empty() { rules.push(format!("DOMAIN-SUFFIX,{},{}", dom.trim(), main_proxy_group)); }
     }
+    // High-priority global tech forums & developer ecosystems
+    for d in &[
+        "nodeseek.com", "linux.do", "v2ex.com", "hostloc.com", "github.com", "githubusercontent.com",
+        "githubassets.com", "gitlab.com", "google.com", "googleapis.com", "gstatic.com", "twitter.com",
+        "x.com", "twimg.com", "reddit.com", "redd.it", "medium.com", "discord.com", "discord.gg",
+        "notion.so", "huggingface.co", "docker.com", "docker.io", "t.me", "telegram.org",
+        "wikipedia.org", "stackoverflow.com", "cloudflare.com", "jsdelivr.net"
+    ] {
+        rules.push(format!("DOMAIN-SUFFIX,{},{}", d, main_proxy_group));
+    }
 
     // 3.5 Domestic common domains directly to DIRECT (Zero-delay, zero-download, instantaneous startup)
     if config.enable_geo_site_cn {
@@ -476,7 +486,7 @@ pub async fn aggregate_clash_yaml(
             // Hardware / Cloud
             "mi.com", "xiaomi.com", "mifile.cn", "huawei.com", "dbankcdn.com", "honor.com", "oppo.com", "vivo.com",
             // Tech Community
-            "gitee.com", "csdn.net", "juejin.cn", "segmentfault.com", "oschina.net", "v2ex.com"
+            "gitee.com", "csdn.net", "juejin.cn", "segmentfault.com", "oschina.net"
         ] {
             rules.push(format!("DOMAIN-SUFFIX,{},DIRECT", d));
         }
@@ -486,6 +496,7 @@ pub async fn aggregate_clash_yaml(
     if config.enable_geo_ip_cn {
         rules.push(format!("GEOIP,CN,DIRECT{}", no_resolve));
     }
+    rules.push(format!("GEOSITE,geolocation-!cn,{}", main_proxy_group));
 
     // QUIC Reject to prevent video streaming / Douyin / Bilibili packet loss and stalls
     rules.insert(0, "AND,((NETWORK,udp),(DST-PORT,443)),REJECT".into());

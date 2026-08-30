@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.5",
+            "tag": "v2.4.5",
+            "name": "SubHub v2.4.5 · 全球非大陆 GeoSite 权威矩阵与极客开发者生态原生集成",
+            "publishedAt": "2026-08-30T13:05:22.117Z",
+            "highlights": [
+                "🌐 原生集成 GEOSITE,geolocation-!cn（27,000+ 条全球非大陆权威站点）",
+                "🎯 强化 NodeSeek、Linux.do、V2EX、HostLoc、GitHub、Discord 等全球开发者与社区分流",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.5 发布\n- **全球非大陆 GeoSite 矩阵原生集成**：NodeSeek、Linux.do、V2EX、GitHub 等海外极客论坛与平台一网打尽；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.4",
             "tag": "v2.4.4",
             "name": "SubHub v2.4.4 · 彻底根治 TUN 环路与直连死锁，抖音/国内媒体秒开零卡顿",
