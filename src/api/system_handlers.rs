@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.6",
+            "tag": "v2.2.6",
+            "name": "SubHub v2.2.6 · 极简策略组架构与 iOS 全内核完美兼容",
+            "publishedAt": "2026-08-30T05:12:48.418Z",
+            "highlights": [
+                "🍎 彻底解决 iOS 端 ClashMi 兼容问题：彻底移除老旧内核不兼容的 hidden 属性与多余层级",
+                "✨ 极简清爽 8 核心卡片布局：首页仅保留「🚀 节点选择」、「⚡ 自动优选」与核心场景分流组，告别 20+ 张卡片铺屏",
+                "📊 完整流量与到期状态：在节点选择列表与订阅信息头部无缝精准呈现"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.6 发布\n- **精简策略组层级**：彻底移除冗余的 14 个地区自动/故障转移独立卡片与订阅源独立选择卡片，不再触发内核语法兼容问题；\n- **iOS / Android / macOS / Windows 全平台 100% 极速加载**。"
+        }),
+        serde_json::json!({
             "version": "2.2.5",
             "tag": "v2.2.5",
             "name": "SubHub v2.2.5 · 精简主界面顶层卡片，下沉子组至节点选择器内",

@@ -267,7 +267,7 @@ pub async fn aggregate_clash_yaml(
         vec!["DIRECT".into()]
     };
 
-    // 3. Construct Proxy Groups (🚀 节点选择置顶作为主控第一卡片)
+    // 3. Construct Proxy Groups (极简核心策略组排布：主控置顶，场景分流组紧随)
     let mut proxy_groups: Vec<serde_json::Value> = Vec::new();
 
     // 3.1 🚀 节点选择 (Master Selector - 置顶展示)
@@ -275,14 +275,7 @@ pub async fn aggregate_clash_yaml(
     for info_name in &global_info_node_names {
         master_selector_proxies.push(info_name.clone());
     }
-    master_selector_proxies.push("⚡ 自动优选 (全部源)".to_string());
-    master_selector_proxies.push("🛡️ 故障转移 (全部源)".to_string());
-    for (auto_name, _, _) in &region_groups {
-        master_selector_proxies.push(auto_name.clone());
-    }
-    for (sg_name, _) in &sub_group_map {
-        master_selector_proxies.push(sg_name.clone());
-    }
+    master_selector_proxies.push("⚡ 自动优选".to_string());
     for name in &all_node_names {
         master_selector_proxies.push(name.clone());
     }
@@ -296,76 +289,21 @@ pub async fn aggregate_clash_yaml(
         "proxies": master_selector_proxies
     }));
 
-    // 3.2 ⚡ 自动优选 (全部源) & 🛡️ 故障转移 (全部源)
+    // 3.2 ⚡ 自动优选
     proxy_groups.push(serde_json::json!({
-        "name": "⚡ 自动优选 (全部源)",
+        "name": "⚡ 自动优选",
         "type": "url-test",
         "url": "http://www.gstatic.com/generate_204",
         "interval": 300,
         "tolerance": 50,
         "lazy": true,
-        "hidden": true,
         "proxies": final_auto_test_proxies
     }));
 
-    proxy_groups.push(serde_json::json!({
-        "name": "🛡️ 故障转移 (全部源)",
-        "type": "fallback",
-        "url": "http://www.gstatic.com/generate_204",
-        "interval": 300,
-        "lazy": true,
-        "hidden": true,
-        "proxies": final_auto_test_proxies
-    }));
-
-    // 3.3 Regional URLTest & Fallback groups
-    for (auto_name, fallback_name, node_names) in &region_groups {
-        proxy_groups.push(serde_json::json!({
-            "name": auto_name,
-            "type": "url-test",
-            "url": "http://www.gstatic.com/generate_204",
-            "interval": 300,
-            "tolerance": 50,
-            "lazy": true,
-            "hidden": true,
-            "proxies": node_names
-        }));
-        proxy_groups.push(serde_json::json!({
-            "name": fallback_name,
-            "type": "fallback",
-            "url": "http://www.gstatic.com/generate_204",
-            "interval": 300,
-            "lazy": true,
-            "hidden": true,
-            "proxies": node_names
-        }));
-    }
-
-    // 3.4 Upstream Sub Groups
-    for (sg_name, node_names) in &sub_group_map {
-        let mut sg_proxies = node_names.clone();
-        sg_proxies.push("DIRECT".to_string());
-        sg_proxies.retain(|s| !s.trim().is_empty());
-        sg_proxies.dedup();
-        proxy_groups.push(serde_json::json!({
-            "name": sg_name,
-            "type": "select",
-            "hidden": true,
-            "proxies": sg_proxies
-        }));
-    }
-
-    // 3.5 Scenario Groups Proxies List
+    // 3.3 Scenario Groups Proxies List
     let mut scenario_proxies = Vec::new();
     scenario_proxies.push(main_proxy_group.to_string());
-    scenario_proxies.push("⚡ 自动优选 (全部源)".to_string());
-    scenario_proxies.push("🛡️ 故障转移 (全部源)".to_string());
-    for (auto_name, _, _) in &region_groups {
-        scenario_proxies.push(auto_name.clone());
-    }
-    for (sg_name, _) in &sub_group_map {
-        scenario_proxies.push(sg_name.clone());
-    }
+    scenario_proxies.push("⚡ 自动优选".to_string());
     for name in &all_node_names {
         scenario_proxies.push(name.clone());
     }
@@ -376,21 +314,14 @@ pub async fn aggregate_clash_yaml(
     let mut direct_first_proxies = Vec::new();
     direct_first_proxies.push("DIRECT".to_string());
     direct_first_proxies.push(main_proxy_group.to_string());
-    direct_first_proxies.push("⚡ 自动优选 (全部源)".to_string());
-    direct_first_proxies.push("🛡️ 故障转移 (全部源)".to_string());
-    for (auto_name, _, _) in &region_groups {
-        direct_first_proxies.push(auto_name.clone());
-    }
-    for (sg_name, _) in &sub_group_map {
-        direct_first_proxies.push(sg_name.clone());
-    }
+    direct_first_proxies.push("⚡ 自动优选".to_string());
     for name in &all_node_names {
         direct_first_proxies.push(name.clone());
     }
     direct_first_proxies.retain(|s| !s.trim().is_empty());
     direct_first_proxies.dedup();
 
-    // 3.6 Scenario groups
+    // 3.4 Scenario groups
     if config.enable_ai_group {
         proxy_groups.push(serde_json::json!({ "name": "🤖 AI 专线", "type": "select", "proxies": scenario_proxies }));
     }
