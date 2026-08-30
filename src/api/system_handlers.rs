@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.2",
+            "tag": "v2.5.2",
+            "name": "SubHub v2.5.2 · 新增离线脱网文件导入指南与 UI 标注",
+            "publishedAt": "2026-08-30T14:38:00.977Z",
+            "highlights": [
+                "💡 源码预览卡片新增「离线 / 永久脱网使用指南」提示贴士",
+                "📥 优化「下载离线配置文件」一键操作与视觉反馈",
+                "🚀 清楚指引用户如何脱网在各客户端中直接导入"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.2 发布\n- **UI 体验提升**：在源码预览区直观增加「离线 / 永久脱网使用说明」，方便用户直接下载文件离线导入；\n- **操作更清晰**：高亮「下载离线配置文件」按钮并提供详细客户端指引。"
+        }),
+        serde_json::json!({
             "version": "2.5.1",
             "tag": "v2.5.1",
             "name": "SubHub v2.5.1 · 免登录与离线用户体验全面升级",

@@ -1785,7 +1785,7 @@
               </div>
 
               <!-- 2. 转换配置源码实时预览与下载 -->
-              <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3 flex flex-col">
+              <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-xl space-y-3.5 flex flex-col">
                 <div class="flex items-center justify-between">
                   <h3 class="text-xs font-bold text-white flex items-center gap-2">
                     <span>💻 转换结果源码预览</span>
@@ -1795,23 +1795,39 @@
                       type="button" 
                       @click="copyTextToClipboard(convertResult ? convertResult.content : '', '转换结果源码已复制！')" 
                       :disabled="!convertResult || !convertResult.content"
-                      class="text-[11px] text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition-colors cursor-pointer"
+                      class="text-[11px] text-cyan-400 hover:text-cyan-300 disabled:opacity-40 transition-colors cursor-pointer flex items-center gap-1"
                     >
-                      复制代码
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+                      <span>复制代码</span>
                     </button>
                     <button 
                       type="button" 
                       @click="downloadConvertedConfig" 
                       :disabled="!convertResult || !convertResult.content"
-                      class="text-[11px] text-slate-400 hover:text-white disabled:opacity-40 transition-colors cursor-pointer"
+                      class="px-2.5 py-1 bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 disabled:opacity-40 rounded-lg text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
                     >
-                      下载文件
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                      <span>下载离线配置文件</span>
                     </button>
                   </div>
                 </div>
 
                 <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3 max-h-80 overflow-y-auto custom-scrollbar font-mono text-[11px] text-slate-300 leading-relaxed whitespace-pre select-all">
                   {{ convertResult ? convertResult.content : '请在左侧输入源链接并点击「立即生成转换订阅」查看配置源码...' }}
+                </div>
+
+                <!-- 离线脱网导入指南小贴士 -->
+                <div class="bg-slate-950/80 border border-slate-800/90 rounded-2xl p-3 text-xs text-slate-400 space-y-1.5">
+                  <div class="flex items-center gap-1.5 text-cyan-300 font-semibold text-[11px]">
+                    <span>💡</span>
+                    <span>离线 / 永久脱网使用指南：</span>
+                  </div>
+                  <p class="text-[11px] text-slate-400 leading-relaxed">
+                    点击右上角 <strong class="text-white">「下载离线配置文件」</strong> 可将包含全部节点与分流规则的完整配置（<span class="font-mono text-cyan-400">.yaml / .json / .conf / .txt</span>）保存到本地。
+                  </p>
+                  <p class="text-[11px] text-slate-500 leading-relaxed">
+                    👉 直接在各客户端（Clash / Sing-Box / Surge / QuanX）中选择 <strong class="text-slate-300">「从本地文件导入 (Import from File)」</strong>，即可脱网永久使用，完全不依赖任何在线订阅服务或后端服务状态。
+                  </p>
                 </div>
               </div>
 
@@ -6533,8 +6549,8 @@ function main(config, profileName) {
 
         // 系统版本管理与多版本发布中心状态
         const versionInfo = ref({
-          currentVersion: '2.5.1',
-          latestVersion: '2.5.1',
+          currentVersion: '2.5.2',
+          latestVersion: '2.5.2',
           hasUpdate: false,
           releaseNotes: '',
           publishedAt: '',
