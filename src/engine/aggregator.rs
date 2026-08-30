@@ -614,6 +614,32 @@ pub fn sanitize_proxy_node_for_clash(node: &ProxyNode) -> serde_json::Value {
                 }
             }
 
+            // 6. Clean uTLS fingerprint: only allow standard browser fingerprints
+            let valid_fp = ["chrome", "firefox", "safari", "ios", "android", "edge", "360", "qq", "random", "randomized"];
+            if let Some(fp) = obj.get("fingerprint").and_then(|v| v.as_str()) {
+                if !valid_fp.contains(&fp.to_lowercase().as_str()) {
+                    obj.remove("fingerprint");
+                }
+            }
+            if let Some(fp) = obj.get("client-fingerprint").and_then(|v| v.as_str()) {
+                if !valid_fp.contains(&fp.to_lowercase().as_str()) {
+                    obj.remove("client-fingerprint");
+                }
+            }
+
+            // 7. Clean protocol specific illegal fields
+            let node_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            if node_type == "hysteria2" || node_type == "hy2" {
+                obj.remove("fingerprint");
+                obj.remove("client-fingerprint");
+                obj.remove("mport");
+            }
+
+            // 8. Remove duplicate client-fingerprint if fingerprint is same
+            if obj.contains_key("client-fingerprint") && obj.contains_key("fingerprint") {
+                obj.remove("fingerprint");
+            }
+
             return serde_json::Value::Object(obj.clone());
         }
     }

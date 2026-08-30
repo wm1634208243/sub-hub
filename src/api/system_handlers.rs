@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.7",
+            "tag": "v2.2.7",
+            "name": "SubHub v2.2.7 · 彻底修复 Hysteria2 非法指纹与内核解析中断",
+            "publishedAt": "2026-08-30T06:03:30.714Z",
+            "highlights": [
+                "🛡️ 修复 Hysteria2 节点 64 位 SHA256 非法指纹问题（解决 iOS libclash 报错中断核心解析）",
+                "🧹 深度净化上游节点属性：自动剔除 mport、非法指纹与非标属性，确保 100% 语法纯净",
+                "🚀 稳定支持 ClashMi / Clash Verge / Shadowrocket / Quantumult X"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.7 发布\n- **修复节点非标指纹**：部分上游 Hysteria2 节点附带的 64 位 SHA256 哈希被误填入 uTLS `fingerprint` 字段导致客户端内核报错 `unknown fingerprint`，已增加智能校验与清理；\n- **全平台 100% 极速秒开**。"
+        }),
+        serde_json::json!({
             "version": "2.2.6",
             "tag": "v2.2.6",
             "name": "SubHub v2.2.6 · 极简策略组架构与 iOS 全内核完美兼容",
