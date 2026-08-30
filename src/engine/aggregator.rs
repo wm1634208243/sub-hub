@@ -246,9 +246,25 @@ pub async fn aggregate_clash_yaml(
     // 3. Construct Proxy Groups (极简核心策略组排布：主控置顶，场景分流组紧随)
     let mut proxy_groups: Vec<serde_json::Value> = Vec::new();
 
-    // 3.1 🚀 节点选择 (Master Selector - 置顶展示)
+    // 3.1 Per-Subscription Auto Groups
+    let mut sub_auto_groups: Vec<(String, Vec<String>)> = Vec::new();
+    for (group_name, nodes) in &sub_group_map {
+        if !nodes.is_empty() {
+            let auto_name = if group_name.starts_with("📦 订阅源 · ") {
+                group_name.replace("📦 订阅源 · ", "⚡ 优选 · ")
+            } else {
+                format!("⚡ 优选 · {}", group_name)
+            };
+            sub_auto_groups.push((auto_name, nodes.clone()));
+        }
+    }
+
+    // 3.2 🚀 节点选择 (Master Selector - 置顶展示)
     let mut master_selector_proxies = Vec::new();
     master_selector_proxies.push("⚡ 自动优选".to_string());
+    for (auto_name, _) in &sub_auto_groups {
+        master_selector_proxies.push(auto_name.clone());
+    }
     for name in &all_node_names {
         master_selector_proxies.push(name.clone());
     }
@@ -262,7 +278,7 @@ pub async fn aggregate_clash_yaml(
         "proxies": master_selector_proxies
     }));
 
-    // 3.2 ⚡ 自动优选
+    // 3.3 ⚡ 全局自动优选
     proxy_groups.push(serde_json::json!({
         "name": "⚡ 自动优选",
         "type": "url-test",
@@ -273,10 +289,26 @@ pub async fn aggregate_clash_yaml(
         "proxies": final_auto_test_proxies
     }));
 
-    // 3.3 Scenario Groups Proxies List
+    // 3.4 各订阅源专属自动优选组 (URLTest)
+    for (auto_name, nodes) in &sub_auto_groups {
+        proxy_groups.push(serde_json::json!({
+            "name": auto_name,
+            "type": "url-test",
+            "url": "http://www.gstatic.com/generate_204",
+            "interval": 300,
+            "tolerance": 50,
+            "lazy": true,
+            "proxies": nodes
+        }));
+    }
+
+    // 3.5 Scenario Groups Proxies List
     let mut scenario_proxies = Vec::new();
     scenario_proxies.push(main_proxy_group.to_string());
     scenario_proxies.push("⚡ 自动优选".to_string());
+    for (auto_name, _) in &sub_auto_groups {
+        scenario_proxies.push(auto_name.clone());
+    }
     for name in &all_node_names {
         scenario_proxies.push(name.clone());
     }
@@ -288,6 +320,9 @@ pub async fn aggregate_clash_yaml(
     direct_first_proxies.push("DIRECT".to_string());
     direct_first_proxies.push(main_proxy_group.to_string());
     direct_first_proxies.push("⚡ 自动优选".to_string());
+    for (auto_name, _) in &sub_auto_groups {
+        direct_first_proxies.push(auto_name.clone());
+    }
     for name in &all_node_names {
         direct_first_proxies.push(name.clone());
     }

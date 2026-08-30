@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.7",
+            "tag": "v2.3.7",
+            "name": "SubHub v2.3.7 · 新增各订阅源专属独立自动优选策略组",
+            "publishedAt": "2026-08-30T07:11:21.708Z",
+            "highlights": [
+                "📦 为每个订阅源生成专属独立自动优选组（如「⚡ 优选 · DMIT」）",
+                "🔝 主控「🚀 节点选择」与场景分流组无缝集成单源优选切换",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.7 发布\n- **订阅源独立优选策略组**：支持在 Clash 客户端直接选择按某个独立订阅源进行节点自动测速选优；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.3.6",
             "tag": "v2.3.6",
             "name": "SubHub v2.3.6 · 自动优选按地区圈定与节点明细一键排除/加入深度打通",
