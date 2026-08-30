@@ -727,7 +727,8 @@ pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &st
                     if json_val.get("_encrypted").and_then(|v| v.as_bool()) != Some(true) {
                         if let Ok(cfg) = serde_json::from_value::<UserConfig>(json_val.clone()) {
                             if !cfg.subscriptions.is_empty() {
-                                return cfg;
+                                best_fallback = Some(cfg);
+                                break;
                             }
                             if best_fallback.is_none() {
                                 best_fallback = Some(cfg);
@@ -739,9 +740,8 @@ pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &st
                             if let Ok(decrypted_val) = decrypt_user_config_bundle(&json_val, sec, &uname_lower) {
                                 if let Ok(cfg) = serde_json::from_value::<UserConfig>(decrypted_val) {
                                     if !cfg.subscriptions.is_empty() {
-                                        // Save unencrypted copy for future smooth access
-                                        save_user_config_to_disk(config_dir, username, &cfg).await;
-                                        return cfg;
+                                        best_fallback = Some(cfg);
+                                        break;
                                     }
                                     if best_fallback.is_none() {
                                         best_fallback = Some(cfg);
@@ -749,13 +749,48 @@ pub async fn load_user_config(config_dir: &str, username: &str, user_secret: &st
                                 }
                             }
                         }
+                        if best_fallback.as_ref().map_or(false, |c| !c.subscriptions.is_empty()) {
+                            break;
+                        }
                     }
                 }
             }
         }
     }
 
-    // If no config exists for this user, return a fresh clean UserConfig
+    // Auto-healing: If non-admin user has a config contaminated with admin's token/data from previous bug, auto-reset it
+    if !is_admin {
+        let admin_candidates = [
+            FilePath::new(config_dir).join("user_admin.json"),
+            FilePath::new(config_dir).join("configs").join("admin.json"),
+            FilePath::new(config_dir).join("admin.json"),
+            FilePath::new(config_dir).join("../data/configs").join("admin.json"),
+            FilePath::new(config_dir).join("../data/config.json"),
+            FilePath::new(config_dir).join("config.json"),
+        ];
+        let mut admin_token: Option<String> = None;
+        for af in admin_candidates {
+            if let Ok(content) = tokio::fs::read_to_string(&af).await {
+                if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(t) = json_val.get("subscriptionToken").and_then(|v| v.as_str()) {
+                        admin_token = Some(t.to_string());
+                        break;
+                    }
+                }
+            }
+        }
+
+        if let Some(cfg) = &best_fallback {
+            let token_match = admin_token.as_ref().map_or(false, |at| at == &cfg.subscription_token)
+                || cfg.subscription_token == "rulehub_dd1e3bc5ef6388b9";
+            if token_match && !cfg.subscriptions.is_empty() {
+                let clean_cfg = UserConfig::default();
+                save_user_config_to_disk(config_dir, username, &clean_cfg).await;
+                return clean_cfg;
+            }
+        }
+    }
+
     best_fallback.unwrap_or_default()
 }
 
@@ -796,6 +831,48 @@ mod tests {
         assert_eq!(test_cfg.subscriptions.len(), 0, "Non-admin user 'test' must not inherit admin subscriptions");
 
         // 4. Clean up
+        let _ = tokio::fs::remove_dir_all(temp_dir).await;
+    }
+
+    #[tokio::test]
+    async fn test_auto_heal_contaminated_user_config() {
+        let temp_dir = std::env::temp_dir().join(format!("subhub_test_heal_{}", rand::random::<u64>()));
+        let _ = tokio::fs::create_dir_all(&temp_dir).await;
+        let config_dir_str = temp_dir.to_str().unwrap();
+
+        // 1. Create admin config with token
+        let mut admin_cfg = UserConfig::default();
+        admin_cfg.subscription_token = "rulehub_admin_secret_token_123".into();
+        admin_cfg.subscriptions.push(crate::models::SubscriptionItem {
+            id: "sub-1".into(),
+            name: "Admin Sub".into(),
+            url: "https://example.com/admin.yaml".into(),
+            prefix: None,
+            default_region: None,
+            custom_expire: None,
+            enabled: true,
+            auto_refresh_interval: 60,
+            status: None,
+            error: None,
+            nodes_count: None,
+            source_type: None,
+            user_info: None,
+            updated_at: None,
+        });
+        crate::api::auth_handlers::save_user_config_to_disk(config_dir_str, "admin", &admin_cfg).await;
+
+        // 2. Simulate historical bug where 'test' user file was written with admin's contaminated copy
+        let contaminated_test_cfg = admin_cfg.clone();
+        crate::api::auth_handlers::save_user_config_to_disk(config_dir_str, "test", &contaminated_test_cfg).await;
+
+        // 3. Load config for 'test' -> auto-healer must detect token match and reset to clean 0 subscriptions
+        let healed_cfg = load_user_config(config_dir_str, "test", "test_hash").await;
+
+        // 4. Verify healed config is clean and has 0 subscriptions and new unique token
+        assert_eq!(healed_cfg.subscriptions.len(), 0, "Contaminated user config must be auto-healed to 0 subscriptions");
+        assert_ne!(healed_cfg.subscription_token, "rulehub_admin_secret_token_123", "Healed config must generate a new unique token");
+
+        // 5. Clean up
         let _ = tokio::fs::remove_dir_all(temp_dir).await;
     }
 }

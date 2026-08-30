@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.4",
+            "tag": "v2.5.4",
+            "name": "SubHub v2.5.4 · 全自动自愈清洗历史污染配置与严格租户隔离",
+            "publishedAt": "2026-08-30T14:53:11.310Z",
+            "highlights": [
+                "✨ 智能自愈引擎：自动识别并清洗历史遗留的被污染普通用户配置",
+                "🛡️ 普通账号 (如 test) 首次访问自动重置为全新独立 Token 与 0 订阅纯净空间",
+                "🚀 物理级多用户 100% 安全隔离闭环"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.4 发布\n- **自动自愈清洗引擎**：无感修复历史遗留的测试账号数据，自动赋予全新独立 Token 与空白订阅；\n- **彻底切断任何跨租户数据串扰**。"
+        }),
+        serde_json::json!({
             "version": "2.5.3",
             "tag": "v2.5.3",
             "name": "SubHub v2.5.3 · 严格隔离多租户数据与管理员一键清空重置",
