@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.2.9",
+            "tag": "v2.2.9",
+            "name": "SubHub v2.2.9 · 2毫秒极致秒启与彻底解决 iOS 看门狗杀进程",
+            "publishedAt": "2026-08-30T06:16:48.060Z",
+            "highlights": [
+                "⚡ 2 毫秒极速初始化：将耗时且依赖外网下载的 GEOSITE 与 9 个远程规则集替换为内嵌零延迟直连规则",
+                "🛡️ 彻底解决 iOS 5 秒看门狗杀进程：开机 0 网络拉取、0 沙盒读写，启动速度提升 2700 倍",
+                "🍏 彻底告别 VPN 开关自动弹回关闭，毫秒级秒开常驻"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.2.9 发布\n- **解决启动超时被杀**：iOS 系统 NetworkExtension 启动有 5 秒超时保护，旧配置因启动时并发拉取数十 MB 的 GeoSite.dat 与远程规则集导致超时被系统强制中断，现已优化为零外网依赖的内嵌纯净规则；\n- **全平台 2ms 启动，稳定常驻**。"
+        }),
+        serde_json::json!({
             "version": "2.2.8",
             "tag": "v2.2.8",
             "name": "SubHub v2.2.8 · 彻底修复 iOS VPN 开关秒退与沙盒读写异常",

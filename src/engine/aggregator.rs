@@ -363,24 +363,21 @@ pub async fn aggregate_clash_yaml(
         }
     }
 
-    if config.enable_loyalsoldier {
-        rules.push("RULE-SET,applications,DIRECT".into());
-        rules.push("RULE-SET,reject,REJECT".into());
-        rules.push(format!("RULE-SET,proxy,{}", main_proxy_group));
-        rules.push(format!("RULE-SET,gfw,{}", main_proxy_group));
-        rules.push(format!("RULE-SET,tld-not-cn,{}", main_proxy_group));
-        if config.enable_telegram_group {
-            rules.push("RULE-SET,telegramcidr,📲 Telegram".into());
+    // 3.5 Domestic common domains directly to DIRECT (Zero-delay, zero-download, instantaneous startup)
+    if config.enable_geo_site_cn {
+        for d in &[
+            "cn", "baidu.com", "baidupcs.com", "qq.com", "weixin.qq.com", "tencent.com",
+            "aliyun.com", "aliyuncs.com", "taobao.com", "tmall.com", "jd.com", "bilibili.com",
+            "bilivideo.com", "hdslb.com", "163.com", "126.net", "zhihu.com", "douyin.com",
+            "xiaohongshu.com", "weibo.com", "sina.com.cn", "sohu.com", "meituan.com", "amap.com",
+            "autonavi.com", "123pan.com", "wps.com", "wps.cn", "wpscdn.com", "kingsoft.com",
+            "todesk.com", "feishu.cn", "dingtalk.com", "mi.com", "xiaomi.com", "mifile.cn",
+            "gitee.com", "csdn.net"
+        ] {
+            rules.push(format!("DOMAIN-SUFFIX,{},DIRECT", d));
         }
-        rules.push("RULE-SET,direct,DIRECT".into());
-        rules.push("RULE-SET,lancidr,DIRECT".into());
-        rules.push("RULE-SET,cncidr,DIRECT".into());
     }
 
-    rules.push("GEOSITE,private,DIRECT".into());
-    if config.enable_geo_site_cn {
-        rules.push("GEOSITE,cn,DIRECT".into());
-    }
     rules.push(format!("GEOIP,LAN,DIRECT{}", no_resolve));
     if config.enable_geo_ip_cn {
         rules.push(format!("GEOIP,CN,DIRECT{}", no_resolve));
@@ -401,9 +398,6 @@ pub async fn aggregate_clash_yaml(
     }
     if config.enable_unified_delay {
         clash_map.insert("unified-delay".into(), serde_json::json!(true));
-    }
-    if config.enable_process_strict {
-        clash_map.insert("find-process-mode".into(), serde_json::json!("strict"));
     }
 
     let mut dns_cfg = serde_json::Map::new();
@@ -439,21 +433,6 @@ pub async fn aggregate_clash_yaml(
             },
             "skip-domain": ["Mijia Cloud", "dlg.io.mi.com", "+.apple.com"]
         }));
-    }
-
-    if config.enable_loyalsoldier {
-        let rule_providers = serde_json::json!({
-            "applications": { "type": "http", "behavior": "classical", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt", "path": "loyalsoldier-applications.txt", "interval": 86400 },
-            "reject": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt", "path": "loyalsoldier-reject.txt", "interval": 86400 },
-            "proxy": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt", "path": "loyalsoldier-proxy.txt", "interval": 86400 },
-            "gfw": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt", "path": "loyalsoldier-gfw.txt", "interval": 86400 },
-            "tld-not-cn": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/tld-not-cn.txt", "path": "loyalsoldier-tld-not-cn.txt", "interval": 86400 },
-            "telegramcidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt", "path": "loyalsoldier-telegramcidr.txt", "interval": 86400 },
-            "direct": { "type": "http", "behavior": "domain", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt", "path": "loyalsoldier-direct.txt", "interval": 86400 },
-            "cncidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt", "path": "loyalsoldier-cncidr.txt", "interval": 86400 },
-            "lancidr": { "type": "http", "behavior": "ipcidr", "format": "text", "url": "https://testingcf.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt", "path": "loyalsoldier-lancidr.txt", "interval": 86400 }
-        });
-        clash_map.insert("rule-providers".into(), rule_providers);
     }
 
     let cleaned_proxies: Vec<serde_json::Value> = active_proxies.iter().map(sanitize_proxy_node_for_clash).collect();
