@@ -130,7 +130,9 @@ pub async fn aggregate_clash_yaml(
         p.name = traffic_name.clone();
         p.server = "127.0.0.1".into();
         p.port = 80;
-        p.node_type = "compatible".into();
+        p.node_type = "ss".into();
+        p.cipher = Some("aes-128-gcm".into());
+        p.password = Some("0".into());
         info_node_names.push(traffic_name);
         info_nodes.push(p);
     }
@@ -148,7 +150,9 @@ pub async fn aggregate_clash_yaml(
     p.name = expire_name.clone();
     p.server = "127.0.0.1".into();
     p.port = 80;
-    p.node_type = "compatible".into();
+    p.node_type = "ss".into();
+    p.cipher = Some("aes-128-gcm".into());
+    p.password = Some("0".into());
     info_node_names.push(expire_name);
     info_nodes.push(p);
 
@@ -716,6 +720,6 @@ mod tests {
         // Check YAML contains info nodes
         assert!(res.yaml.contains("📊 流量:"));
         assert!(res.yaml.contains("⏰ 到期:"));
-        assert!(res.yaml.contains("type: compatible"));
+        assert!(res.yaml.contains("type: ss"));
     }
 }

@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.1.9",
+            "tag": "v2.1.9",
+            "name": "SubHub v2.1.9 · 修复 iOS libclash 客户端兼容性与通用状态节点",
+            "publishedAt": "2026-08-30T03:47:35.555Z",
+            "highlights": [
+                "🍏 修复 iOS libclash.go 内核兼容性：彻底解决 unsupport proxy type: compatible 导致的客户端无法启动报错",
+                "🌐 通用 Shadowsocks 伪装状态节点：状态提示节点全面适配所有 Clash/Mihomo/Shadowrocket 内核规范",
+                "⚡ 零干扰稳定测速：保持测速池隔离与秒级准确配置加载"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.1.9 发布\n- **修复 libclash.go 兼容性报错**：iOS ClashMi / libclash 内核不支持 `type: compatible`，现已切换为全球通用的 Shadowsocks 伪装节点规范，彻底解决启动报错问题；\n- **全平台内核兼容**：适配所有 iOS/macOS/Windows/Android 端客户端内核。"
+        }),
+        serde_json::json!({
             "version": "2.1.8",
             "tag": "v2.1.8",
             "name": "SubHub v2.1.8 · 客户端订阅流量与到期时间全协议标准化透传",
