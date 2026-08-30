@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.4.4",
+            "tag": "v2.4.4",
+            "name": "SubHub v2.4.4 · 彻底根治 TUN 环路与直连死锁，抖音/国内媒体秒开零卡顿",
+            "publishedAt": "2026-08-30T09:51:54.929Z",
+            "highlights": [
+                "🛡️ 原生集成 TUN 防自循环路由、direct-nameserver 极速通道与 QUIC 智能降级",
+                "⚡ 彻底解决开启代理后抖音/B站/小红书等国内 App 打不开、转圈卡死的底层死锁",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.4.4 发布\n- **根治 TUN 环路与直连死锁**：配置 direct-nameserver 与 TUN 自动路由侦测，规避系统代理下的回环拦截；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.4.3",
             "tag": "v2.4.3",
             "name": "SubHub v2.4.3 · 全网万级 GeoSite 规则库原生集成，国内 11 万+ 全域应用免配置自动直连",

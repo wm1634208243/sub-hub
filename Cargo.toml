@@ -1,6 +1,6 @@
 [package]
 name = "subhub"
-version = "2.4.3"
+version = "2.4.4"
 edition = "2021"
 authors = ["SubHub Team"]
 description = "High-performance Clash / Mihomo / Sing-Box subscription aggregator and rule routing platform in Rust"

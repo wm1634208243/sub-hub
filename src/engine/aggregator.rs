@@ -487,6 +487,9 @@ pub async fn aggregate_clash_yaml(
         rules.push(format!("GEOIP,CN,DIRECT{}", no_resolve));
     }
 
+    // QUIC Reject to prevent video streaming / Douyin / Bilibili packet loss and stalls
+    rules.insert(0, "AND,((NETWORK,udp),(DST-PORT,443)),REJECT".into());
+
     let final_group = if config.enable_final_group { "🐟 漏网之鱼" } else if config.fallback_rule == "DIRECT" { "DIRECT" } else { main_proxy_group };
     rules.push(format!("MATCH,{}", final_group));
 
@@ -496,6 +499,16 @@ pub async fn aggregate_clash_yaml(
     clash_map.insert("mode".into(), serde_json::json!("rule"));
     clash_map.insert("log-level".into(), serde_json::json!("info"));
     clash_map.insert("ipv6".into(), serde_json::json!(false));
+
+    // Native TUN anti-loop routing engine
+    clash_map.insert("tun".into(), serde_json::json!({
+        "enable": true,
+        "stack": "mixed",
+        "dns-hijack": ["any:53", "tcp://any:53"],
+        "auto-route": true,
+        "auto-detect-interface": true,
+        "strict-route": true
+    }));
 
     if config.enable_tcp_concurrent {
         clash_map.insert("tcp-concurrent".into(), serde_json::json!(true));
@@ -510,19 +523,23 @@ pub async fn aggregate_clash_yaml(
     dns_cfg.insert("enhanced-mode".into(), serde_json::json!("fake-ip"));
     dns_cfg.insert("fake-ip-range".into(), serde_json::json!("198.18.0.1/16"));
     dns_cfg.insert("default-nameserver".into(), serde_json::json!(["223.5.5.5", "119.29.29.29", "180.76.76.76"]));
+    dns_cfg.insert("direct-nameserver".into(), serde_json::json!(["223.5.5.5", "119.29.29.29", "180.76.76.76"]));
 
     let mut nameservers = config.nameservers.clone();
     if nameservers.is_empty() {
         nameservers = vec![
-            "https://223.5.5.5/dns-query".to_string(),
-            "https://doh.pub/dns-query".to_string(),
             "223.5.5.5".to_string(),
             "119.29.29.29".to_string(),
+            "180.76.76.76".to_string(),
+            "https://223.5.5.5/dns-query".to_string(),
+            "https://1.12.12.12/dns-query".to_string(),
         ];
     } else {
-        if !nameservers.iter().any(|s| s.contains("doh.pub") || s.contains("223.5.5.5/dns-query")) {
-            nameservers.insert(0, "https://223.5.5.5/dns-query".to_string());
-            nameservers.insert(1, "https://doh.pub/dns-query".to_string());
+        if !nameservers.iter().any(|s| s.contains("223.5.5.5/dns-query")) {
+            nameservers.push("https://223.5.5.5/dns-query".to_string());
+        }
+        if !nameservers.iter().any(|s| s.contains("1.12.12.12/dns-query")) {
+            nameservers.push("https://1.12.12.12/dns-query".to_string());
         }
     }
     dns_cfg.insert("nameserver".into(), serde_json::to_value(&nameservers).unwrap_or_default());
@@ -590,12 +607,14 @@ pub async fn aggregate_clash_yaml(
 
     let mut ns_policy = serde_json::Map::new();
     let domestic_doh = serde_json::json!([
-        "https://223.5.5.5/dns-query",
-        "https://doh.pub/dns-query",
         "223.5.5.5",
-        "119.29.29.29"
+        "119.29.29.29",
+        "180.76.76.76",
+        "https://223.5.5.5/dns-query",
+        "https://1.12.12.12/dns-query"
     ]);
     ns_policy.insert("+.cn".into(), domestic_doh.clone());
+    ns_policy.insert("geosite:cn,private".into(), domestic_doh.clone());
     ns_policy.insert("+.bilibili.com,+.bilivideo.com,+.hdslb.com,+.baidu.com,+.baidupcs.com,+.qq.com,+.weixin.qq.com,+.tencent.com,+.taobao.com,+.aliyun.com,+.aliyuncs.com,+.jd.com,+.163.com,+.126.net,+.zhihu.com,+.douyin.com,+.douyincdn.com,+.douyinvod.com,+.iesdouyin.com,+.bytedance.com,+.byteimg.com,+.bytetos.com,+.pstatp.com,+.snssdk.com,+.zijieapi.com,+.kuaishou.com,+.xiaohongshu.com,+.weibo.com,+.sina.com.cn,+.sohu.com,+.meituan.com,+.amap.com,+.autonavi.com,+.123pan.com,+.wps.com,+.wps.cn,+.wpscdn.com,+.kingsoft.com,+.todesk.com,+.feishu.cn,+.dingtalk.com,+.mi.com,+.xiaomi.com,+.mifile.cn,+.gitee.com,+.csdn.net".into(), domestic_doh);
     dns_cfg.insert("nameserver-policy".into(), serde_json::Value::Object(ns_policy));
     clash_map.insert("dns".into(), serde_json::Value::Object(dns_cfg));
@@ -605,10 +624,14 @@ pub async fn aggregate_clash_yaml(
             "enable": true,
             "sniff": {
                 "TLS": { "ports": [443, 8443] },
-                "HTTP": { "ports": [80, "8080-8880"], "override-destination": true },
-                "QUIC": { "ports": [443, 8443] }
+                "HTTP": { "ports": [80, 8080, 8880], "override-destination": true }
             },
-            "skip-domain": ["Mijia Cloud", "dlg.io.mi.com", "+.apple.com"]
+            "skip-domain": [
+                "Mijia Cloud", "dlg.io.mi.com", "+.apple.com", "+.bilibili.com", "+.douyin.com",
+                "+.douyinstatic.com", "+.douyinvod.com", "+.bytedance.com", "+.pstatp.com",
+                "+.snssdk.com", "+.zijieapi.com", "+.qq.com", "+.tencent.com", "+.baidu.com",
+                "+.taobao.com", "+.aliyun.com", "+.jd.com", "+.163.com", "geosite:cn"
+            ]
         }));
     }
 
