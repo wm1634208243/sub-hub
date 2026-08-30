@@ -92,7 +92,7 @@ pub fn format_node_name(
     custom_rename_rules: &[CustomRenameRule],
     default_region: Option<&str>,
 ) -> String {
-    let mut name = raw_name.trim().to_string();
+    let mut name = raw_name.replace('\u{FFFD}', "").trim().to_string();
 
     // 1. Clean ads and multipliers
     if enable_clean_ad_and_rate {

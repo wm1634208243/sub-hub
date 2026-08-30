@@ -157,7 +157,11 @@ pub async fn aggregate_clash_yaml(
         }
     }
 
-    let all_node_names: Vec<String> = all_proxies.iter().map(|p| p.name.clone()).collect();
+    let cleaned_proxies: Vec<serde_json::Value> = all_proxies.iter().map(sanitize_proxy_node_for_clash).collect();
+    let all_node_names: Vec<String> = cleaned_proxies
+        .iter()
+        .filter_map(|p| p.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .collect();
     let active_proxies: Vec<ProxyNode> = all_proxies.clone();
 
     let main_proxy_group = config.custom_proxy_group_name
@@ -435,8 +439,6 @@ pub async fn aggregate_clash_yaml(
             "skip-domain": ["Mijia Cloud", "dlg.io.mi.com", "+.apple.com"]
         }));
     }
-
-    let cleaned_proxies: Vec<serde_json::Value> = active_proxies.iter().map(sanitize_proxy_node_for_clash).collect();
 
     // Collect all valid proxy names strictly from cleaned_proxies and proxy_groups
     let mut valid_target_names: HashSet<String> = HashSet::new();

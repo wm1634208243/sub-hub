@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.3",
+            "tag": "v2.3.3",
+            "name": "SubHub v2.3.3 · 策略组自清洗直推引擎与字符深度净化",
+            "publishedAt": "2026-08-30T06:32:13.018Z",
+            "highlights": [
+                "🎯 策略组自清洗直推引擎：策略组候选池直接从已清洗节点表衍生，从底层确保名称 100% 绝对一致",
+                "🧹 全局 Unicode 乱码/占位符净化：彻底过滤 \\u{FFFD} 与不配对区域指示符",
+                "⚡ 本地内核实机验证通过，秒级稳定无报错"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.3 发布\n- **策略组直推架构**：重构了聚合生成逻辑，策略组节点候选池直接从最终序列化对象生成，彻底消除了任何阶段的名称差异；\n- **全平台 100% 毫秒级稳定秒连**。"
+        }),
+        serde_json::json!({
             "version": "2.3.2",
             "tag": "v2.3.2",
             "name": "SubHub v2.3.2 · 彻底清除 extra 字段属性遮蔽与强刷缓存支持",
