@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.3.5",
+            "tag": "v2.3.5",
+            "name": "SubHub v2.3.5 · 每个真实节点无缝内嵌所属订阅源流量与到期状态",
+            "publishedAt": "2026-08-30T06:53:54.219Z",
+            "highlights": [
+                "📊 每个真实节点直观内嵌所属源流量与到期信息（如 [9.27G/250G · 永久]）",
+                "🛡️ 零虚假占位节点，全真实节点毫秒级直连与测速",
+                "⚡ 本地 Mihomo 内核实跑验证通过"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.3.5 发布\n- **节点名称内嵌流量/到期**：将各订阅源自身的已用/总流量与到期时间直接拼接融合在每个真实节点名称中；\n- **零虚假占位节点**：不添加任何 127.0.0.1 伪装节点，全平台 100% 毫秒级稳定秒连。"
+        }),
+        serde_json::json!({
             "version": "2.3.4",
             "tag": "v2.3.4",
             "name": "SubHub v2.3.4 · 协议解析与重命名引擎全链路 UTF-8 深度净化",

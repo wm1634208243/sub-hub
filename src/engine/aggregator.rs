@@ -40,75 +40,48 @@ pub async fn aggregate_clash_yaml(
 
         let mut current_sub_nodes = Vec::new();
 
-        match fetched_res {
-            Ok(res) => {
-                let ui_opt = res.user_info.as_ref().or(sub.user_info.as_ref());
-                if let Some(ui) = ui_opt {
-                    if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
-                    if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
-                    if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
-                    if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
-                        if exp > 0 {
-                            let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
-                            sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
-                            min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
-                        }
+        if let Ok(res) = &fetched_res {
+            let ui_opt = res.user_info.as_ref().or(sub.user_info.as_ref());
+            if let Some(ui) = ui_opt {
+                if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
+                if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
+                if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
+                if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
+                    if exp > 0 {
+                        let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
+                        sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
+                        min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                     }
                 }
-                if let Some(exp_str) = &sub.custom_expire {
-                    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(exp_str) {
-                        let sec = dt.timestamp() as u64;
+            }
+            if let Some(exp_str) = &sub.custom_expire {
+                if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(exp_str) {
+                    let sec = dt.timestamp() as u64;
+                    if sec > 0 {
+                        sub_min_expire = Some(sub_min_expire.map_or(sec, |m| m.min(sec)));
+                        min_expire = Some(min_expire.map_or(sec, |m| m.min(sec)));
+                    }
+                } else if let Ok(dt) = chrono::NaiveDate::parse_from_str(exp_str, "%Y-%m-%d") {
+                    if let Some(ndt) = dt.and_hms_opt(23, 59, 59) {
+                        let sec = ndt.and_utc().timestamp() as u64;
                         if sec > 0 {
                             sub_min_expire = Some(sub_min_expire.map_or(sec, |m| m.min(sec)));
                             min_expire = Some(min_expire.map_or(sec, |m| m.min(sec)));
                         }
-                    } else if let Ok(dt) = chrono::NaiveDate::parse_from_str(exp_str, "%Y-%m-%d") {
-                        if let Some(ndt) = dt.and_hms_opt(23, 59, 59) {
-                            let sec = ndt.and_utc().timestamp() as u64;
-                            if sec > 0 {
-                                sub_min_expire = Some(sub_min_expire.map_or(sec, |m| m.min(sec)));
-                                min_expire = Some(min_expire.map_or(sec, |m| m.min(sec)));
-                            }
-                        }
                     }
-                }
-
-                for mut node in res.nodes {
-                    let mut formatted = format_node_name(
-                        &node.name,
-                        &node.server,
-                        config.enable_auto_flags,
-                        config.enable_clean_ad_and_rate,
-                        &config.custom_rename_rules,
-                        sub.default_region.as_deref(),
-                    );
-
-                    // Deduplicate names strictly
-                    if let Some(count) = seen_names.get_mut(&formatted) {
-                        *count += 1;
-                        formatted = format!("{} ({})", formatted, *count);
-                    } else {
-                        seen_names.insert(formatted.clone(), 1);
-                    }
-
-                    node.name = formatted.clone();
-                    node.extra.remove("name");
-                    current_sub_nodes.push(formatted);
-                    all_proxies.push(node);
                 }
             }
-            Err(e) => {
-                tracing::warn!("Failed to fetch subscription {}: {}", sub.name, e);
-                if let Some(ui) = &sub.user_info {
-                    if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
-                    if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
-                    if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
-                    if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
-                        if exp > 0 {
-                            let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
-                            sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
-                            min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
-                        }
+        } else if let Err(e) = &fetched_res {
+            tracing::warn!("Failed to fetch subscription {}: {}", sub.name, e);
+            if let Some(ui) = &sub.user_info {
+                if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
+                if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
+                if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
+                if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
+                    if exp > 0 {
+                        let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
+                        sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
+                        min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                     }
                 }
             }
@@ -129,7 +102,7 @@ pub async fn aggregate_clash_yaml(
             } else if let Some(dt) = chrono::DateTime::from_timestamp(exp_sec as i64, 0) {
                 sub_meta_parts.push(format!("{}到期", dt.format("%Y-%m-%d")));
             }
-        } else {
+        } else if sub_total > 0 {
             sub_meta_parts.push("永久".to_string());
         }
 
@@ -138,6 +111,36 @@ pub async fn aggregate_clash_yaml(
         } else {
             "".to_string()
         };
+
+        if let Ok(res) = fetched_res {
+            for mut node in res.nodes {
+                let mut formatted = format_node_name(
+                    &node.name,
+                    &node.server,
+                    config.enable_auto_flags,
+                    config.enable_clean_ad_and_rate,
+                    &config.custom_rename_rules,
+                    sub.default_region.as_deref(),
+                );
+
+                if !sub_tag.is_empty() {
+                    formatted = format!("{}{}", formatted, sub_tag);
+                }
+
+                // Deduplicate names strictly
+                if let Some(count) = seen_names.get_mut(&formatted) {
+                    *count += 1;
+                    formatted = format!("{} ({})", formatted, *count);
+                } else {
+                    seen_names.insert(formatted.clone(), 1);
+                }
+
+                node.name = formatted.clone();
+                node.extra.remove("name");
+                current_sub_nodes.push(formatted);
+                all_proxies.push(node);
+            }
+        }
 
         if !current_sub_nodes.is_empty() {
             let sub_group_name = format!("📦 订阅源 · {}{}", sub.name, sub_tag);
