@@ -30,11 +30,6 @@ pub async fn aggregate_clash_yaml(
             continue;
         }
 
-        let mut sub_upload: u64 = 0;
-        let mut sub_download: u64 = 0;
-        let mut sub_total: u64 = 0;
-        let mut sub_min_expire: Option<u64> = None;
-
         let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
         let fetched_res = fetcher.fetch(&sub.url, prefix, false).await;
 
@@ -43,13 +38,12 @@ pub async fn aggregate_clash_yaml(
         if let Ok(res) = &fetched_res {
             let ui_opt = res.user_info.as_ref().or(sub.user_info.as_ref());
             if let Some(ui) = ui_opt {
-                if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
-                if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
-                if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
+                if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { agg_upload += up; }
+                if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { agg_download += down; }
+                if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { agg_total += tot; }
                 if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
                     if exp > 0 {
                         let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
-                        sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                         min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                     }
                 }
@@ -58,14 +52,12 @@ pub async fn aggregate_clash_yaml(
                 if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(exp_str) {
                     let sec = dt.timestamp() as u64;
                     if sec > 0 {
-                        sub_min_expire = Some(sub_min_expire.map_or(sec, |m| m.min(sec)));
                         min_expire = Some(min_expire.map_or(sec, |m| m.min(sec)));
                     }
                 } else if let Ok(dt) = chrono::NaiveDate::parse_from_str(exp_str, "%Y-%m-%d") {
                     if let Some(ndt) = dt.and_hms_opt(23, 59, 59) {
                         let sec = ndt.and_utc().timestamp() as u64;
                         if sec > 0 {
-                            sub_min_expire = Some(sub_min_expire.map_or(sec, |m| m.min(sec)));
                             min_expire = Some(min_expire.map_or(sec, |m| m.min(sec)));
                         }
                     }
@@ -74,43 +66,17 @@ pub async fn aggregate_clash_yaml(
         } else if let Err(e) = &fetched_res {
             tracing::warn!("Failed to fetch subscription {}: {}", sub.name, e);
             if let Some(ui) = &sub.user_info {
-                if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { sub_upload += up; agg_upload += up; }
-                if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { sub_download += down; agg_download += down; }
-                if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { sub_total += tot; agg_total += tot; }
+                if let Some(up) = ui.get("upload").and_then(|v| v.as_u64()) { agg_upload += up; }
+                if let Some(down) = ui.get("download").and_then(|v| v.as_u64()) { agg_download += down; }
+                if let Some(tot) = ui.get("total").and_then(|v| v.as_u64()) { agg_total += tot; }
                 if let Some(exp) = ui.get("expire").and_then(|v| v.as_u64()) {
                     if exp > 0 {
                         let exp_sec = if exp > 100_000_000_000 { exp / 1000 } else { exp };
-                        sub_min_expire = Some(sub_min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                         min_expire = Some(min_expire.map_or(exp_sec, |m| m.min(exp_sec)));
                     }
                 }
             }
         }
-
-        let mut sub_meta_parts = Vec::new();
-        if sub_total > 0 {
-            let sub_used = sub_upload + sub_download;
-            let sub_used_str = format_bytes_human(sub_used);
-            let sub_total_str = format_bytes_human(sub_total);
-            let sub_pct = ((sub_used as f64 / sub_total as f64) * 100.0).round() as u32;
-            sub_meta_parts.push(format!("{}/{} ({}%)", sub_used_str, sub_total_str, sub_pct));
-        }
-
-        if let Some(exp_sec) = sub_min_expire {
-            if exp_sec > 2500000000 {
-                sub_meta_parts.push("永久".to_string());
-            } else if let Some(dt) = chrono::DateTime::from_timestamp(exp_sec as i64, 0) {
-                sub_meta_parts.push(format!("{}到期", dt.format("%Y-%m-%d")));
-            }
-        } else if sub_total > 0 {
-            sub_meta_parts.push("永久".to_string());
-        }
-
-        let sub_tag = if !sub_meta_parts.is_empty() {
-            format!(" [{}]", sub_meta_parts.join(" · "))
-        } else {
-            "".to_string()
-        };
 
         if let Ok(res) = fetched_res {
             for mut node in res.nodes {
@@ -122,10 +88,6 @@ pub async fn aggregate_clash_yaml(
                     &config.custom_rename_rules,
                     sub.default_region.as_deref(),
                 );
-
-                if !sub_tag.is_empty() {
-                    formatted = format!("{}{}", formatted, sub_tag);
-                }
 
                 // Deduplicate names strictly
                 if let Some(count) = seen_names.get_mut(&formatted) {
@@ -143,7 +105,7 @@ pub async fn aggregate_clash_yaml(
         }
 
         if !current_sub_nodes.is_empty() {
-            let sub_group_name = format!("📦 订阅源 · {}{}", sub.name, sub_tag);
+            let sub_group_name = format!("📦 订阅源 · {}", sub.name);
             sub_group_map.push((sub_group_name, current_sub_nodes));
         }
     }
@@ -702,6 +664,7 @@ pub async fn aggregate_clash_yaml(
     })
 }
 
+#[allow(dead_code)]
 pub fn format_bytes_human(bytes: u64) -> String {
     if bytes == 0 {
         return "0 B".to_string();

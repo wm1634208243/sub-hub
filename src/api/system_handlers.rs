@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.5",
+            "tag": "v2.5.5",
+            "name": "SubHub v2.5.5 · 稳定节点与策略组命名规范，彻底解决客户端跳选",
+            "publishedAt": "2026-09-02T03:19:12.092Z",
+            "highlights": [
+                "🎯 彻底消除节点与分组名称中的动态流量数值变动，保持 100% 静态固定名称",
+                "🔒 客户端（Clash/Shadowrocket/Sing-Box 等）自动定时更新订阅时，选中的节点永不跳选重置",
+                "📊 完美保留原生标准 Subscription-Userinfo 响应头，客户端订阅顶部原生展示流量条与到期日"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.5 发布\n- **稳定节点与策略组名称**：移除名称后频繁变动的流量字符串，客户端后台自动刷新订阅时再也不会跳回第一个自动优选；\n- **原生流量看板**：继续通过标准 Subscription-Userinfo 头部输出流量与到期时间，保证 iOS 及全端零兼容风险。"
+        }),
+        serde_json::json!({
             "version": "2.5.4",
             "tag": "v2.5.4",
             "name": "SubHub v2.5.4 · 全自动自愈清洗历史污染配置与严格租户隔离",
