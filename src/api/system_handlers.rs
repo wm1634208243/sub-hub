@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.6",
+            "tag": "v2.5.6",
+            "name": "SubHub v2.5.6 · 独立合规流量看板节点与永久防跳选完美融合",
+            "publishedAt": "2026-09-02T10:03:27.982Z",
+            "highlights": [
+                "📊 节点列表顶部新增专属流量与到期看板节点（直观展现剩余流量/已用用量/到期时间）",
+                "🛡️ 采用 100% 标准合规 Shadowsocks 回路协议构造，彻底规避 iOS NetworkExtension 静态校验报错",
+                "🔒 自动排除测速池，保持代理节点名称 100% 静态固定，选择节点永久锁定不跳选"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.6 发布\n- **独立流量看板节点**：节点列表顶部直观展示剩余流量与到期时间；\n- **全端零兼容隐患**：合规协议语法构造，不参与测速，代理选择永不跳回第一个自动优选。"
+        }),
+        serde_json::json!({
             "version": "2.5.5",
             "tag": "v2.5.5",
             "name": "SubHub v2.5.5 · 稳定节点与策略组命名规范，彻底解决客户端跳选",

@@ -122,6 +122,54 @@ pub async fn aggregate_clash_yaml(
         }
     }
 
+    let mut final_proxies = Vec::new();
+
+    if agg_total > 0 {
+        let agg_used = agg_upload + agg_download;
+        let agg_used_str = format_bytes_human(agg_used);
+        let agg_total_str = format_bytes_human(agg_total);
+        let rem_str = if agg_total >= agg_used {
+            format_bytes_human(agg_total - agg_used)
+        } else {
+            "0 B".to_string()
+        };
+        let info_node_name = format!("📊 剩余流量 | {} (已用 {}/{})", rem_str, agg_used_str, agg_total_str);
+        final_proxies.push(ProxyNode {
+            name: info_node_name,
+            node_type: "ss".to_string(),
+            server: "127.0.0.1".to_string(),
+            port: 1080,
+            cipher: Some("aes-128-gcm".to_string()),
+            password: Some("subhub_traffic_dashboard".to_string()),
+            udp: Some(false),
+            ..Default::default()
+        });
+    }
+
+    if let Some(exp_sec) = min_expire {
+        let expire_label = if exp_sec > 2500000000 {
+            "永久有效 (无到期限制)".to_string()
+        } else if let Some(dt) = chrono::DateTime::from_timestamp(exp_sec as i64, 0) {
+            format!("{} 到期", dt.format("%Y-%m-%d"))
+        } else {
+            "永久有效".to_string()
+        };
+        let info_node_name = format!("📅 到期时间 | {}", expire_label);
+        final_proxies.push(ProxyNode {
+            name: info_node_name,
+            node_type: "ss".to_string(),
+            server: "127.0.0.1".to_string(),
+            port: 1080,
+            cipher: Some("aes-128-gcm".to_string()),
+            password: Some("subhub_traffic_dashboard".to_string()),
+            udp: Some(false),
+            ..Default::default()
+        });
+    }
+
+    final_proxies.extend(all_proxies);
+    let all_proxies = final_proxies;
+
     let cleaned_proxies: Vec<serde_json::Value> = all_proxies.iter().map(sanitize_proxy_node_for_clash).collect();
     let all_node_names: Vec<String> = cleaned_proxies
         .iter()
@@ -160,6 +208,9 @@ pub async fn aggregate_clash_yaml(
     // 2. Candidate Pool Filtering for URLTest & Fallback
     let excluded_list: Vec<String> = config.excluded_auto_test_nodes.iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
     let is_excluded = |candidate: &str| -> bool {
+        if candidate.starts_with("📊") || candidate.starts_with("📅") || candidate.starts_with("⏰") || candidate.starts_with("📦") {
+            return true;
+        }
         for exc in &excluded_list {
             if exc == candidate || candidate.starts_with(exc) || exc.starts_with(candidate) || candidate.contains(exc) {
                 return true;
@@ -690,6 +741,9 @@ pub async fn batch_test_proxies_health(proxies: &[ProxyNode], timeout_ms: u64) -
 
     let mut results = Vec::new();
     for p in proxies {
+        if p.name.starts_with("📊") || p.name.starts_with("📅") || p.name.starts_with("⏰") || p.server == "127.0.0.1" {
+            continue;
+        }
         let addr = format!("{}:{}", p.server, p.port);
         let start = Instant::now();
         let is_alive = match timeout(Duration::from_millis(timeout_ms), TcpStream::connect(&addr)).await {
