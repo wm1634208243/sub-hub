@@ -58,6 +58,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.7",
+            "tag": "v2.5.7",
+            "name": "SubHub v2.5.7 · 独立呈现各订阅源流量看板与毫秒级极速开关代理",
+            "publishedAt": "2026-09-03T00:46:39.404Z",
+            "highlights": [
+                "📊 节点列表顶部为【每一个上游订阅源】生成专属流量与到期看板节点",
+                "⚡ 彻底解决 iOS 端开关代理缓慢卡顿问题：采用 RFC 2544 虚拟测试段，零阻塞秒级连通",
+                "🚀 全球 Anycast 优选测速链路加速，代理切换丝滑流畅"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.7 发布\n- **分订阅源独立流量看板**：每个机场/自建源均有专属流量卡片，一眼看清各源剩余流量与到期；\n- **开关代理极速响应**：彻底消除 iOS NetworkExtension 本地回路超时，开关代理瞬间连接。"
+        }),
+        serde_json::json!({
             "version": "2.5.6",
             "tag": "v2.5.6",
             "name": "SubHub v2.5.6 · 独立合规流量看板节点与永久防跳选完美融合",
