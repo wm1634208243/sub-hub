@@ -101,8 +101,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if initial_users.is_empty() {
-        tracing::info!("Initializing default admin account (admin / admin)...");
-        let hash = bcrypt::hash("admin", 10).unwrap();
+        let initial_password = std::env::var("SUBHUB_ADMIN_PASSWORD").unwrap_or_else(|_| {
+            use rand::Rng;
+            let s: String = (0..12).map(|_| {
+                const CHARSET: &[u8] = b"abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+                let idx = rand::thread_rng().gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            }).collect();
+            s
+        });
+
+        tracing::warn!("==================================================================");
+        tracing::warn!("🔑 [SECURITY NOTICE] 首次初始化安装，已为您生成高强度初始管理员凭据：");
+        tracing::warn!("   👉 管理员账号: admin");
+        tracing::warn!("   👉 随机强密码: {}", initial_password);
+        tracing::warn!("   请立即使用上述密码登录 Web 控制台并在「用户管理」中修改密码！");
+        tracing::warn!("==================================================================");
+
+        let hash = bcrypt::hash(&initial_password, 10).unwrap();
         initial_users.push(User {
             username: "admin".into(),
             password_hash: hash,

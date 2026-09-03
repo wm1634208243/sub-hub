@@ -137,6 +137,26 @@ pub async fn unified_sub_handler(
         }
     }
 
+    // Token Expiration Enforcement
+    if let Some(exp_str) = &cfg.token_expires_at {
+        let is_expired = if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(exp_str) {
+            chrono::Utc::now() > dt
+        } else if let Ok(dt) = chrono::NaiveDate::parse_from_str(exp_str, "%Y-%m-%d") {
+            if let Some(ndt) = dt.and_hms_opt(23, 59, 59) {
+                chrono::Utc::now().naive_utc() > ndt
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if is_expired {
+            record_access_log(&state.config_dir, username, &ip, ua, "🌐 订阅请求", 403, "Token 已过期失效被拦截").await;
+            return (StatusCode::FORBIDDEN, "该订阅 Token 已到期失效，请联系管理员续费或更新").into_response();
+        }
+    }
+
     // Determine target format from path, query or user-agent auto-negotiation
     let path = uri.path().to_lowercase();
     let target = query.target.as_deref().unwrap_or_else(|| {

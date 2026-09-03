@@ -8,11 +8,18 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct SessionInfo {
+    pub username: String,
+    pub created_at: u64,
+    pub expires_at: u64,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub config_dir: String,
     pub users: Arc<RwLock<Vec<User>>>,
-    pub sessions: Arc<RwLock<std::collections::HashMap<String, String>>>, // token -> username
+    pub sessions: Arc<RwLock<std::collections::HashMap<String, SessionInfo>>>, // token -> SessionInfo
     pub fetcher: Arc<crate::engine::SubscriptionFetcher>,
     pub rate_limiter: crate::security::RateLimiter,
 }
@@ -73,17 +80,30 @@ pub struct UpdateStatusPayload {
 
 // ── Auth Helpers ─────────────────────────────────────────────────────────────
 
-async fn check_auth(state: &AppState, headers: &HeaderMap) -> Result<User, (StatusCode, Json<serde_json::Value>)> {
+pub async fn check_auth(state: &AppState, headers: &HeaderMap) -> Result<User, (StatusCode, Json<serde_json::Value>)> {
     let auth_header = headers.get("authorization").and_then(|v| v.to_str().ok()).unwrap_or_default();
     let token = auth_header.strip_prefix("Bearer ").unwrap_or_default().trim();
 
     let sessions = state.sessions.read().await;
-    let uname = sessions.get(token).ok_or_else(|| {
+    let session = sessions.get(token).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({ "error": "未登录或会话已过期" })),
         )
     })?;
+
+    let now = chrono::Utc::now().timestamp() as u64;
+    if now > session.expires_at {
+        drop(sessions);
+        let mut write_sessions = state.sessions.write().await;
+        write_sessions.remove(token);
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "会话已过期，请重新登录" })),
+        ));
+    }
+    let uname = session.username.clone();
+    drop(sessions);
 
     let users = state.users.read().await;
     let user = users.iter().find(|u| u.username.to_lowercase() == uname.to_lowercase()).ok_or_else(|| {
@@ -96,7 +116,7 @@ async fn check_auth(state: &AppState, headers: &HeaderMap) -> Result<User, (Stat
     Ok(user.clone())
 }
 
-async fn check_admin(state: &AppState, headers: &HeaderMap) -> Result<User, (StatusCode, Json<serde_json::Value>)> {
+pub async fn check_admin(state: &AppState, headers: &HeaderMap) -> Result<User, (StatusCode, Json<serde_json::Value>)> {
     let user = check_auth(state, headers).await?;
     if user.role != "admin" {
         return Err((
@@ -224,8 +244,15 @@ pub async fn login_handler(
         .map(|_| format!("{:02x}", rand::thread_rng().gen::<u8>()))
         .collect();
 
+    let now = chrono::Utc::now().timestamp() as u64;
+    let expires_at = now + 7 * 86400; // 7-day session lifetime
+
     let mut sessions = state.sessions.write().await;
-    sessions.insert(token.clone(), user.username.clone());
+    sessions.insert(token.clone(), SessionInfo {
+        username: user.username.clone(),
+        created_at: now,
+        expires_at,
+    });
 
     crate::api::config_handlers::record_access_log(
         &state.config_dir,
@@ -303,9 +330,27 @@ pub async fn register_handler(
     let user_cfg = UserConfig::default();
     save_user_config_to_disk(&state.config_dir, &uname, &user_cfg).await;
 
+    use rand::Rng;
+    let token: String = (0..32)
+        .map(|_| format!("{:02x}", rand::thread_rng().gen::<u8>()))
+        .collect();
+
+    let now = chrono::Utc::now().timestamp() as u64;
+    let expires_at = now + 7 * 86400; // 7-day session lifetime
+
+    let mut sessions = state.sessions.write().await;
+    sessions.insert(token.clone(), SessionInfo {
+        username: uname.clone(),
+        created_at: now,
+        expires_at,
+    });
+
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": "注册成功，请登录"
+        "message": "注册成功并已自动登录",
+        "token": token,
+        "username": uname,
+        "role": role
     })))
 }
 
@@ -372,7 +417,7 @@ pub async fn change_password_handler(
 
     // 3. Invalidate existing sessions for this user
     let mut sessions = state.sessions.write().await;
-    sessions.retain(|_, u| u.to_lowercase() != curr_user.username.to_lowercase());
+    sessions.retain(|_, u| u.username.to_lowercase() != curr_user.username.to_lowercase());
 
     Ok(Json(serde_json::json!({ "success": true, "message": "密码修改成功" })))
 }
@@ -551,6 +596,12 @@ pub async fn user_status_handler(
 
     save_users_to_disk(&state.config_dir, &users).await;
 
+    // Invalidate sessions for banned user
+    if payload.disabled {
+        let mut sessions = state.sessions.write().await;
+        sessions.retain(|_, s| s.username.to_lowercase() != target_username.to_lowercase());
+    }
+
     let msg = if payload.disabled {
         format!("已成功禁用用户【{}】", target_username)
     } else {
@@ -639,6 +690,10 @@ pub async fn reset_password_handler(
 
     save_user_config_to_disk(&state.config_dir, &target_username, &user_cfg).await;
 
+    // Invalidate existing sessions for this user
+    let mut sessions = state.sessions.write().await;
+    sessions.retain(|_, s| s.username.to_lowercase() != target_username.to_lowercase());
+
     Ok(Json(serde_json::json!({
         "success": true,
         "message": format!("用户【{}】密码已重置", target_username)
@@ -652,13 +707,15 @@ pub async fn admin_reset_user_config_handler(
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     check_admin(&state, &headers).await?;
 
-    let clean_uname = target_username.trim().to_lowercase();
-    let empty_cfg = UserConfig::default();
+    let clean_uname = target_username.trim().to_string();
+    let mut empty_cfg = UserConfig::default();
+    empty_cfg.subscriptions = Vec::new();
+    empty_cfg.subscription_token = crate::models::default_token();
     save_user_config_to_disk(&state.config_dir, &clean_uname, &empty_cfg).await;
 
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": format!("用户【{}】的配置已成功重置初始化", clean_uname)
+        "message": format!("用户【{}】订阅与节点配置已成功清空归零！", clean_uname)
     })))
 }
 
@@ -667,22 +724,23 @@ pub async fn admin_get_system_settings_handler(
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     check_admin(&_state, &headers).await?;
-    Ok(Json(serde_json::json!({
-        "success": true,
-        "customDomain": "",
-        "enableHttpsRedirect": false
-    })))
+    let settings = crate::models::SystemSettings::default();
+    Ok(Json(serde_json::to_value(settings).unwrap_or(serde_json::Value::Null)))
 }
 
 pub async fn admin_save_system_settings_handler(
     State(_state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<serde_json::Value>,
+    Json(payload): Json<crate::models::SystemSettings>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     check_admin(&_state, &headers).await?;
+    let path = std::path::Path::new(&_state.config_dir).join("system_settings.json");
+    if let Ok(content) = serde_json::to_string_pretty(&payload) {
+        let _ = tokio::fs::write(&path, content).await;
+    }
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": "系统设置已更新",
+        "message": "系统设置保存成功",
         "settings": payload
     })))
 }
@@ -705,13 +763,33 @@ pub async fn save_users_to_disk(config_dir: &str, users: &[User]) {
 }
 
 pub async fn save_user_config_to_disk(config_dir: &str, username: &str, config: &UserConfig) {
-    let file = std::path::Path::new(config_dir).join(format!("user_{}.json", username.to_lowercase()));
-    if let Ok(content) = serde_json::to_string_pretty(config) {
-        let _ = tokio::fs::write(&file, content).await;
+    let uname_lower = username.trim().to_lowercase();
+    let users_file = std::path::Path::new(config_dir).join("users.json");
+    let mut user_secret = None;
+    if let Ok(content) = tokio::fs::read_to_string(&users_file).await {
+        if let Ok(users) = serde_json::from_str::<Vec<User>>(&content) {
+            if let Some(u) = users.iter().find(|u| u.username.to_lowercase() == uname_lower) {
+                user_secret = Some(u.password_hash.clone());
+            }
+        }
     }
-    let configs_file = std::path::Path::new(config_dir).join("configs").join(format!("{}.json", username));
-    let _ = tokio::fs::create_dir_all(std::path::Path::new(config_dir).join("configs")).await;
-    if let Ok(content) = serde_json::to_string_pretty(config) {
-        let _ = tokio::fs::write(&configs_file, content).await;
-    }
+
+    let config_val = serde_json::to_value(config).unwrap_or(serde_json::Value::Null);
+    let to_write = if let Some(secret) = user_secret {
+        if let Ok(encrypted_bundle) = crate::engine::crypto::encrypt_user_config_bundle(&config_val, &secret, &uname_lower) {
+            serde_json::to_string_pretty(&encrypted_bundle).unwrap_or_else(|_| serde_json::to_string_pretty(config).unwrap_or_default())
+        } else {
+            serde_json::to_string_pretty(config).unwrap_or_default()
+        }
+    } else {
+        serde_json::to_string_pretty(config).unwrap_or_default()
+    };
+
+    let file = std::path::Path::new(config_dir).join(format!("user_{}.json", uname_lower));
+    let _ = tokio::fs::write(&file, &to_write).await;
+
+    let configs_dir = std::path::Path::new(config_dir).join("configs");
+    let _ = tokio::fs::create_dir_all(&configs_dir).await;
+    let configs_file = configs_dir.join(format!("{}.json", username));
+    let _ = tokio::fs::write(&configs_file, &to_write).await;
 }

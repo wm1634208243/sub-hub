@@ -24,21 +24,21 @@ pub async fn aggregate_clash_yaml(
     let mut min_expire: Option<u64> = None;
 
     let mut seen_names: HashMap<String, usize> = HashMap::new();
-
     let mut sub_info_nodes = Vec::new();
 
-    for sub in &config.subscriptions {
-        if !sub.enabled || sub.url.is_empty() {
-            continue;
-        }
+    let enabled_subs: Vec<_> = config.subscriptions.iter().filter(|s| s.enabled && !s.url.is_empty()).collect();
+    let fetch_futs = enabled_subs.iter().map(|sub| async move {
+        let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
+        let res = fetcher.fetch(&sub.url, prefix, false).await;
+        (*sub, res)
+    });
+    let fetched_results = futures::future::join_all(fetch_futs).await;
 
+    for (sub, fetched_res) in fetched_results {
         let mut sub_upload: u64 = 0;
         let mut sub_download: u64 = 0;
         let mut sub_total: u64 = 0;
         let mut sub_min_expire: Option<u64> = None;
-
-        let prefix = sub.prefix.as_deref().or(Some(&sub.name)).unwrap_or_default();
-        let fetched_res = fetcher.fetch(&sub.url, prefix, false).await;
 
         let mut current_sub_nodes = Vec::new();
 

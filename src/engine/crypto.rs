@@ -59,3 +59,78 @@ pub fn decrypt_user_config_bundle(bundle_json: &serde_json::Value, user_secret: 
     let decrypted_str = String::from_utf8(decrypted).map_err(|e| format!("Invalid UTF-8: {}", e))?;
     serde_json::from_str(&decrypted_str).map_err(|e| format!("JSON parse error: {}", e))
 }
+
+pub fn encrypt_user_config_bundle(
+    config_json: &serde_json::Value,
+    user_secret: &str,
+    username: &str,
+) -> Result<serde_json::Value, String> {
+    use rand::RngCore;
+
+    let key = derive_user_key(user_secret, username)?;
+    let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| format!("AES init error: {:?}", e))?;
+
+    let mut iv = [0u8; 12];
+    rand::thread_rng().fill_bytes(&mut iv);
+    let nonce = Nonce::from_slice(&iv);
+
+    let plaintext = serde_json::to_string(config_json).map_err(|e| format!("JSON serialize error: {}", e))?;
+    let ciphertext_with_tag = cipher
+        .encrypt(nonce, plaintext.as_bytes())
+        .map_err(|e| format!("AES encrypt error: {:?}", e))?;
+
+    if ciphertext_with_tag.len() < 16 {
+        return Err("Ciphertext too short".into());
+    }
+
+    let split_idx = ciphertext_with_tag.len() - 16;
+    let payload = &ciphertext_with_tag[..split_idx];
+    let tag = &ciphertext_with_tag[split_idx..];
+
+    Ok(serde_json::json!({
+        "_encrypted": true,
+        "algorithm": "aes-256-gcm",
+        "iv": hex::encode(iv),
+        "authTag": hex::encode(tag),
+        "payload": hex::encode(payload)
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_crypto_round_trip() {
+        let original_json = serde_json::json!({
+            "subscriptions": [
+                {
+                    "id": "sub-1",
+                    "name": "My Node Sub",
+                    "url": "https://example.com/sub",
+                    "enabled": true
+                }
+            ],
+            "subscriptionToken": "secret-token-123456"
+        });
+
+        let secret = "$2b$10$vNqjA8.2d38e..dummyhash";
+        let username = "admin";
+
+        let encrypted = encrypt_user_config_bundle(&original_json, secret, username).expect("Encryption should succeed");
+        assert_eq!(encrypted["_encrypted"], true);
+        assert_eq!(encrypted["algorithm"], "aes-256-gcm");
+        assert!(encrypted["iv"].as_str().is_some());
+        assert!(encrypted["authTag"].as_str().is_some());
+        assert!(encrypted["payload"].as_str().is_some());
+
+        let decrypted = decrypt_user_config_bundle(&encrypted, secret, username).expect("Decryption should succeed");
+        assert_eq!(decrypted, original_json);
+
+        // Wrong secret should fail decryption
+        let wrong_secret = "wrong-password-hash";
+        assert!(decrypt_user_config_bundle(&encrypted, wrong_secret, username).is_err());
+    }
+}
+
+

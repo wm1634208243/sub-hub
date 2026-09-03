@@ -305,3 +305,150 @@ fn parse_tuic(link: &str, prefix: &str) -> Option<ProxyNode> {
         ..Default::default()
     })
 }
+
+pub fn parse_singbox_outbounds(val: &serde_json::Value, prefix: &str) -> Vec<ProxyNode> {
+    let outbounds = match val.get("outbounds").and_then(|v| v.as_array()) {
+        Some(arr) => arr,
+        None => return vec![],
+    };
+
+    let mut nodes = Vec::new();
+    for ob in outbounds {
+        let ob_type = ob.get("type").and_then(|v| v.as_str()).unwrap_or_default().to_lowercase();
+        // Skip routing, non-proxy outbounds
+        if ob_type == "direct" || ob_type == "block" || ob_type == "dns" || ob_type == "selector" || ob_type == "urltest" {
+            continue;
+        }
+
+        let tag = ob.get("tag").and_then(|v| v.as_str()).unwrap_or("Node");
+        let server = match ob.get("server").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let port = ob.get("server_port").and_then(|v| v.as_u64()).unwrap_or(443) as u16;
+
+        let name = build_name(tag, prefix);
+
+        let mut node = ProxyNode {
+            name,
+            node_type: if ob_type == "shadowsocks" { "ss".into() } else { ob_type.clone() },
+            server,
+            port,
+            raw_name: Some(tag.to_string()),
+            ..Default::default()
+        };
+
+        if let Some(uuid) = ob.get("uuid").and_then(|v| v.as_str()) {
+            node.uuid = Some(uuid.to_string());
+        }
+        if let Some(pwd) = ob.get("password").and_then(|v| v.as_str()) {
+            node.password = Some(pwd.to_string());
+        }
+        if let Some(method) = ob.get("method").and_then(|v| v.as_str()) {
+            node.cipher = Some(method.to_string());
+        }
+        if let Some(flow) = ob.get("flow").and_then(|v| v.as_str()) {
+            node.flow = Some(flow.to_string());
+        }
+
+        if let Some(tls) = ob.get("tls").and_then(|v| v.as_object()) {
+            node.tls = Some(tls.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true));
+            if let Some(sni) = tls.get("server_name").and_then(|v| v.as_str()) {
+                node.sni = Some(sni.to_string());
+                node.servername = Some(sni.to_string());
+            }
+            if let Some(insecure) = tls.get("insecure").and_then(|v| v.as_bool()) {
+                node.skip_cert_verify = Some(insecure);
+            }
+            if let Some(reality) = tls.get("reality").and_then(|v| v.as_object()) {
+                let mut ropts = serde_json::Map::new();
+                if let Some(pbk) = reality.get("public_key").and_then(|v| v.as_str()) {
+                    ropts.insert("public-key".into(), serde_json::Value::String(pbk.to_string()));
+                }
+                if let Some(sid) = reality.get("short_id").and_then(|v| v.as_str()) {
+                    ropts.insert("short-id".into(), serde_json::Value::String(sid.to_string()));
+                }
+                node.reality_opts = Some(serde_json::Value::Object(ropts));
+            }
+        }
+
+        if let Some(transport) = ob.get("transport").and_then(|v| v.as_object()) {
+            let t_type = transport.get("type").and_then(|v| v.as_str()).unwrap_or("tcp");
+            node.network = Some(t_type.to_string());
+            if t_type == "ws" {
+                let mut ws_opts = serde_json::Map::new();
+                if let Some(path) = transport.get("path").and_then(|v| v.as_str()) {
+                    ws_opts.insert("path".into(), serde_json::Value::String(path.to_string()));
+                }
+                if let Some(headers) = transport.get("headers").and_then(|v| v.as_object()) {
+                    ws_opts.insert("headers".into(), serde_json::Value::Object(headers.clone()));
+                }
+                node.ws_opts = Some(serde_json::Value::Object(ws_opts));
+            } else if t_type == "grpc" {
+                let mut grpc_opts = serde_json::Map::new();
+                if let Some(sn) = transport.get("service_name").and_then(|v| v.as_str()) {
+                    grpc_opts.insert("grpc-service-name".into(), serde_json::Value::String(sn.to_string()));
+                }
+                node.grpc_opts = Some(serde_json::Value::Object(grpc_opts));
+            }
+        }
+
+        nodes.push(node);
+    }
+    nodes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_singbox_outbounds() {
+        let sb_json = serde_json::json!({
+            "outbounds": [
+                {
+                    "type": "direct",
+                    "tag": "direct"
+                },
+                {
+                    "type": "vless",
+                    "tag": "US-Vless-Reality",
+                    "server": "us.example.com",
+                    "server_port": 443,
+                    "uuid": "a8790b0e-f00e-436f-b1e0-4a81050e50f3",
+                    "tls": {
+                        "enabled": true,
+                        "server_name": "gateway.icloud.com",
+                        "reality": {
+                            "public_key": "some-public-key",
+                            "short_id": "abcd"
+                        }
+                    }
+                },
+                {
+                    "type": "shadowsocks",
+                    "tag": "HK-SS",
+                    "server": "hk.example.com",
+                    "server_port": 8388,
+                    "method": "aes-256-gcm",
+                    "password": "ss-password"
+                }
+            ]
+        });
+
+        let nodes = parse_singbox_outbounds(&sb_json, "");
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].name, "US-Vless-Reality");
+        assert_eq!(nodes[0].node_type, "vless");
+        assert_eq!(nodes[0].server, "us.example.com");
+        assert_eq!(nodes[0].port, 443);
+        assert_eq!(nodes[0].uuid, Some("a8790b0e-f00e-436f-b1e0-4a81050e50f3".into()));
+
+        assert_eq!(nodes[1].name, "HK-SS");
+        assert_eq!(nodes[1].node_type, "ss");
+        assert_eq!(nodes[1].port, 8388);
+        assert_eq!(nodes[1].cipher, Some("aes-256-gcm".into()));
+    }
+}
+
+

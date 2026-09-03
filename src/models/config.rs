@@ -143,7 +143,38 @@ pub struct UserConfig {
     pub custom_script: Option<String>,
 }
 
-fn default_token() -> String {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemSettings {
+    #[serde(default = "default_server_port")]
+    pub server_port: u16,
+    #[serde(default = "default_allow_registration")]
+    pub allow_registration: bool,
+    #[serde(default)]
+    pub custom_domain: String,
+    #[serde(default)]
+    pub enable_https_redirect: bool,
+    #[serde(default = "default_runtime")]
+    pub runtime: String,
+}
+
+fn default_server_port() -> u16 { 3000 }
+fn default_allow_registration() -> bool { true }
+fn default_runtime() -> String { "Rust (Tokio + Axum) High Performance Single Binary Engine".into() }
+
+impl Default for SystemSettings {
+    fn default() -> Self {
+        Self {
+            server_port: 3000,
+            allow_registration: true,
+            custom_domain: "".into(),
+            enable_https_redirect: false,
+            runtime: default_runtime(),
+        }
+    }
+}
+
+pub fn default_token() -> String {
     use rand::Rng;
     let bytes: [u8; 16] = rand::thread_rng().gen();
     bytes.iter().map(|b| format!("{:02x}", b)).collect()

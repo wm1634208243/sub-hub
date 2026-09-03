@@ -130,14 +130,65 @@ pub fn validate_username(username: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
+use std::net::IpAddr;
+
+pub fn is_private_or_loopback_ip(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ipv4) => {
+            ipv4.is_loopback()
+                || ipv4.is_unspecified()
+                || ipv4.is_private()
+                || ipv4.is_link_local()
+                || ipv4.is_broadcast()
+                || (ipv4.octets()[0] == 169 && ipv4.octets()[1] == 254) // Cloud metadata (AWS, GCP, Azure, etc.)
+                || (ipv4.octets()[0] == 100 && (ipv4.octets()[1] & 0xC0) == 64) // Shared CGNAT (RFC 6598)
+                || (ipv4.octets()[0] == 198 && (ipv4.octets()[1] == 18 || ipv4.octets()[1] == 19)) // Benchmark
+                || ipv4.octets()[0] == 0 // Current network
+        }
+        IpAddr::V6(ipv6) => {
+            ipv6.is_loopback()
+                || ipv6.is_unspecified()
+                // Unique local address fc00::/7
+                || (ipv6.segments()[0] & 0xfe00) == 0xfc00
+                // Link-local fe80::/10
+                || (ipv6.segments()[0] & 0xffc0) == 0xfe80
+        }
+    }
+}
+
+pub fn is_ssrf_forbidden_host(host: &str) -> bool {
+    let h = host.trim().to_lowercase();
+    if h == "localhost" || h.ends_with(".localhost") || h.ends_with(".local") || h.ends_with(".internal") {
+        return true;
+    }
+    // Remove brackets for IPv6
+    let clean_host = h.trim_start_matches('[').trim_end_matches(']');
+    if let Ok(ip) = clean_host.parse::<IpAddr>() {
+        return is_private_or_loopback_ip(&ip);
+    }
+    false
+}
+
 /// Validate subscription URL or raw node links
 pub fn validate_subscription_url(url: &str) -> Result<(), &'static str> {
     let u = url.trim();
     if u.is_empty() {
         return Err("订阅链接或节点内容不能为空");
     }
-    if u.starts_with("http://") || u.starts_with("https://")
-        || u.starts_with("vless://") || u.starts_with("vmess://")
+    if u.starts_with("http://") || u.starts_with("https://") {
+        if u.len() > 65536 {
+            return Err("订阅链接长度超出安全限制");
+        }
+        if let Ok(parsed) = url::Url::parse(u) {
+            if let Some(host_str) = parsed.host_str() {
+                if is_ssrf_forbidden_host(host_str) {
+                    return Err("禁止抓取本地回环、内网私有地址或元数据服务 (SSRF 安全拦截)");
+                }
+            }
+        }
+        return Ok(());
+    }
+    if u.starts_with("vless://") || u.starts_with("vmess://")
         || u.starts_with("trojan://") || u.starts_with("ss://")
         || u.starts_with("hysteria2://") || u.starts_with("hy2://")
         || u.starts_with("tuic://") || u.starts_with("socks5://") {
@@ -207,3 +258,36 @@ pub async fn security_headers_middleware(req: Request, next: Next) -> Response {
 
     resp
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ssrf_forbidden_hosts() {
+        assert!(is_ssrf_forbidden_host("localhost"));
+        assert!(is_ssrf_forbidden_host("sub.localhost"));
+        assert!(is_ssrf_forbidden_host("127.0.0.1"));
+        assert!(is_ssrf_forbidden_host("10.1.2.3"));
+        assert!(is_ssrf_forbidden_host("192.168.1.88"));
+        assert!(is_ssrf_forbidden_host("172.16.0.1"));
+        assert!(is_ssrf_forbidden_host("169.254.169.254")); // Cloud metadata IP
+        assert!(is_ssrf_forbidden_host("::1"));
+
+        // Public IPs should pass
+        assert!(!is_ssrf_forbidden_host("8.8.8.8"));
+        assert!(!is_ssrf_forbidden_host("1.1.1.1"));
+        assert!(!is_ssrf_forbidden_host("example.com"));
+    }
+
+    #[test]
+    fn test_validate_subscription_url_ssrf_blocked() {
+        assert!(validate_subscription_url("http://127.0.0.1:8080/sub").is_err());
+        assert!(validate_subscription_url("http://localhost/sub").is_err());
+        assert!(validate_subscription_url("http://169.254.169.254/latest/meta-data").is_err());
+        assert!(validate_subscription_url("http://192.168.1.88/sub.yaml").is_err());
+
+        assert!(validate_subscription_url("https://example.com/api/sub?token=123").is_ok());
+    }
+}
+

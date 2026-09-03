@@ -18,12 +18,25 @@ async fn get_authenticated_user(state: &AppState, headers: &HeaderMap) -> Result
     let token = auth_header.strip_prefix("Bearer ").unwrap_or_default().trim();
 
     let sessions = state.sessions.read().await;
-    let uname = sessions.get(token).ok_or_else(|| {
+    let session = sessions.get(token).ok_or_else(|| {
         (
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({ "error": "未登录或会话已过期" })),
         )
     })?;
+
+    let now = chrono::Utc::now().timestamp() as u64;
+    if now > session.expires_at {
+        drop(sessions);
+        let mut write_sessions = state.sessions.write().await;
+        write_sessions.remove(token);
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "会话已过期，请重新登录" })),
+        ));
+    }
+    let uname = session.username.clone();
+    drop(sessions);
 
     let users = state.users.read().await;
     let user_secret = users.iter()
@@ -31,7 +44,7 @@ async fn get_authenticated_user(state: &AppState, headers: &HeaderMap) -> Result
         .map(|u| u.password_hash.clone())
         .unwrap_or_else(|| "subhub_master_secret_fallback_v1".to_string());
 
-    Ok((uname.clone(), user_secret))
+    Ok((uname, user_secret))
 }
 
 // ── Config Handlers ──────────────────────────────────────────────────────────
@@ -460,15 +473,54 @@ pub async fn preview_config_handler(
     Json(serde_json::json!({ "success": true, "js": js }))
 }
 
+#[derive(Deserialize)]
+pub struct RulesQuery {
+    pub token: Option<String>,
+}
+
 pub async fn serve_rules_js_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<RulesQuery>,
 ) -> Response {
-    let uname = headers.get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "admin".into());
+    let mut resolved_uname = None;
+
+    // 1. Try bearer session token
+    if let Some(auth_header) = headers.get("authorization").and_then(|v| v.to_str().ok()) {
+        let token = auth_header.strip_prefix("Bearer ").unwrap_or(auth_header).trim();
+        let sessions = state.sessions.read().await;
+        if let Some(sess) = sessions.get(token) {
+            let now = chrono::Utc::now().timestamp() as u64;
+            if now <= sess.expires_at {
+                resolved_uname = Some(sess.username.clone());
+            }
+        }
+    }
+
+    // 2. Try subscription token in query
+    if resolved_uname.is_none() {
+        if let Some(sub_token) = &query.token {
+            let users = state.users.read().await;
+            for u in users.iter() {
+                let cfg = load_user_config(&state.config_dir, &u.username, &u.password_hash).await;
+                if cfg.subscription_token == *sub_token {
+                    resolved_uname = Some(u.username.clone());
+                    break;
+                }
+            }
+        }
+    }
+
+    let uname = match resolved_uname {
+        Some(u) => u,
+        None => {
+            return Response::builder()
+                .status(StatusCode::UNAUTHORIZED)
+                .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+                .body(axum::body::Body::from("// Error: Unauthorized. Please provide a valid subscription token via ?token=xxx or Bearer token in header."))
+                .unwrap();
+        }
+    };
 
     let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).unwrap_or("");
     let cfg = load_user_config(&state.config_dir, &uname, "subhub_master_secret_fallback_v1").await;
@@ -487,7 +539,8 @@ pub async fn admin_backup_export_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let (uname, _) = get_authenticated_user(&state, &headers).await?;
+    let admin_user = crate::api::auth_handlers::check_admin(&state, &headers).await?;
+    let uname = admin_user.username;
 
     let users = state.users.read().await;
     let mut configs = serde_json::Map::new();
@@ -511,7 +564,7 @@ pub async fn admin_backup_restore_handler(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
 
     if let Some(users_val) = payload.get("users") {
         if let Ok(new_users) = serde_json::from_value::<Vec<User>>(users_val.clone()) {
@@ -522,8 +575,8 @@ pub async fn admin_backup_restore_handler(
     }
 
     if let Some(configs_val) = payload.get("configs").and_then(|v| v.as_object()) {
-        for (uname, cfg_json) in configs_val {
-            if let Ok(cfg) = serde_json::from_value::<UserConfig>(cfg_json.clone()) {
+        for (uname, cfg_val) in configs_val {
+            if let Ok(cfg) = serde_json::from_value::<UserConfig>(cfg_val.clone()) {
                 save_user_config_to_disk(&state.config_dir, uname, &cfg).await;
             }
         }
@@ -536,7 +589,7 @@ pub async fn admin_get_backups_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     let settings = crate::backup::load_backup_settings(&state.config_dir).await;
     let archives = crate::backup::list_backup_archives(&state.config_dir).await;
     Ok(Json(serde_json::json!({
@@ -550,7 +603,7 @@ pub async fn admin_save_backup_settings_handler(
     headers: HeaderMap,
     Json(payload): Json<crate::backup::BackupSettings>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     crate::backup::save_backup_settings(&state.config_dir, &payload).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))))?;
     Ok(Json(serde_json::json!({ "success": true, "settings": payload })))
@@ -560,7 +613,7 @@ pub async fn admin_create_backup_archive_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     let info = crate::backup::create_backup_archive(&state.config_dir, &state, "manual").await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))))?;
     Ok(Json(serde_json::json!({ "success": true, "archive": info })))
@@ -571,7 +624,7 @@ pub async fn admin_restore_backup_archive_handler(
     headers: HeaderMap,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     let filename = payload.get("filename").and_then(|v| v.as_str())
         .ok_or_else(|| (StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "缺少 filename 参数" }))))?;
 
@@ -586,7 +639,7 @@ pub async fn admin_delete_backup_archive_handler(
     headers: HeaderMap,
     Path(filename): Path<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     crate::backup::delete_backup_archive(&state.config_dir, &filename).await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e }))))?;
     Ok(Json(serde_json::json!({ "success": true, "message": "备份快照已成功删除" })))
@@ -603,7 +656,7 @@ pub async fn admin_batch_delete_backups_handler(
     headers: HeaderMap,
     Json(payload): Json<BatchDeleteBackupsPayload>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     let mut count = 0;
     for filename in &payload.filenames {
         if crate::backup::delete_backup_archive(&state.config_dir, filename).await.is_ok() {
@@ -621,7 +674,7 @@ pub async fn admin_clear_all_backups_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     let list = crate::backup::list_backup_archives(&state.config_dir).await;
     let total = list.len();
     for b in list {
@@ -639,7 +692,7 @@ pub async fn admin_download_backup_archive_handler(
     headers: HeaderMap,
     Path(filename): Path<String>,
 ) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
-    let _ = get_authenticated_user(&state, &headers).await?;
+    crate::api::auth_handlers::check_admin(&state, &headers).await?;
     let clean = filename.trim();
     if clean.contains("..") || clean.contains('/') || clean.contains('\\') || !clean.ends_with(".json") {
         return Err((StatusCode::BAD_REQUEST, Json(serde_json::json!({ "error": "非法文件名" }))));

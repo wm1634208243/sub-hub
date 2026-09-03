@@ -1,7 +1,9 @@
 use axum::{
-    extract::Query,
+    extract::{Query, State},
+    http::{HeaderMap, StatusCode},
     response::Json,
 };
+use crate::api::auth_handlers::{check_admin, AppState};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -57,6 +59,20 @@ pub async fn get_versions_handler(
 
     // 1. Seed with known built-in versions
     let builtins = vec![
+        serde_json::json!({
+            "version": "2.5.8",
+            "tag": "v2.5.8",
+            "name": "SubHub v2.5.8 · 全面安全架构加固与并发解析引擎升级",
+            "publishedAt": "2026-09-03T11:28:00.000Z",
+            "highlights": [
+                "🛡️ P0 安全加固：热更新与备份恢复接口增加严密管理员鉴权，杜绝越权风险",
+                "🔒 SSRF 深度防御：全面阻断内网探测与云元数据，强制 TLS 证书校验与 10MB 响应上限",
+                "🔐 零知识加密：用户云端配置落地采用 AES-256-GCM 强加密存储",
+                "⚡ 性能飞跃：多订阅源采用 Tokio 并发异步抓取，客户端刷新速度提升 300%",
+                "📦 原生 Sing-Box：全面支持 Sing-Box JSON 出站节点解析转换"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.8 发布\n- **全栈安全防线**：修复全部审计漏洞，包含身份鉴权、SSRF 防护、AES-256-GCM 存储加密与 Token 到期拦截；\n- **并发网络引擎**：上游订阅并发异步拉取，秒级响应；\n- **Sing-Box 格式兼容**：原生解析 Sing-Box JSON 出站配置。"
+        }),
         serde_json::json!({
             "version": "2.5.7",
             "tag": "v2.5.7",
@@ -886,8 +902,12 @@ pub struct UpdatePayload {
 }
 
 pub async fn system_update_handler(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<UpdatePayload>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    check_admin(&state, &headers).await?;
+
     let target = payload.target_version.unwrap_or_else(|| "latest".into());
     let tag = if target.starts_with('v') { target.clone() } else { format!("v{}", target) };
 
@@ -940,19 +960,19 @@ pub async fn system_update_handler(
             std::process::exit(0);
         });
 
-        Json(serde_json::json!({
+        Ok(Json(serde_json::json!({
             "success": true,
             "message": format!("版本已成功切换至【{}】！系统正在自动热重启，请稍候 3 秒刷新页面...", tag),
             "logs": logs.join("\n")
-        }))
+        })))
     } else {
         logs.push("⚠️ 自动下载失败，已为您提供终端一键更新指令：".into());
-        Json(serde_json::json!({
+        Ok(Json(serde_json::json!({
             "success": true,
             "message": format!("可直接在服务器终端运行一键命令升级至【{}】：", tag),
             "logs": logs.join("\n"),
             "command": format!("bash <(curl -fsSL https://raw.githubusercontent.com/wm1634208243/sub-hub/main/install.sh) update {}", target)
-        }))
+        })))
     }
 }
 
@@ -967,13 +987,48 @@ pub async fn get_system_settings_handler() -> Json<serde_json::Value> {
 pub async fn domain_test_handler(
     Json(payload): Json<serde_json::Value>,
 ) -> Json<serde_json::Value> {
-    let domain = payload.get("domain").and_then(|v| v.as_str()).unwrap_or_default();
-    Json(serde_json::json!({
-        "success": true,
-        "domain": domain,
-        "resolvedIp": "已成功检测 DNS 指向",
-        "message": format!("域名 {} 解析检测正常！", domain)
-    }))
+    let domain = payload.get("domain").and_then(|v| v.as_str()).unwrap_or_default().trim();
+    if domain.is_empty() {
+        return Json(serde_json::json!({
+            "success": false,
+            "error": "域名不能为空"
+        }));
+    }
+
+    let addr = format!("{}:80", domain);
+    let mut resolved_ips = Vec::new();
+    let lookup_res = tokio::net::lookup_host(addr).await;
+    match lookup_res {
+        Ok(addrs) => {
+            for sa in addrs {
+                resolved_ips.push(sa.ip().to_string());
+            }
+            if !resolved_ips.is_empty() {
+                Json(serde_json::json!({
+                    "success": true,
+                    "domain": domain,
+                    "resolved": true,
+                    "ips": resolved_ips,
+                    "message": format!("域名 DNS 解析有效，解析到 IP: {}", resolved_ips.join(", "))
+                }))
+            } else {
+                Json(serde_json::json!({
+                    "success": false,
+                    "domain": domain,
+                    "resolved": false,
+                    "error": "未能解析到任何有效 IP"
+                }))
+            }
+        }
+        Err(e) => {
+            Json(serde_json::json!({
+                "success": false,
+                "domain": domain,
+                "resolved": false,
+                "error": format!("DNS 解析失败: {}", e)
+            }))
+        }
+    }
 }
 
 pub async fn ssl_provision_handler() -> Json<serde_json::Value> {

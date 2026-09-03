@@ -32,8 +32,8 @@ pub struct SubscriptionFetcher {
 impl SubscriptionFetcher {
     pub fn new() -> Self {
         let client = Client::builder()
-            .timeout(Duration::from_secs(12))
-            .danger_accept_invalid_certs(true)
+            .timeout(Duration::from_secs(15))
+            .danger_accept_invalid_certs(false)
             .user_agent("ClashMeta/v1.18.0 (Clash.Meta; Mihomo; SubHub)")
             .build()
             .unwrap_or_default();
@@ -104,7 +104,21 @@ impl SubscriptionFetcher {
             .unwrap_or_default();
 
         let user_info = parse_user_info(userinfo_header);
-        let body_text = resp.text().await.map_err(|e| format!("读取订阅响应正文失败: {}", e))?;
+
+        // Security: Prevent memory exhaustion via oversized responses (10MB max)
+        let max_size: usize = 10 * 1024 * 1024;
+        if let Some(len) = resp.content_length() {
+            if len as usize > max_size {
+                return Err(format!("上游响应数据超出大小限制 (最大 10MB，当前 {} MB)", len / (1024 * 1024)));
+            }
+        }
+
+        let bytes = resp.bytes().await.map_err(|e| format!("读取订阅响应正文失败: {}", e))?;
+        if bytes.len() > max_size {
+            return Err("上游响应数据超出大小限制 (最大 10MB)".to_string());
+        }
+
+        let body_text = String::from_utf8_lossy(&bytes).to_string();
         let nodes = parse_subscription_content(&body_text, prefix);
         let source_type = detect_source_type(url, &body_text, &nodes);
 
@@ -201,7 +215,17 @@ pub fn parse_subscription_content(content: &str, prefix: &str) -> Vec<ProxyNode>
         }
     }
 
-    // 2. Try Base64 decoding
+    // 2. Try parse as Sing-Box JSON
+    if (trimmed.starts_with('{') && trimmed.ends_with('}')) && trimmed.contains("\"outbounds\"") {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed) {
+            let sb_nodes = crate::engine::protocol_parser::parse_singbox_outbounds(&val, prefix);
+            if !sb_nodes.is_empty() {
+                return sb_nodes;
+            }
+        }
+    }
+
+    // 3. Try Base64 decoding
     let mut target_text = trimmed.to_string();
     let clean_b64 = trimmed.replace(&['\r', '\n', ' ', '\t'][..], "");
     if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&clean_b64) {

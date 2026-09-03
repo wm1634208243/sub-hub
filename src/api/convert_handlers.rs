@@ -198,6 +198,15 @@ pub async fn universal_convert_handler(
     headers: HeaderMap,
     Query(query): Query<ConvertQuery>,
 ) -> Response {
+    let ip = crate::security::extract_client_ip(&headers);
+    let ip_key = format!("convert_rate_ip:{}", ip);
+    if let Err(remaining) = state.rate_limiter.check(&ip_key).await {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            format!("转换接口请求过于频繁，请等待 {} 秒后再试", remaining.as_secs().max(1)),
+        ).into_response();
+    }
+
     let ua = headers.get("user-agent").and_then(|v| v.to_str().ok()).unwrap_or_default();
     let raw_url = match query.url {
         Some(u) if !u.trim().is_empty() => u,
@@ -283,8 +292,20 @@ pub async fn universal_convert_handler(
 /// POST /api/convert/preview - Instant Web Preview and Node Inspection
 pub async fn universal_convert_preview_handler(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<ConvertPreviewPayload>,
 ) -> Result<Json<ConvertPreviewResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let ip = crate::security::extract_client_ip(&headers);
+    let ip_key = format!("convert_rate_ip:{}", ip);
+    if let Err(remaining) = state.rate_limiter.check(&ip_key).await {
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({
+                "error": format!("预览接口请求过于频繁，请等待 {} 秒后再试", remaining.as_secs().max(1))
+            })),
+        ));
+    }
+
     let emoji = payload.emoji.unwrap_or(true);
     let udp = payload.udp.unwrap_or(true);
     let skip_cert = payload.skip_cert_verify.unwrap_or(false);
