@@ -94,8 +94,11 @@ pub fn compile_config_to_js(data: &UserConfig, client_ua: &str) -> String {
     if data.enable_game_group {
         scenario_rules_code.push("    // 🎮 游戏平台规则\n    \"DOMAIN-SUFFIX,steampowered.com,🎮 游戏平台\",\n    \"DOMAIN-SUFFIX,steamcommunity.com,🎮 游戏平台\",\n    \"DOMAIN-SUFFIX,epicgames.com,🎮 游戏平台\",\n    \"DOMAIN-SUFFIX,ea.com,🎮 游戏平台\",\n    \"DOMAIN-SUFFIX,riotgames.com,🎮 游戏平台\",\n    \"DOMAIN-SUFFIX,blizzard.com,🎮 游戏平台\",\n    \"DOMAIN-SUFFIX,playstation.com,🎮 游戏平台\",".into());
     }
+    // 🐙 GitHub / 全球极客开发者生态 (必须置于 Apple/微软 之前，防止被微软直连拦截)
+    scenario_rules_code.push("    // 🐙 GitHub / 全球极客开发者生态 (强制走主代理节点)\n    `DOMAIN-SUFFIX,github.com,${targetProxyName}`,\n    `DOMAIN-SUFFIX,githubusercontent.com,${targetProxyName}`,\n    `DOMAIN-SUFFIX,githubassets.com,${targetProxyName}`,\n    `DOMAIN-SUFFIX,git-lfs.github.com,${targetProxyName}`,\n    `DOMAIN-SUFFIX,github.io,${targetProxyName}`,\n    `DOMAIN-SUFFIX,ghcr.io,${targetProxyName}`,\n    `DOMAIN-KEYWORD,github,${targetProxyName}`,\n    `DOMAIN-SUFFIX,gitlab.com,${targetProxyName}`,\n    `DOMAIN-SUFFIX,nodeseek.com,${targetProxyName}`,\n    `DOMAIN-SUFFIX,linux.do,${targetProxyName}`,\n    `DOMAIN-SUFFIX,v2ex.com,${targetProxyName}`,".into());
+
     if data.enable_apple_group {
-        scenario_rules_code.push("    // 🍎 Apple / 微软服务规则\n    \"DOMAIN-SUFFIX,apple.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,icloud.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,microsoft.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,windowsupdate.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,github.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,githubusercontent.com,🍎 Apple / 微软\",".into());
+        scenario_rules_code.push("    // 🍎 Apple / 微软服务规则 (不含 GitHub)\n    \"DOMAIN-SUFFIX,apple.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,icloud.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,microsoft.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,windowsupdate.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,office.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,live.com,🍎 Apple / 微软\",\n    \"DOMAIN-SUFFIX,azure.com,🍎 Apple / 微软\",".into());
     }
 
     let fake_ip_filter_json = serde_json::to_string_pretty(&data.fake_ip_filter).unwrap_or_else(|_| "[]".into());

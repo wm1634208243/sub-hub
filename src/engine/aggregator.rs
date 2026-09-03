@@ -480,6 +480,17 @@ pub async fn aggregate_clash_yaml(
             rules.push(format!("DOMAIN-SUFFIX,{},🎮 游戏平台", d));
         }
     }
+    // 🐙 GitHub & Developer ecosystems (Placed strictly BEFORE GEOSITE,microsoft to avoid being hijacked into Apple/Microsoft group)
+    rules.push(format!("GEOSITE,github,{}", main_proxy_group));
+    for d in &[
+        "github.com", "githubusercontent.com", "githubassets.com", "git-lfs.github.com",
+        "github.io", "github.community", "github.blog", "ghcr.io",
+        "nodeseek.com", "linux.do", "v2ex.com", "hostloc.com", "gitlab.com"
+    ] {
+        rules.push(format!("DOMAIN-SUFFIX,{},{}", d, main_proxy_group));
+    }
+    rules.push(format!("DOMAIN-KEYWORD,github,{}", main_proxy_group));
+
     if config.enable_apple_group {
         rules.push("GEOSITE,apple,🍎 Apple / 微软".into());
         rules.push("GEOSITE,microsoft,🍎 Apple / 微软".into());
@@ -503,8 +514,7 @@ pub async fn aggregate_clash_yaml(
     }
     // High-priority global tech forums & developer ecosystems
     for d in &[
-        "nodeseek.com", "linux.do", "v2ex.com", "hostloc.com", "github.com", "githubusercontent.com",
-        "githubassets.com", "gitlab.com", "google.com", "googleapis.com", "gstatic.com", "twitter.com",
+        "google.com", "googleapis.com", "gstatic.com", "twitter.com",
         "x.com", "twimg.com", "reddit.com", "redd.it", "medium.com", "discord.com", "discord.gg",
         "notion.so", "huggingface.co", "docker.com", "docker.io", "t.me", "telegram.org",
         "wikipedia.org", "stackoverflow.com", "cloudflare.com", "jsdelivr.net"
