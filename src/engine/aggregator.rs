@@ -603,6 +603,8 @@ pub async fn aggregate_clash_yaml(
     let mut dns_cfg = serde_json::Map::new();
     dns_cfg.insert("enable".into(), serde_json::json!(true));
     dns_cfg.insert("ipv6".into(), serde_json::json!(false));
+    dns_cfg.insert("use-hosts".into(), serde_json::json!(true));
+    dns_cfg.insert("use-system-hosts".into(), serde_json::json!(true));
     dns_cfg.insert("enhanced-mode".into(), serde_json::json!("fake-ip"));
     dns_cfg.insert("fake-ip-range".into(), serde_json::json!("198.18.0.1/16"));
     dns_cfg.insert("default-nameserver".into(), serde_json::json!(["223.5.5.5", "119.29.29.29", "180.76.76.76"]));
@@ -701,6 +703,11 @@ pub async fn aggregate_clash_yaml(
     ns_policy.insert("+.bilibili.com,+.bilivideo.com,+.hdslb.com,+.baidu.com,+.baidupcs.com,+.qq.com,+.weixin.qq.com,+.tencent.com,+.taobao.com,+.aliyun.com,+.aliyuncs.com,+.jd.com,+.163.com,+.126.net,+.zhihu.com,+.douyin.com,+.douyincdn.com,+.douyinvod.com,+.iesdouyin.com,+.bytedance.com,+.byteimg.com,+.bytetos.com,+.pstatp.com,+.snssdk.com,+.zijieapi.com,+.kuaishou.com,+.xiaohongshu.com,+.weibo.com,+.sina.com.cn,+.sohu.com,+.meituan.com,+.amap.com,+.autonavi.com,+.123pan.com,+.wps.com,+.wps.cn,+.wpscdn.com,+.kingsoft.com,+.todesk.com,+.feishu.cn,+.dingtalk.com,+.mi.com,+.xiaomi.com,+.mifile.cn,+.gitee.com,+.csdn.net".into(), domestic_doh);
     dns_cfg.insert("nameserver-policy".into(), serde_json::Value::Object(ns_policy));
     clash_map.insert("dns".into(), serde_json::Value::Object(dns_cfg));
+
+    // High-availability direct domain mapping for SubHub server management
+    let mut hosts_map = serde_json::Map::new();
+    hosts_map.insert("subhub.wmxhub.com".into(), serde_json::json!("64.186.237.84"));
+    clash_map.insert("hosts".into(), serde_json::Value::Object(hosts_map));
 
     if config.enable_sniffer {
         clash_map.insert("sniffer".into(), serde_json::json!({

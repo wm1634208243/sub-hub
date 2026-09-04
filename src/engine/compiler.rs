@@ -309,6 +309,8 @@ function main(config, profileName) {{
   Object.assign(config.dns, {{
     enable: true,
     ipv6: false,
+    "use-hosts": true,
+    "use-system-hosts": true,
     "enhanced-mode": "fake-ip",
     "fake-ip-range": "198.18.0.1/16",
     "default-nameserver": ["223.5.5.5", "119.29.29.29", "1.1.1.1"],
@@ -324,7 +326,9 @@ function main(config, profileName) {{
       "geosite:cn,private": {nameservers_json},
       "+.wmxhub.com": ["https://223.5.5.5/dns-query", "https://1.12.12.12/dns-query", "https://1.1.1.1/dns-query"],
     }},
-  }});{sniffer_str}{loyalsoldier_providers_str}
+  }});
+  config.hosts = config.hosts || {{}};
+  config.hosts["subhub.wmxhub.com"] = "64.186.237.84";{sniffer_str}{loyalsoldier_providers_str}
 
   // 7. 规则末尾追加
   const tailRules = [
