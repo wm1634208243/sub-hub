@@ -654,7 +654,6 @@ pub async fn aggregate_clash_yaml(
         "*.stun.*.*".to_string(),
         "+.msftconnecttest.com".to_string(),
         "+.msftncsi.com".to_string(),
-        "+.wmxhub.com".to_string(),
     ];
     for item in &config.fake_ip_filter {
         let trimmed = item.trim().to_lowercase();
@@ -698,6 +697,7 @@ pub async fn aggregate_clash_yaml(
     ]);
     ns_policy.insert("+.cn".into(), domestic_doh.clone());
     ns_policy.insert("geosite:cn,private".into(), domestic_doh.clone());
+    ns_policy.insert("+.wmxhub.com".into(), domestic_doh.clone());
     ns_policy.insert("+.bilibili.com,+.bilivideo.com,+.hdslb.com,+.baidu.com,+.baidupcs.com,+.qq.com,+.weixin.qq.com,+.tencent.com,+.taobao.com,+.aliyun.com,+.aliyuncs.com,+.jd.com,+.163.com,+.126.net,+.zhihu.com,+.douyin.com,+.douyincdn.com,+.douyinvod.com,+.iesdouyin.com,+.bytedance.com,+.byteimg.com,+.bytetos.com,+.pstatp.com,+.snssdk.com,+.zijieapi.com,+.kuaishou.com,+.xiaohongshu.com,+.weibo.com,+.sina.com.cn,+.sohu.com,+.meituan.com,+.amap.com,+.autonavi.com,+.123pan.com,+.wps.com,+.wps.cn,+.wpscdn.com,+.kingsoft.com,+.todesk.com,+.feishu.cn,+.dingtalk.com,+.mi.com,+.xiaomi.com,+.mifile.cn,+.gitee.com,+.csdn.net".into(), domestic_doh);
     dns_cfg.insert("nameserver-policy".into(), serde_json::Value::Object(ns_policy));
     clash_map.insert("dns".into(), serde_json::Value::Object(dns_cfg));

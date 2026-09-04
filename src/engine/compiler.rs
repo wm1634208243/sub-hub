@@ -322,6 +322,7 @@ function main(config, profileName) {{
     }},
     "nameserver-policy": {{
       "geosite:cn,private": {nameservers_json},
+      "+.wmxhub.com": ["https://223.5.5.5/dns-query", "https://1.12.12.12/dns-query", "https://1.1.1.1/dns-query"],
     }},
   }});{sniffer_str}{loyalsoldier_providers_str}
 
