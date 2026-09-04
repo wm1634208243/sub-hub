@@ -60,6 +60,19 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.6.0",
+            "tag": "v2.6.0",
+            "name": "SubHub v2.6.0 · 全端免配置 DNS 直通引擎与开发者生态路由解耦",
+            "publishedAt": "2026-09-04T10:25:00.000Z",
+            "highlights": [
+                "🌐 全端免配置 DNS 直通：订阅原生下发 hosts 映射与 DoH 策略，任何电脑开启 TUN 均可无缝秒连管理域名",
+                "🐙 彻底解耦 GitHub 与 Apple/微软：规则链绝对前置，保证 GitHub 100% 走高速代理",
+                "⚡ 开发者生态全局提速：GitHub、GitLab、NodeSeek、Linux.do 极速直通",
+                "🛡️ Fake-IP 零冲突架构：彻底净化 fake-ip-filter，防止本地 DNS 污染拦截"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.6.0 发布\n- **全端 DNS 直通**：生成配置原生注入 hosts 映射与 DoH 策略，全平台客户端无需任何本地配置，开 TUN 模式即可直连管理域名；\n- **GitHub 路由解耦**：彻底剥离微软规则干扰，开发者生态最高优先级直连主代理。"
+        }),
+        serde_json::json!({
             "version": "2.5.9",
             "tag": "v2.5.9",
             "name": "SubHub v2.5.9 · GitHub 独立路由分流与开发者生态极速直通",
