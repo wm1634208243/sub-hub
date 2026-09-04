@@ -60,6 +60,18 @@ pub async fn get_versions_handler(
     // 1. Seed with known built-in versions
     let builtins = vec![
         serde_json::json!({
+            "version": "2.5.9",
+            "tag": "v2.5.9",
+            "name": "SubHub v2.5.9 · GitHub 独立路由分流与开发者生态极速直通",
+            "publishedAt": "2026-09-04T08:52:00.000Z",
+            "highlights": [
+                "🐙 彻底解耦 GitHub 与 Apple/微软：彻底剔除将 GitHub 误划入 Apple/微软直连的规则缺陷",
+                "⚡ 开发者生态全局提速：GitHub、GitLab、HuggingFace、Linux.do、NodeSeek 强制直通主代理节点",
+                "🔒 规则自上而下绝对优先级：GEOSITE,github 优于 GEOSITE,microsoft 优先匹配"
+            ],
+            "changelogZh": "### 🚀 SubHub v2.5.9 发布\n- **GitHub 独立分流**：彻底解决 GitHub 误走「Apple / 微软」直连导致 clone/访问报错的问题；\n- **开发者生态优化**：提升 GitHub、GitLab、NodeSeek、Linux.do 等全平台代理优先级。"
+        }),
+        serde_json::json!({
             "version": "2.5.8",
             "tag": "v2.5.8",
             "name": "SubHub v2.5.8 · 全面安全架构加固与并发解析引擎升级",
